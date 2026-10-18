@@ -28,11 +28,6 @@ import com.zylinn.petdiary.ui.navigation.TopLevelDestination
 
 /** Temporary content per tab until each phase implements the real screen. */
 private val roadmap: Map<TopLevelDestination, Pair<String, List<String>>> = mapOf(
-    TopLevelDestination.Pets to ("P1–P3" to listOf(
-        "寵物方格主頁", "新增寵物（必填 + 更多資料）", "寵物剪影圖示", "垃圾桶（保留 7 天）",
-        "寵物詳細頁與一週月曆", "上次紀錄摘要列", "新增紀錄面板", "一鍵記錄・同上次",
-        "多隻寵物一起記錄", "附件（照片 / PDF）", "搜尋",
-    )),
     TopLevelDestination.Reminders to ("P4" to listOf(
         "提醒列表", "重複方式設定", "本機通知", "通知上的「完成」按鈕",
         "今天待辦（主頁）", "從紀錄的下次日期建立提醒", "通知權限引導", "電池最佳化白名單引導",

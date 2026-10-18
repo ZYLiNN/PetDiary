@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import com.zylinn.petdiary.ui.navigation.TopLevelDestination
+import com.zylinn.petdiary.ui.pets.PetHomeRoute
 import com.zylinn.petdiary.ui.screens.PlaceholderScreen
 
 /**
@@ -64,7 +65,10 @@ fun PetDiaryApp() {
         },
     ) {
         stateHolder.SaveableStateProvider(current.name) {
-            PlaceholderScreen(destination = current)
+            when (current) {
+                TopLevelDestination.Pets -> PetHomeRoute(onAddPet = {}, onOpenPet = {})
+                else -> PlaceholderScreen(destination = current)
+            }
         }
     }
 }
