@@ -16,7 +16,7 @@ import com.zylinn.petdiary.data.pet.Pet
 import com.zylinn.petdiary.data.pet.PetInput
 import com.zylinn.petdiary.data.pet.PetRepository
 import com.zylinn.petdiary.data.pet.Species
-import com.zylinn.petdiary.data.photo.PhotoStore
+import com.zylinn.petdiary.data.photo.FileStore
 import com.zylinn.petdiary.ui.theme.PetDiaryTheme
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -46,7 +46,7 @@ class PetDeleteUndoTest {
         db = Room.inMemoryDatabaseBuilder(context, PetDiaryDatabase::class.java).build()
         repo = PetRepository(db.petDao(), Clock.systemUTC())
         pet = repo.add(PetInput(name = "雷米", species = Species.CAT, birthEpochDay = 19_000))
-        val vm = PetHomeViewModel(repo, PhotoStore(File(context.cacheDir, "undo-test")), Clock.systemUTC())
+        val vm = PetHomeViewModel(repo, FileStore(File(context.cacheDir, "undo-test")), Clock.systemUTC())
         rule.setContent {
             PetDiaryTheme { PetHomeScreen(vm = vm, onAddPet = {}, onOpenPet = {}, onEditPet = { edited = it }) }
         }

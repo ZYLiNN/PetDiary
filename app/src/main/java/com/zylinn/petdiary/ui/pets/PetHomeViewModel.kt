@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zylinn.petdiary.data.pet.PetRepository
 import com.zylinn.petdiary.data.pet.Species
-import com.zylinn.petdiary.data.photo.PhotoStore
+import com.zylinn.petdiary.data.photo.FileStore
 import com.zylinn.petdiary.domain.PetAge
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -35,7 +35,7 @@ sealed interface PetHomeState {
 
 class PetHomeViewModel(
     private val repository: PetRepository,
-    photos: PhotoStore,
+    photos: FileStore,
     clock: Clock,
 ) : ViewModel() {
 

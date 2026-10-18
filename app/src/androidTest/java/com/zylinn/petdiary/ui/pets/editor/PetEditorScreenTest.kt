@@ -22,7 +22,7 @@ import com.zylinn.petdiary.data.pet.PetInput
 import com.zylinn.petdiary.data.pet.PetRepository
 import com.zylinn.petdiary.data.pet.Species
 import com.zylinn.petdiary.data.photo.PhotoImporter
-import com.zylinn.petdiary.data.photo.PhotoStore
+import com.zylinn.petdiary.data.photo.FileStore
 import com.zylinn.petdiary.ui.theme.PetDiaryTheme
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -50,14 +50,14 @@ class PetEditorScreenTest {
     private lateinit var db: PetDiaryDatabase
     private lateinit var repo: PetRepository
     private lateinit var photoDir: File
-    private lateinit var photos: PhotoStore
+    private lateinit var photos: FileStore
     private var done = 0
 
     @Before fun setUp() {
         db = Room.inMemoryDatabaseBuilder(context, PetDiaryDatabase::class.java).build()
         repo = PetRepository(db.petDao(), clock)
         photoDir = File(context.cacheDir, "editor-test-photos").apply { deleteRecursively(); mkdirs() }
-        photos = PhotoStore(photoDir)
+        photos = FileStore(photoDir)
     }
 
     @After fun tearDown() {

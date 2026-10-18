@@ -5,7 +5,8 @@ import android.content.Context
 import com.zylinn.petdiary.data.PetDiaryDatabase
 import com.zylinn.petdiary.data.pet.PetRepository
 import com.zylinn.petdiary.data.photo.PhotoImporter
-import com.zylinn.petdiary.data.photo.PhotoStore
+import com.zylinn.petdiary.data.photo.FileStore
+import com.zylinn.petdiary.data.record.RecordRepository
 import com.zylinn.petdiary.data.trash.PurgeTrashWorker
 import com.zylinn.petdiary.data.trash.TrashRepository
 import kotlinx.coroutines.CoroutineScope
@@ -20,10 +21,16 @@ class AppContainer(context: Context) {
     val clock: Clock = Clock.systemDefaultZone()
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val database: PetDiaryDatabase by lazy { PetDiaryDatabase.build(context) }
-    val photoStore: PhotoStore by lazy { PhotoStore(File(context.filesDir, "photos").apply { mkdirs() }) }
+    val photoStore: FileStore by lazy { FileStore(File(context.filesDir, "photos").apply { mkdirs() }) }
+    val attachmentStore: FileStore by lazy { FileStore(File(context.filesDir, "attachments").apply { mkdirs() }) }
     val photoImporter: PhotoImporter by lazy { PhotoImporter(context.contentResolver, photoStore) }
     val petRepository: PetRepository by lazy { PetRepository(database.petDao(), clock) }
-    val trashRepository: TrashRepository by lazy { TrashRepository(database.petDao(), photoStore, clock) }
+    val recordRepository: RecordRepository by lazy {
+        RecordRepository(database.recordDao(), database.attachmentDao(), database.supplementDao(), attachmentStore, clock)
+    }
+    val trashRepository: TrashRepository by lazy {
+        TrashRepository(database.petDao(), database.recordDao(), database.attachmentDao(), photoStore, attachmentStore, clock)
+    }
 }
 
 class PetDiaryApplication : Application() {

@@ -15,7 +15,7 @@ import com.zylinn.petdiary.data.pet.Pet
 import com.zylinn.petdiary.data.pet.PetInput
 import com.zylinn.petdiary.data.pet.PetRepository
 import com.zylinn.petdiary.data.pet.Species
-import com.zylinn.petdiary.data.photo.PhotoStore
+import com.zylinn.petdiary.data.photo.FileStore
 import com.zylinn.petdiary.data.trash.TrashRepository
 import com.zylinn.petdiary.ui.settings.SettingsScreen
 import com.zylinn.petdiary.ui.theme.PetDiaryTheme
@@ -45,7 +45,7 @@ class TrashScreenTest {
     private val start = Instant.parse("2026-10-19T08:00:00Z")
     private fun clockAt(d: Duration) = Clock.fixed(start.plus(d), ZoneOffset.UTC)
     private lateinit var db: PetDiaryDatabase
-    private lateinit var photos: PhotoStore
+    private lateinit var photos: FileStore
     private lateinit var photoDir: File
     private lateinit var trashed: Pet
     private lateinit var active: Pet
@@ -53,7 +53,7 @@ class TrashScreenTest {
     @Before fun setUp() = runBlocking {
         db = Room.inMemoryDatabaseBuilder(context, PetDiaryDatabase::class.java).build()
         photoDir = File(context.cacheDir, "trash-screen-test").apply { deleteRecursively(); mkdirs() }
-        photos = PhotoStore(photoDir)
+        photos = FileStore(photoDir)
         photos.file("t.jpg").writeText("img")
         val repo = PetRepository(db.petDao(), clockAt(Duration.ZERO))
         trashed = repo.add(PetInput(name = "雷米", species = Species.CAT, birthEpochDay = 1, photoFile = "t.jpg"))
@@ -70,7 +70,7 @@ class TrashScreenTest {
         val clock = clockAt(now)
         val vm = TrashViewModel(
             PetRepository(db.petDao(), clock),
-            TrashRepository(db.petDao(), photos, clock),
+            TrashRepository(db.petDao(), db.recordDao(), db.attachmentDao(), photos, photos, clock),
             photos,
             clock,
         )

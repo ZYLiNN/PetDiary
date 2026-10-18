@@ -3,7 +3,7 @@ package com.zylinn.petdiary.ui.trash
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zylinn.petdiary.data.pet.PetRepository
-import com.zylinn.petdiary.data.photo.PhotoStore
+import com.zylinn.petdiary.data.photo.FileStore
 import com.zylinn.petdiary.data.trash.TrashPolicy
 import com.zylinn.petdiary.data.trash.TrashRepository
 import kotlinx.coroutines.flow.SharingStarted
@@ -24,7 +24,7 @@ data class TrashItem(
 class TrashViewModel(
     private val pets: PetRepository,
     private val trash: TrashRepository,
-    photos: PhotoStore,
+    photos: FileStore,
     private val clock: Clock,
 ) : ViewModel() {
 

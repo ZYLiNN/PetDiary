@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.zylinn.petdiary.data.pet.PetRepository
 import com.zylinn.petdiary.data.pet.Sex
 import com.zylinn.petdiary.data.photo.PhotoImporter
-import com.zylinn.petdiary.data.photo.PhotoStore
+import com.zylinn.petdiary.data.photo.FileStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,7 +36,7 @@ data class PetEditorState(
 class PetEditorViewModel(
     private val petId: String?,
     private val repository: PetRepository,
-    private val photos: PhotoStore,
+    private val photos: FileStore,
     private val importer: PhotoImporter,
     private val clock: Clock,
 ) : ViewModel() {

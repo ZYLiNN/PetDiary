@@ -11,7 +11,7 @@ import com.zylinn.petdiary.data.pet.Pet
 import com.zylinn.petdiary.data.pet.PetInput
 import com.zylinn.petdiary.data.pet.PetRepository
 import com.zylinn.petdiary.data.pet.Species
-import com.zylinn.petdiary.data.photo.PhotoStore
+import com.zylinn.petdiary.data.photo.FileStore
 import com.zylinn.petdiary.data.trash.PurgeTrashWorker
 import com.zylinn.petdiary.data.trash.TrashRepository
 import kotlinx.coroutines.flow.first
@@ -38,14 +38,14 @@ class TrashRepositoryTest {
     private val start = Instant.parse("2026-10-19T08:00:00Z")
     private lateinit var db: PetDiaryDatabase
     private lateinit var photoDir: File
-    private lateinit var photos: PhotoStore
+    private lateinit var photos: FileStore
 
     private fun clockAt(offset: Duration) = Clock.fixed(start.plus(offset), ZoneOffset.UTC)
 
     @Before fun setUp() {
         db = Room.inMemoryDatabaseBuilder(context, PetDiaryDatabase::class.java).build()
         photoDir = File(context.cacheDir, "trash-test-photos").apply { deleteRecursively(); mkdirs() }
-        photos = PhotoStore(photoDir)
+        photos = FileStore(photoDir)
     }
 
     @After fun tearDown() {
@@ -68,7 +68,7 @@ class TrashRepositoryTest {
         PetRepository(db.petDao(), clockAt(Duration.ofDays(2))).moveToTrash("recent")
 
         // 7 days after "old" was deleted; "recent" has been in the trash for 5 days.
-        val purged = TrashRepository(db.petDao(), photos, clockAt(Duration.ofDays(7))).purgeExpired()
+        val purged = TrashRepository(db.petDao(), db.recordDao(), db.attachmentDao(), photos, photos, clockAt(Duration.ofDays(7))).purgeExpired()
 
         assertEquals(1, purged)
         assertNull(db.petDao().getById("old"))
@@ -82,7 +82,7 @@ class TrashRepositoryTest {
     @Test fun notPurgedOneMillisecondBeforeDeadline() = runTest {
         addPetWithPhoto("p", "p.jpg")
         PetRepository(db.petDao(), clockAt(Duration.ZERO)).moveToTrash("p")
-        val purged = TrashRepository(db.petDao(), photos, clockAt(Duration.ofDays(7).minusMillis(1))).purgeExpired()
+        val purged = TrashRepository(db.petDao(), db.recordDao(), db.attachmentDao(), photos, photos, clockAt(Duration.ofDays(7).minusMillis(1))).purgeExpired()
         assertEquals(0, purged)
         assertTrue(photos.exists("p.jpg"))
     }
@@ -105,7 +105,7 @@ class TrashRepositoryTest {
         addPetWithPhoto("active", "a.jpg")
         addPetWithPhoto("trashed", "t.jpg")
         PetRepository(db.petDao(), clockAt(Duration.ZERO)).moveToTrash("trashed")
-        val trash = TrashRepository(db.petDao(), photos, clockAt(Duration.ofHours(1)))
+        val trash = TrashRepository(db.petDao(), db.recordDao(), db.attachmentDao(), photos, photos, clockAt(Duration.ofHours(1)))
 
         trash.deletePermanently("active")
         trash.deletePermanently("trashed")

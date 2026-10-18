@@ -12,12 +12,12 @@ import java.util.UUID
 import kotlin.math.max
 
 /**
- * Copies a picked or captured image into the app's [PhotoStore] as a downscaled JPEG,
+ * Copies a picked or captured image into the app's [FileStore] as a downscaled JPEG,
  * so the original can be deleted from the gallery without breaking the pet's avatar.
  */
 class PhotoImporter(
     private val resolver: ContentResolver,
-    private val store: PhotoStore,
+    private val store: FileStore,
 ) {
     /** Returns the stored file name. */
     suspend fun import(uri: Uri): String = withContext(Dispatchers.IO) {
