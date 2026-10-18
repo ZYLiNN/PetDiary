@@ -78,7 +78,7 @@ fun PetDetailScreen(
     vm: PetDetailViewModel,
     onBack: () -> Unit,
     onPickType: (RecordType, List<String>, LocalDate) -> Unit,
-    onOpenRecord: (String) -> Unit,
+    onOpenRecord: (id: String, type: RecordType, day: LocalDate) -> Unit,
     snackbar: SnackbarHostState = remember { SnackbarHostState() },
     cardModifier: @Composable (RecordCard, @Composable () -> Unit) -> Unit = { _, content -> content() },
 ) {
@@ -160,7 +160,7 @@ fun PetDetailScreen(
                     }
                     RecordList(
                         cards = cards,
-                        onOpenRecord = onOpenRecord,
+                        onOpenRecord = { card -> onOpenRecord(card.id, card.type, calendar.selected) },
                         cardModifier = cardModifier,
                         modifier = Modifier.weight(1f).fillMaxHeight().testTag("records_pane"),
                     )
@@ -178,7 +178,7 @@ fun PetDetailScreen(
                     }
                     RecordList(
                         cards = cards,
-                        onOpenRecord = onOpenRecord,
+                        onOpenRecord = { card -> onOpenRecord(card.id, card.type, calendar.selected) },
                         cardModifier = cardModifier,
                         modifier = Modifier.weight(1f).testTag("records_pane"),
                     )
@@ -225,7 +225,7 @@ private fun LastChipsRow(chips: List<LastChip>) {
 @Composable
 private fun RecordList(
     cards: List<RecordCard>?,
-    onOpenRecord: (String) -> Unit,
+    onOpenRecord: (RecordCard) -> Unit,
     cardModifier: @Composable (RecordCard, @Composable () -> Unit) -> Unit,
     modifier: Modifier,
 ) {
@@ -248,7 +248,7 @@ private fun RecordList(
                 }
             }
             items(list, key = { it.id }) { card ->
-                cardModifier(card) { RecordCardView(card, onClick = { onOpenRecord(card.id) }) }
+                cardModifier(card) { RecordCardView(card, onClick = { onOpenRecord(card) }) }
             }
         }
     }

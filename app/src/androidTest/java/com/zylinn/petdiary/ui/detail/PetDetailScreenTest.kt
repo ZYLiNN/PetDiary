@@ -69,7 +69,7 @@ class PetDetailScreenTest {
         rule.setContent {
             PetDiaryTheme {
                 FitToScreen(width, height) {
-                    PetDetailScreen(vm = vm, onBack = {}, onPickType = { _, _, _ -> }, onOpenRecord = {})
+                    PetDetailScreen(vm = vm, onBack = {}, onPickType = { _, _, _ -> }, onOpenRecord = { _, _, _ -> })
                 }
             }
         }

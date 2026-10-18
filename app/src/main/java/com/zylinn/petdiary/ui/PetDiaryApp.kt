@@ -22,6 +22,7 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import com.zylinn.petdiary.data.record.RecordType
 import com.zylinn.petdiary.ui.detail.PetDetailScreen
 import com.zylinn.petdiary.ui.detail.PetDetailViewModel
 import com.zylinn.petdiary.ui.navigation.Main
@@ -33,10 +34,13 @@ import com.zylinn.petdiary.ui.navigation.Trash
 import com.zylinn.petdiary.ui.pets.PetHomeRoute
 import com.zylinn.petdiary.ui.pets.editor.PetEditorScreen
 import com.zylinn.petdiary.ui.pets.editor.PetEditorViewModel
+import com.zylinn.petdiary.ui.records.RecordEditorScreen
+import com.zylinn.petdiary.ui.records.RecordEditorViewModel
 import com.zylinn.petdiary.ui.screens.PlaceholderScreen
 import com.zylinn.petdiary.ui.settings.SettingsScreen
 import com.zylinn.petdiary.ui.trash.TrashScreen
 import com.zylinn.petdiary.ui.trash.TrashViewModel
+import java.time.LocalDate
 
 /** Root navigation: the tabbed main screen, with full-screen pages (editor, detail…) pushed on top. */
 @Composable
@@ -68,12 +72,22 @@ fun PetDiaryApp() {
                     vm = vm,
                     onBack = back,
                     onPickType = { type, petIds, day -> navigate(RecordEditor(petIds, type.name, day.toEpochDay())) },
-                    onOpenRecord = {},
+                    onOpenRecord = { id, type, day -> navigate(RecordEditor(listOf(key.petId), type.name, day.toEpochDay(), id)) },
                 )
             }
-            entry<RecordEditor> {
-                // Replaced by the real record form in P2 / N5.
-                PlaceholderScreen(destination = TopLevelDestination.Stats)
+            entry<RecordEditor> { key ->
+                val vm = containerViewModel {
+                    RecordEditorViewModel(
+                        petIds = key.petIds,
+                        type = RecordType.valueOf(key.type),
+                        date = LocalDate.ofEpochDay(key.dateEpochDay),
+                        recordId = key.recordId,
+                        pets = it.petRepository,
+                        records = it.recordRepository,
+                        clock = it.clock,
+                    )
+                }
+                RecordEditorScreen(vm = vm, onDone = back)
             }
             entry<Trash> {
                 val vm = containerViewModel { TrashViewModel(it.petRepository, it.trashRepository, it.photoStore, it.clock) }

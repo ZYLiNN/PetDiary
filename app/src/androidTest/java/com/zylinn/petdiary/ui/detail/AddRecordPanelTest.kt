@@ -66,7 +66,7 @@ class AddRecordPanelTest {
         rule.setContent {
             PetDiaryTheme {
                 FitToScreen(width, 900.dp) {
-                    PetDetailScreen(vm = vm, onBack = {}, onPickType = { t, p, d -> picked = Triple(t, p, d) }, onOpenRecord = {})
+                    PetDetailScreen(vm = vm, onBack = {}, onPickType = { t, p, d -> picked = Triple(t, p, d) }, onOpenRecord = { _, _, _ -> })
                 }
             }
         }
