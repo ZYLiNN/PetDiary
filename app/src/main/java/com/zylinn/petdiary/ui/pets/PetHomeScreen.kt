@@ -1,6 +1,7 @@
 package com.zylinn.petdiary.ui.pets
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,40 +19,92 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zylinn.petdiary.ui.containerViewModel
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** Minimum tile width: 2 columns on a folded phone, 3–4 when unfolded. */
 private val TileMinWidth = 168.dp
 
 @Composable
-fun PetHomeRoute(onAddPet: () -> Unit, onOpenPet: (String) -> Unit) {
+fun PetHomeRoute(onAddPet: () -> Unit, onOpenPet: (String) -> Unit, onEditPet: (String) -> Unit) {
     val vm = containerViewModel { PetHomeViewModel(it.petRepository, it.photoStore, it.clock) }
-    val state by vm.state.collectAsStateWithLifecycle()
-    PetHomeScreen(state = state, onAddPet = onAddPet, onOpenPet = onOpenPet)
+    PetHomeScreen(vm = vm, onAddPet = onAddPet, onOpenPet = onOpenPet, onEditPet = onEditPet)
 }
+
+/** Binds [PetHomeViewModel] to the stateless screen, including the 5-second undo snackbar. */
+@Composable
+fun PetHomeScreen(
+    vm: PetHomeViewModel,
+    onAddPet: () -> Unit,
+    onOpenPet: (String) -> Unit,
+    onEditPet: (String) -> Unit,
+) {
+    val state by vm.state.collectAsStateWithLifecycle()
+    val justDeleted by vm.justDeleted.collectAsStateWithLifecycle()
+    val snackbar = remember { SnackbarHostState() }
+
+    LaunchedEffect(justDeleted) {
+        val deleted = justDeleted ?: return@LaunchedEffect
+        // Material snackbars only offer 4s / 10s, so show indefinitely and close after exactly 5s.
+        val result = withTimeoutOrNull(UNDO_WINDOW_MS) {
+            snackbar.showSnackbar(
+                message = "已將「${deleted.name}」移到垃圾桶",
+                actionLabel = "復原",
+                duration = SnackbarDuration.Indefinite,
+            )
+        }
+        if (result == SnackbarResult.ActionPerformed) vm.undo(deleted) else vm.undoExpired()
+    }
+
+    PetHomeScreen(
+        state = state,
+        onAddPet = onAddPet,
+        onOpenPet = onOpenPet,
+        onEditPet = onEditPet,
+        onDeletePet = { tile -> vm.delete(tile.id, tile.name) },
+        snackbarHost = { SnackbarHost(snackbar, modifier = Modifier.testTag("snackbar")) },
+    )
+}
+
+const val UNDO_WINDOW_MS = 5_000L
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,8 +112,12 @@ fun PetHomeScreen(
     state: PetHomeState,
     onAddPet: () -> Unit,
     onOpenPet: (String) -> Unit,
+    onEditPet: (String) -> Unit = {},
+    onDeletePet: (PetTile) -> Unit = {},
+    snackbarHost: @Composable () -> Unit = {},
 ) {
     Scaffold(
+        snackbarHost = snackbarHost,
         topBar = {
             TopAppBar(
                 title = { Text("我的毛孩") },
@@ -88,7 +145,12 @@ fun PetHomeScreen(
                 }
             }
             items(pets, key = { it.id }) { pet ->
-                PetTileCard(pet = pet, onClick = { onOpenPet(pet.id) })
+                PetTileCard(
+                    pet = pet,
+                    onClick = { onOpenPet(pet.id) },
+                    onEdit = { onEditPet(pet.id) },
+                    onDelete = { onDeletePet(pet) },
+                )
             }
             item(key = "add") { AddPetTile(onClick = onAddPet) }
         }
@@ -96,15 +158,43 @@ fun PetHomeScreen(
 }
 
 @Composable
-private fun PetTileCard(pet: PetTile, onClick: () -> Unit) {
+private fun PetTileCard(pet: PetTile, onClick: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
+    var menuOpen by remember { mutableStateOf(false) }
     Card(
-        onClick = onClick,
         shape = MaterialTheme.shapes.extraLarge,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        modifier = Modifier.fillMaxWidth().testTag("pet_tile_${pet.id}"),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.extraLarge)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = { menuOpen = true },
+                onLongClickLabel = "編輯或刪除",
+            )
+            .semantics {
+                customActions = listOf(
+                    CustomAccessibilityAction("編輯") { onEdit(); true },
+                    CustomAccessibilityAction("刪除") { onDelete(); true },
+                )
+            }
+            .testTag("pet_tile_${pet.id}"),
     ) {
         Box(Modifier.fillMaxWidth()) {
+            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                DropdownMenuItem(
+                    text = { Text("編輯") },
+                    leadingIcon = { Icon(Icons.Outlined.Edit, contentDescription = null) },
+                    onClick = { menuOpen = false; onEdit() },
+                    modifier = Modifier.testTag("menu_edit"),
+                )
+                DropdownMenuItem(
+                    text = { Text("刪除") },
+                    leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = null) },
+                    onClick = { menuOpen = false; onDelete() },
+                    modifier = Modifier.testTag("menu_delete"),
+                )
+            }
             Icon(
                 painter = painterResource(pet.species.silhouette),
                 contentDescription = null,

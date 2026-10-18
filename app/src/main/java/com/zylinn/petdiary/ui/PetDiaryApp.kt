@@ -105,6 +105,7 @@ private fun MainScreen(navigate: (NavKey) -> Unit) {
                 TopLevelDestination.Pets -> PetHomeRoute(
                     onAddPet = { navigate(PetEditor()) },
                     onOpenPet = {},
+                    onEditPet = { id -> navigate(PetEditor(id)) },
                 )
                 else -> PlaceholderScreen(destination = current)
             }
