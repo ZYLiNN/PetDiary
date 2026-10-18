@@ -17,6 +17,9 @@ interface PetDao {
     @Query("SELECT * FROM pets WHERE id = :id")
     suspend fun getById(id: String): Pet?
 
+    @Query("SELECT * FROM pets WHERE id = :id")
+    fun observeById(id: String): Flow<Pet?>
+
     @Upsert
     suspend fun upsert(pet: Pet)
 

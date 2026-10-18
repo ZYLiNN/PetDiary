@@ -1,0 +1,269 @@
+package com.zylinn.petdiary.ui.detail
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.AttachFile
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.zylinn.petdiary.domain.RecordFormat.label
+import com.zylinn.petdiary.ui.pets.PetAvatar
+import com.zylinn.petdiary.ui.records.color
+import com.zylinn.petdiary.ui.records.icon
+
+/** Width at which the calendar and the record list sit side by side (P2-10). */
+private val TwoPaneMinWidth = 600.dp
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PetDetailScreen(
+    vm: PetDetailViewModel,
+    onBack: () -> Unit,
+    onAddRecord: () -> Unit,
+    onOpenRecord: (String) -> Unit,
+    snackbar: SnackbarHostState = remember { SnackbarHostState() },
+    cardModifier: @Composable (RecordCard, @Composable () -> Unit) -> Unit = { _, content -> content() },
+) {
+    val header by vm.header.collectAsStateWithLifecycle()
+    val calendar by vm.calendar.collectAsStateWithLifecycle()
+    val cards by vm.cards.collectAsStateWithLifecycle()
+    val chips by vm.lastChips.collectAsStateWithLifecycle()
+    BackHandler(onBack = onBack)
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回") }
+                },
+                title = { Text(calendar.selected.titleText(), modifier = Modifier.testTag("detail_title")) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = onAddRecord,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.testTag("fab_add_record"),
+            ) { Icon(Icons.Filled.Add, contentDescription = "新增紀錄") }
+        },
+        snackbarHost = { SnackbarHost(snackbar) },
+        containerColor = MaterialTheme.colorScheme.background,
+    ) { padding ->
+        BoxWithConstraints(Modifier.fillMaxSize().padding(padding)) {
+            val paneWidth = maxWidth
+            val twoPane = paneWidth >= TwoPaneMinWidth
+            if (twoPane) {
+                Row(Modifier.fillMaxSize()) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier
+                            .width(minOf(paneWidth * 0.45f, 420.dp))
+                            .fillMaxHeight()
+                            .verticalScroll(rememberScrollState())
+                            .padding(16.dp)
+                            .testTag("calendar_pane"),
+                    ) {
+                        header?.let { HeaderRow(it) }
+                        // Wide screens always show the whole month next to the list.
+                        MonthCalendar(calendar, vm::select, vm::shiftMonth)
+                        LastChipsRow(chips)
+                    }
+                    RecordList(
+                        cards = cards,
+                        onOpenRecord = onOpenRecord,
+                        cardModifier = cardModifier,
+                        modifier = Modifier.weight(1f).fillMaxHeight().testTag("records_pane"),
+                    )
+                }
+            } else {
+                Column(Modifier.fillMaxSize()) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(horizontal = 16.dp).testTag("calendar_pane"),
+                    ) {
+                        header?.let { HeaderRow(it) }
+                        WeekStrip(calendar, vm::select, vm::shiftWeek, vm::toggleExpanded, showExpandToggle = true)
+                        if (calendar.expanded) MonthCalendar(calendar, vm::select, vm::shiftMonth)
+                        LastChipsRow(chips)
+                    }
+                    RecordList(
+                        cards = cards,
+                        onOpenRecord = onOpenRecord,
+                        cardModifier = cardModifier,
+                        modifier = Modifier.weight(1f).testTag("records_pane"),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeaderRow(header: PetHeader) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        PetAvatar(name = header.name, seed = header.id, photo = header.photo, size = 44.dp)
+        Column {
+            Text(header.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                header.subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag("header_subtitle"),
+            )
+        }
+    }
+}
+
+/** "上次紀錄" strip: answers "when was the last deworming?" without searching. */
+@Composable
+private fun LastChipsRow(chips: List<LastChip>) {
+    if (chips.isEmpty()) return
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.testTag("last_chips")) {
+        items(chips, key = { it.type }) { chip ->
+            AssistChip(
+                onClick = {},
+                label = { Text(chip.text, style = MaterialTheme.typography.labelMedium) },
+                leadingIcon = { Icon(chip.type.icon, contentDescription = null, tint = chip.type.color, modifier = Modifier.size(16.dp)) },
+                colors = AssistChipDefaults.assistChipColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                border = null,
+                modifier = Modifier.testTag("last_${chip.type.name}"),
+            )
+        }
+    }
+}
+
+@Composable
+private fun RecordList(
+    cards: List<RecordCard>?,
+    onOpenRecord: (String) -> Unit,
+    cardModifier: @Composable (RecordCard, @Composable () -> Unit) -> Unit,
+    modifier: Modifier,
+) {
+    val list = cards ?: return
+    Box(modifier, contentAlignment = Alignment.TopCenter) {
+        LazyColumn(
+            // Bottom padding keeps the last card clear of the FAB (P2-04).
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.widthIn(max = 720.dp).fillMaxWidth().testTag("record_list"),
+        ) {
+            if (list.isEmpty()) {
+                item {
+                    Text(
+                        "這天還沒有紀錄，按右下角「＋」新增",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 24.dp).testTag("records_empty"),
+                    )
+                }
+            }
+            items(list, key = { it.id }) { card ->
+                cardModifier(card) { RecordCardView(card, onClick = { onOpenRecord(card.id) }) }
+            }
+        }
+    }
+}
+
+@Composable
+fun RecordCardView(card: RecordCard, onClick: () -> Unit) {
+    val color = card.type.color
+    val shape = RoundedCornerShape(14.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min)
+            .clip(shape)
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outline, shape)
+            .clickable(onClick = onClick)
+            .testTag("record_${card.id}"),
+    ) {
+        Box(Modifier.width(5.dp).fillMaxHeight().background(color))
+        Row(
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(color.copy(alpha = 0.14f)),
+            ) {
+                Icon(
+                    card.type.icon,
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.size(20.dp).semantics { contentDescription = "${card.type.label}圖示" },
+                )
+            }
+            Column(Modifier.weight(1f)) {
+                Text(card.type.label, style = MaterialTheme.typography.titleSmall)
+                if (card.summary.isNotEmpty()) {
+                    Text(card.summary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                card.note?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(card.time, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (card.attachmentCount > 0) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.testTag("attach_count_${card.id}")) {
+                        Icon(Icons.Outlined.AttachFile, contentDescription = "附件", modifier = Modifier.size(14.dp))
+                        Text("${card.attachmentCount}", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            }
+        }
+    }
+}

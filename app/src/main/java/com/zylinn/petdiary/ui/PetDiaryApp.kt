@@ -22,7 +22,10 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import com.zylinn.petdiary.ui.detail.PetDetailScreen
+import com.zylinn.petdiary.ui.detail.PetDetailViewModel
 import com.zylinn.petdiary.ui.navigation.Main
+import com.zylinn.petdiary.ui.navigation.PetDetail
 import com.zylinn.petdiary.ui.navigation.PetEditor
 import com.zylinn.petdiary.ui.navigation.TopLevelDestination
 import com.zylinn.petdiary.ui.navigation.Trash
@@ -55,6 +58,12 @@ fun PetDiaryApp() {
                     PetEditorViewModel(key.petId, it.petRepository, it.photoStore, it.photoImporter, it.clock)
                 }
                 PetEditorScreen(vm = vm, onDone = back)
+            }
+            entry<PetDetail> { key ->
+                val vm = containerViewModel {
+                    PetDetailViewModel(key.petId, it.petRepository, it.recordRepository, it.photoStore, it.clock)
+                }
+                PetDetailScreen(vm = vm, onBack = back, onAddRecord = {}, onOpenRecord = {})
             }
             entry<Trash> {
                 val vm = containerViewModel { TrashViewModel(it.petRepository, it.trashRepository, it.photoStore, it.clock) }
@@ -112,7 +121,7 @@ private fun MainScreen(navigate: (NavKey) -> Unit) {
             when (current) {
                 TopLevelDestination.Pets -> PetHomeRoute(
                     onAddPet = { navigate(PetEditor()) },
-                    onOpenPet = {},
+                    onOpenPet = { id -> navigate(PetDetail(id)) },
                     onEditPet = { id -> navigate(PetEditor(id)) },
                 )
                 TopLevelDestination.Settings -> SettingsScreen(onOpenTrash = { navigate(Trash) })

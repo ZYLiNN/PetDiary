@@ -14,3 +14,7 @@ data class PetEditor(val petId: String? = null) : NavKey
 /** Trash: pets (and later records) deleted within the last 7 days. */
 @Serializable
 data object Trash : NavKey
+
+/** A pet's daily records. */
+@Serializable
+data class PetDetail(val petId: String) : NavKey

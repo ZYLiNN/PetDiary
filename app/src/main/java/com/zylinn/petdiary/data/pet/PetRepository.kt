@@ -29,6 +29,8 @@ class PetRepository(
 
     suspend fun get(id: String): Pet? = dao.getById(id)
 
+    fun observe(id: String): Flow<Pet?> = dao.observeById(id)
+
     suspend fun add(input: PetInput): Pet {
         val now = clock.millis()
         val pet = input.toPet(id = newId(), createdAt = now, updatedAt = now)
