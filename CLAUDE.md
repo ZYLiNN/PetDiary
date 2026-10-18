@@ -15,6 +15,10 @@
 - 資料結構從第一天就要能同步：UUID 主鍵、`updatedAt`、軟刪除旗標。
 - 折疊螢幕必須支援（OPPO Find N6、Samsung Fold 8 寬折疊）：依寬度＋高度的 Window Size Class 排版，不鎖定方向，折疊/攤開時狀態不能遺失。
 - 模擬器：`Pixel_10_Pro_Fold`；JDK 使用 Android Studio 內建 JBR。
+- 自動測試時用無視窗模式啟動模擬器，避免 API 37 的 GPU 問題造成當機：
+  `emulator -avd Pixel_10_Pro_Fold -no-window -no-audio -gpu swiftshader_indirect -no-snapshot-save -no-boot-anim`
+  開機後等系統負載（`/proc/loadavg`）降到 8 以下再跑測試。
+- 截圖：`adb exec-out screencap -p` 輸出前面會多一段「多螢幕」警告文字，要從 PNG 標頭（`\x89PNG`）開始截取。
 
 ## 版本控制（必須遵守）
 - **每一次修改都要 commit**，訊息使用 Conventional Commits 格式（`feat:`、`fix:`、`docs:`、`test:`、`refactor:`、`chore:`）。
