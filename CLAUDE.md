@@ -18,6 +18,7 @@
 
 ## 版本控制（必須遵守）
 - **每一次修改都要 commit**，訊息使用 Conventional Commits 格式（`feat:`、`fix:`、`docs:`、`test:`、`refactor:`、`chore:`）。
+- commit 後推送到 GitHub（`origin` = https://github.com/ZYLiNN/PetDiary ，Private）。
 - 不要把 keystore、`google-services.json`、`local.properties` commit 進去。
 
 ## Loop 紀錄（必須遵守）

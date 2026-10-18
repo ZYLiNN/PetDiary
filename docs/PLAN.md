@@ -252,6 +252,6 @@ flowchart TD
 - [x] 建立 git 版本控制
 - [x] 確認簡化提案 S1～S12
 - [x] 風格選定：C 奶茶柔和（`docs/design/MASTER.md`）
-- [ ] 決定是否建立 GitHub 遠端 repo
+- [x] 建立 GitHub Private repo：https://github.com/ZYLiNN/PetDiary
 - [ ] 開始 P0
 - [ ] 開始 P0
