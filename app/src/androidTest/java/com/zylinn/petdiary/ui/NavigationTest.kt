@@ -1,10 +1,10 @@
 package com.zylinn.petdiary.ui
 
+import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
-import androidx.compose.ui.test.assertTouchHeightIsAtLeast
-import androidx.compose.ui.test.assertTouchWidthIsAtLeast
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.assertWidthIsAtLeast
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -60,8 +60,8 @@ class NavigationTest {
     @Test fun tabsMeetMinimumTouchTarget() {
         TopLevelDestination.entries.forEach { dest ->
             rule.onNodeWithTag("tab_${dest.name}")
-                .assertTouchHeightIsAtLeast(48.dp)
-                .assertTouchWidthIsAtLeast(48.dp)
+                .assertHeightIsAtLeast(48.dp)
+                .assertWidthIsAtLeast(48.dp)
         }
     }
 }

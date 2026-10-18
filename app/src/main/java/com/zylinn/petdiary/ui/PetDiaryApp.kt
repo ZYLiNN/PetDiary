@@ -1,7 +1,11 @@
 package com.zylinn.petdiary.ui
 
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteDefaults
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -24,6 +28,20 @@ import com.zylinn.petdiary.ui.screens.PlaceholderScreen
 fun PetDiaryApp() {
     var current by rememberSaveable { mutableStateOf(TopLevelDestination.Pets) }
     val stateHolder = rememberSaveableStateHolder()
+    val scheme = MaterialTheme.colorScheme
+    // Selected tab uses the brand brown instead of the default secondary (sage) color.
+    val itemColors = NavigationSuiteDefaults.itemColors(
+        navigationBarItemColors = NavigationBarItemDefaults.colors(
+            selectedIconColor = scheme.primary,
+            selectedTextColor = scheme.primary,
+            indicatorColor = scheme.surfaceVariant,
+        ),
+        navigationRailItemColors = NavigationRailItemDefaults.colors(
+            selectedIconColor = scheme.primary,
+            selectedTextColor = scheme.primary,
+            indicatorColor = scheme.surfaceVariant,
+        ),
+    )
 
     NavigationSuiteScaffold(
         navigationSuiteItems = {
@@ -39,6 +57,7 @@ fun PetDiaryApp() {
                         )
                     },
                     label = { Text(stringResource(dest.label)) },
+                    colors = itemColors,
                     modifier = Modifier.testTag("tab_${dest.name}"),
                 )
             }
