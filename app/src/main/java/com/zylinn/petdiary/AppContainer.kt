@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import com.zylinn.petdiary.data.PetDiaryDatabase
 import com.zylinn.petdiary.data.pet.PetRepository
+import com.zylinn.petdiary.data.photo.PhotoImporter
 import com.zylinn.petdiary.data.photo.PhotoStore
 import com.zylinn.petdiary.data.trash.PurgeTrashWorker
 import com.zylinn.petdiary.data.trash.TrashRepository
@@ -20,6 +21,7 @@ class AppContainer(context: Context) {
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val database: PetDiaryDatabase by lazy { PetDiaryDatabase.build(context) }
     val photoStore: PhotoStore by lazy { PhotoStore(File(context.filesDir, "photos").apply { mkdirs() }) }
+    val photoImporter: PhotoImporter by lazy { PhotoImporter(context.contentResolver, photoStore) }
     val petRepository: PetRepository by lazy { PetRepository(database.petDao(), clock) }
     val trashRepository: TrashRepository by lazy { TrashRepository(database.petDao(), photoStore, clock) }
 }
