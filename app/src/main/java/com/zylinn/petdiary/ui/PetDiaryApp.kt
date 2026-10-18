@@ -85,6 +85,8 @@ fun PetDiaryApp() {
                         pets = it.petRepository,
                         records = it.recordRepository,
                         clock = it.clock,
+                        attachmentFiles = it.attachmentStore,
+                        importer = it.attachmentImporter,
                     )
                 }
                 RecordEditorScreen(vm = vm, onDone = back)

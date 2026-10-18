@@ -2,4 +2,6 @@
 <paths>
     <!-- Temporary camera captures; imported photos are copied to filesDir/photos. -->
     <cache-path name="camera" path="camera/" />
+    <!-- Record attachments, shared read-only with viewer apps (PDF readers, galleries). -->
+    <files-path name="attachments" path="attachments/" />
 </paths>

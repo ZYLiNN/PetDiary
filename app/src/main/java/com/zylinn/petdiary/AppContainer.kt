@@ -5,6 +5,7 @@ import android.content.Context
 import com.zylinn.petdiary.data.PetDiaryDatabase
 import com.zylinn.petdiary.data.pet.PetRepository
 import com.zylinn.petdiary.data.photo.PhotoImporter
+import com.zylinn.petdiary.data.photo.AttachmentImporter
 import com.zylinn.petdiary.data.photo.FileStore
 import com.zylinn.petdiary.data.record.RecordRepository
 import com.zylinn.petdiary.data.trash.PurgeTrashWorker
@@ -24,6 +25,7 @@ class AppContainer(context: Context) {
     val photoStore: FileStore by lazy { FileStore(File(context.filesDir, "photos").apply { mkdirs() }) }
     val attachmentStore: FileStore by lazy { FileStore(File(context.filesDir, "attachments").apply { mkdirs() }) }
     val photoImporter: PhotoImporter by lazy { PhotoImporter(context.contentResolver, photoStore) }
+    val attachmentImporter: AttachmentImporter by lazy { AttachmentImporter(context.contentResolver, attachmentStore) }
     val petRepository: PetRepository by lazy { PetRepository(database.petDao(), clock) }
     val recordRepository: RecordRepository by lazy {
         RecordRepository(database.recordDao(), database.attachmentDao(), database.supplementDao(), attachmentStore, clock)

@@ -20,6 +20,7 @@ import com.zylinn.petdiary.data.pet.PetInput
 import com.zylinn.petdiary.data.pet.PetRepository
 import com.zylinn.petdiary.data.pet.Species
 import com.zylinn.petdiary.data.photo.FileStore
+import com.zylinn.petdiary.data.record.NewAttachment
 import com.zylinn.petdiary.data.record.RecordInput
 import com.zylinn.petdiary.data.record.RecordRepository
 import com.zylinn.petdiary.data.record.RecordType
@@ -171,5 +172,21 @@ class PetDetailScreenTest {
         show()
         rule.onNodeWithTag("record_list").performScrollToIndex(49)
         rule.onNodeWithTag("record_${ids.last()}").assertIsDisplayed()
+    }
+
+    // P2-16
+    @Test fun cardShowsAttachmentCount() {
+        val dir = File(context.cacheDir, "detail-test").apply { mkdirs() }
+        File(dir, "a.pdf").writeText("x"); File(dir, "b.pdf").writeText("y")
+        val id = runBlocking {
+            records.addForPets(
+                listOf(petId),
+                RecordInput(RecordType.VET, today.toEpochDay(), 600, title = "健檢"),
+                listOf(NewAttachment("a.pdf", "application/pdf", "a.pdf", 1), NewAttachment("b.pdf", "application/pdf", "b.pdf", 1)),
+            ).single()
+        }
+        show()
+        rule.onNodeWithTag("attach_count_$id", useUnmergedTree = true).assertExists()
+        rule.onNodeWithText("2", useUnmergedTree = true).assertExists()
     }
 }

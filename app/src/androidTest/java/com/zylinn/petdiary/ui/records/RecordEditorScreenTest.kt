@@ -20,6 +20,7 @@ import com.zylinn.petdiary.data.PetDiaryDatabase
 import com.zylinn.petdiary.data.pet.PetInput
 import com.zylinn.petdiary.data.pet.PetRepository
 import com.zylinn.petdiary.data.pet.Species
+import com.zylinn.petdiary.data.photo.AttachmentImporter
 import com.zylinn.petdiary.data.photo.FileStore
 import com.zylinn.petdiary.data.record.DewormKind
 import com.zylinn.petdiary.data.record.RecordInput
@@ -30,6 +31,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -51,6 +53,7 @@ class RecordEditorScreenTest {
     private val today = LocalDate.parse("2026-10-17")
     private lateinit var db: PetDiaryDatabase
     private lateinit var records: RecordRepository
+    private lateinit var files: FileStore
     private lateinit var pets: PetRepository
     private lateinit var cat: String
     private lateinit var dog: String
@@ -58,7 +61,8 @@ class RecordEditorScreenTest {
 
     @Before fun setUp() = runBlocking {
         db = Room.inMemoryDatabaseBuilder(context, PetDiaryDatabase::class.java).build()
-        records = RecordRepository(db.recordDao(), db.attachmentDao(), db.supplementDao(), FileStore(File(context.cacheDir, "editor-rec")), clock)
+        files = FileStore(File(context.cacheDir, "editor-rec").apply { deleteRecursively(); mkdirs() })
+        records = RecordRepository(db.recordDao(), db.attachmentDao(), db.supplementDao(), files, clock)
         pets = PetRepository(db.petDao(), clock)
         cat = pets.add(PetInput(name = "雷米", species = Species.CAT, birthEpochDay = 1)).id
         dog = pets.add(PetInput(name = "雷利", species = Species.DOG, birthEpochDay = 1)).id
@@ -67,7 +71,7 @@ class RecordEditorScreenTest {
     @After fun tearDown() = db.close()
 
     private fun open(type: RecordType, petIds: List<String> = listOf(cat), date: LocalDate = today, recordId: String? = null) {
-        val vm = RecordEditorViewModel(petIds, type, date, recordId, pets, records, clock)
+        val vm = RecordEditorViewModel(petIds, type, date, recordId, pets, records, clock, files, AttachmentImporter(context.contentResolver, files))
         rule.setContent { PetDiaryTheme { RecordEditorScreen(vm = vm, onDone = { done++ }) } }
         rule.waitUntil(5_000) { runCatching { rule.onNodeWithTag("record_editor_scroll").assertExists() }.isSuccess }
     }
@@ -188,5 +192,59 @@ class RecordEditorScreenTest {
         assertEquals(0, done)
         rule.onNodeWithTag("confirm_discard").performClick()
         assertEquals(1, done)
+    }
+
+    private fun pdfUri(name: String): android.net.Uri {
+        val f = File(context.cacheDir, name).apply { writeBytes("%PDF-1.4 test".toByteArray()) }
+        return android.net.Uri.fromFile(f)
+    }
+
+    // P2-15: attachments only on medical / abnormal records
+    @Test fun attachmentsOnlyForMedicalAndAbnormal() {
+        open(RecordType.FEEDING)
+        rule.onNodeWithTag("attachments_section").assertDoesNotExist()
+    }
+
+    @Test fun abnormalHasAttachments() {
+        open(RecordType.ABNORMAL)
+        rule.onNodeWithTag("attachments_section").performScrollTo().assertIsDisplayed()
+    }
+
+    // P2-16, P2-19
+    @Test fun multipleAttachmentsSavedAndOneRemovedLater() = runBlocking {
+        val vm = RecordEditorViewModel(listOf(cat), RecordType.VET, today, null, pets, records, clock, files, AttachmentImporter(context.contentResolver, files))
+        rule.setContent { PetDiaryTheme { RecordEditorScreen(vm = vm, onDone = { done++ }) } }
+        rule.onNodeWithTag("field_title").performTextInput("嘔吐")
+        vm.importAttachments(listOf(pdfUri("血檢.pdf"), pdfUri("處方.pdf")))
+        rule.waitUntil(5_000) { runCatching { rule.onNodeWithTag("attachment_處方.pdf").assertExists() }.isSuccess }
+        rule.onNodeWithTag("attachment_血檢.pdf").assertExists()
+        rule.onNodeWithTag("save_button").performClick()
+        rule.waitUntil(5_000) { done == 1 }
+
+        val id = day(cat).single().id
+        val saved = records.attachmentsOf(id)
+        assertEquals(setOf("血檢.pdf", "處方.pdf"), saved.map { it.displayName }.toSet())
+
+        // Edit: remove one, keep the other.
+        val vm2 = RecordEditorViewModel(listOf(cat), RecordType.VET, today, id, pets, records, clock, files, AttachmentImporter(context.contentResolver, files))
+        val removed = saved.single { it.displayName == "血檢.pdf" }
+        val kept = saved.single { it.displayName == "處方.pdf" }
+        rule.waitUntil(5_000) { vm2.state.value.existing.size == 2 }
+        vm2.removeAttachment(removed.id)
+        vm2.save { done++ }
+        rule.waitUntil(5_000) { done == 2 }
+
+        assertEquals(listOf(kept.id), records.attachmentsOf(id).map { it.id })
+        assertTrue(files.exists(kept.fileName))
+        assertTrue(!files.exists(removed.fileName))
+    }
+
+    @Test fun discardDeletesPickedFiles() = runBlocking {
+        val vm = RecordEditorViewModel(listOf(cat), RecordType.VET, today, null, pets, records, clock, files, AttachmentImporter(context.contentResolver, files))
+        vm.importAttachments(listOf(pdfUri("x.pdf")))
+        rule.waitUntil(5_000) { vm.state.value.added.size == 1 }
+        val name = vm.state.value.added.single().fileName
+        vm.discard()
+        assertTrue(!files.exists(name))
     }
 }

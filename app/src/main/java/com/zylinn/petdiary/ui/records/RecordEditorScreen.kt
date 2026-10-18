@@ -63,6 +63,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zylinn.petdiary.data.record.DewormKind
 import com.zylinn.petdiary.data.record.RecordType
 import com.zylinn.petdiary.data.record.Supplement
+import com.zylinn.petdiary.data.record.allowsAttachments
 import com.zylinn.petdiary.data.record.isMedical
 import com.zylinn.petdiary.domain.RecordFormat
 import com.zylinn.petdiary.domain.RecordFormat.label
@@ -72,15 +73,12 @@ import java.time.ZoneOffset
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RecordEditorScreen(
-    vm: RecordEditorViewModel,
-    onDone: () -> Unit,
-    extraContent: @Composable () -> Unit = {},
-) {
+fun RecordEditorScreen(vm: RecordEditorViewModel, onDone: () -> Unit) {
     val state by vm.state.collectAsStateWithLifecycle()
     val supplements by vm.supplements.collectAsStateWithLifecycle()
     var confirmDiscard by rememberSaveable { mutableStateOf(false) }
     val cancel = { if (state.dirty) confirmDiscard = true else onDone() }
+    val discardAndLeave = { vm.discard(); onDone() }
     BackHandler(onBack = cancel)
     val today = vm.today()
     val form = state.form
@@ -92,7 +90,7 @@ fun RecordEditorScreen(
             title = { Text("放棄這次的編輯？") },
             text = { Text("剛剛輸入的內容不會儲存。") },
             confirmButton = {
-                TextButton(onClick = { confirmDiscard = false; onDone() }, modifier = Modifier.testTag("confirm_discard")) { Text("放棄") }
+                TextButton(onClick = { confirmDiscard = false; discardAndLeave() }, modifier = Modifier.testTag("confirm_discard")) { Text("放棄") }
             },
             dismissButton = { TextButton(onClick = { confirmDiscard = false }) { Text("繼續編輯") } },
         )
@@ -149,7 +147,15 @@ fun RecordEditorScreen(
                     form.type == RecordType.ABNORMAL -> TextInput(form.title, "狀況 *（例如：嘔吐、拉肚子）", "field_title") { v -> vm.edit { it.copy(title = v) } }
                     form.type.isMedical -> MedicalFields(form, vm::edit)
                 }
-                extraContent()
+                if (form.type.allowsAttachments) {
+                    AttachmentsSection(
+                        items = vm.attachmentItems(state),
+                        importing = state.importing,
+                        error = state.attachmentError,
+                        onPicked = vm::importAttachments,
+                        onRemove = vm::removeAttachment,
+                    )
+                }
                 OutlinedTextField(
                     value = form.note,
                     onValueChange = { v -> vm.edit { it.copy(note = v.take(NOTE_MAX)) } },
