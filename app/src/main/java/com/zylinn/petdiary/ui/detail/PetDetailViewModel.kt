@@ -6,6 +6,7 @@ import com.zylinn.petdiary.data.pet.Pet
 import com.zylinn.petdiary.data.pet.PetRepository
 import com.zylinn.petdiary.data.photo.FileStore
 import com.zylinn.petdiary.data.record.Record
+import com.zylinn.petdiary.data.record.RecordInput
 import com.zylinn.petdiary.data.record.RecordRepository
 import com.zylinn.petdiary.data.record.RecordType
 import com.zylinn.petdiary.domain.PetAge
@@ -20,10 +21,12 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import java.io.File
 import java.time.Clock
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.YearMonth
 import java.time.temporal.TemporalAdjusters
 
@@ -39,6 +42,11 @@ data class RecordCard(
 )
 
 data class LastChip(val type: RecordType, val text: String)
+
+data class PetChoice(val id: String, val name: String)
+
+/** The most recent feeding, offered as "餵食・同上次" (S2). */
+data class QuickFeeding(val source: Record, val summary: String)
 
 data class CalendarState(
     val today: LocalDate,
@@ -64,7 +72,7 @@ private val lastChipOrder = listOf(
 @OptIn(ExperimentalCoroutinesApi::class)
 class PetDetailViewModel(
     val petId: String,
-    pets: PetRepository,
+    private val pets: PetRepository,
     private val records: RecordRepository,
     photos: FileStore,
     private val clock: Clock,
@@ -131,6 +139,51 @@ class PetDetailViewModel(
             lastChipOrder.mapNotNull { t -> byType[t]?.let { LastChip(t, RecordFormat.lastChip(t, it, today())) } }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** All active pets for the multi-select chips (S3). */
+    val petChoices: StateFlow<List<PetChoice>> = pets.activePets
+        .map { list -> list.map { PetChoice(it.id, it.name) } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val quickFeeding: StateFlow<QuickFeeding?> = combine(
+        records.observeLatest(petId, RecordType.FEEDING),
+        records.supplementsList,
+    ) { latest, supps ->
+        latest?.let { QuickFeeding(it, RecordFormat.summary(it, supps.associate { s -> s.id to s.name }, today())) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    private val _justAdded = MutableStateFlow<List<String>?>(null)
+    /** Ids created by the last one-tap save, for the "復原" snackbar. */
+    val justAdded: StateFlow<List<String>?> = _justAdded
+
+    /**
+     * One-tap feeding: same content as the last feeding, on the selected day at the current time (S2).
+     */
+    fun quickFeed(petIds: List<String>) {
+        val source = quickFeeding.value?.source ?: return
+        viewModelScope.launch {
+            val now = LocalTime.now(clock)
+            val input = RecordInput(
+                type = RecordType.FEEDING,
+                dateEpochDay = selected.value.toEpochDay(),
+                minuteOfDay = now.hour * 60 + now.minute,
+                note = source.note,
+                portions = source.portions,
+                drankWater = source.drankWater,
+                supplementIds = source.supplementIdList,
+            )
+            _justAdded.value = records.addForPets(petIds, input)
+        }
+    }
+
+    fun undoQuickFeed(ids: List<String>) {
+        viewModelScope.launch { ids.forEach { records.moveToTrash(it) } }
+        _justAdded.value = null
+    }
+
+    fun quickFeedAcknowledged() {
+        _justAdded.value = null
+    }
 
     fun selectedDay(): LocalDate = selected.value
 

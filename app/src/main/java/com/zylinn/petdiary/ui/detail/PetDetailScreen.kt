@@ -37,14 +37,20 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,10 +60,14 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.zylinn.petdiary.data.record.RecordType
 import com.zylinn.petdiary.domain.RecordFormat.label
 import com.zylinn.petdiary.ui.pets.PetAvatar
+import com.zylinn.petdiary.ui.pets.UNDO_WINDOW_MS
 import com.zylinn.petdiary.ui.records.color
 import com.zylinn.petdiary.ui.records.icon
+import java.time.LocalDate
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** Width at which the calendar and the record list sit side by side (P2-10). */
 private val TwoPaneMinWidth = 600.dp
@@ -67,7 +77,7 @@ private val TwoPaneMinWidth = 600.dp
 fun PetDetailScreen(
     vm: PetDetailViewModel,
     onBack: () -> Unit,
-    onAddRecord: () -> Unit,
+    onPickType: (RecordType, List<String>, LocalDate) -> Unit,
     onOpenRecord: (String) -> Unit,
     snackbar: SnackbarHostState = remember { SnackbarHostState() },
     cardModifier: @Composable (RecordCard, @Composable () -> Unit) -> Unit = { _, content -> content() },
@@ -76,7 +86,19 @@ fun PetDetailScreen(
     val calendar by vm.calendar.collectAsStateWithLifecycle()
     val cards by vm.cards.collectAsStateWithLifecycle()
     val chips by vm.lastChips.collectAsStateWithLifecycle()
+    val petChoices by vm.petChoices.collectAsStateWithLifecycle()
+    val quickFeeding by vm.quickFeeding.collectAsStateWithLifecycle()
+    val justAdded by vm.justAdded.collectAsStateWithLifecycle()
+    var showPanel by rememberSaveable { mutableStateOf(false) }
     BackHandler(onBack = onBack)
+
+    LaunchedEffect(justAdded) {
+        val ids = justAdded ?: return@LaunchedEffect
+        val result = withTimeoutOrNull(UNDO_WINDOW_MS) {
+            snackbar.showSnackbar("已記錄餵食", actionLabel = "復原", duration = SnackbarDuration.Indefinite)
+        }
+        if (result == SnackbarResult.ActionPerformed) vm.undoQuickFeed(ids) else vm.quickFeedAcknowledged()
+    }
 
     Scaffold(
         topBar = {
@@ -90,7 +112,7 @@ fun PetDetailScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = onAddRecord,
+                onClick = { showPanel = true },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 shape = MaterialTheme.shapes.medium,
@@ -103,6 +125,23 @@ fun PetDetailScreen(
         BoxWithConstraints(Modifier.fillMaxSize().padding(padding)) {
             val paneWidth = maxWidth
             val twoPane = paneWidth >= TwoPaneMinWidth
+            if (showPanel) {
+                AddRecordPanel(
+                    wide = twoPane,
+                    currentPetId = vm.petId,
+                    pets = petChoices,
+                    quickFeeding = quickFeeding,
+                    onDismiss = { showPanel = false },
+                    onPickType = { type, petIds ->
+                        showPanel = false
+                        onPickType(type, petIds, calendar.selected)
+                    },
+                    onQuickFeed = { petIds ->
+                        showPanel = false
+                        vm.quickFeed(petIds)
+                    },
+                )
+            }
             if (twoPane) {
                 Row(Modifier.fillMaxSize()) {
                     Column(

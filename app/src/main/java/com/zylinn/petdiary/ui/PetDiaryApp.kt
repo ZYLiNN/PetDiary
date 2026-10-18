@@ -27,6 +27,7 @@ import com.zylinn.petdiary.ui.detail.PetDetailViewModel
 import com.zylinn.petdiary.ui.navigation.Main
 import com.zylinn.petdiary.ui.navigation.PetDetail
 import com.zylinn.petdiary.ui.navigation.PetEditor
+import com.zylinn.petdiary.ui.navigation.RecordEditor
 import com.zylinn.petdiary.ui.navigation.TopLevelDestination
 import com.zylinn.petdiary.ui.navigation.Trash
 import com.zylinn.petdiary.ui.pets.PetHomeRoute
@@ -63,7 +64,16 @@ fun PetDiaryApp() {
                 val vm = containerViewModel {
                     PetDetailViewModel(key.petId, it.petRepository, it.recordRepository, it.photoStore, it.clock)
                 }
-                PetDetailScreen(vm = vm, onBack = back, onAddRecord = {}, onOpenRecord = {})
+                PetDetailScreen(
+                    vm = vm,
+                    onBack = back,
+                    onPickType = { type, petIds, day -> navigate(RecordEditor(petIds, type.name, day.toEpochDay())) },
+                    onOpenRecord = {},
+                )
+            }
+            entry<RecordEditor> {
+                // Replaced by the real record form in P2 / N5.
+                PlaceholderScreen(destination = TopLevelDestination.Stats)
             }
             entry<Trash> {
                 val vm = containerViewModel { TrashViewModel(it.petRepository, it.trashRepository, it.photoStore, it.clock) }

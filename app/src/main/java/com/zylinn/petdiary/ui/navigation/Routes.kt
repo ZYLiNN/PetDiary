@@ -18,3 +18,12 @@ data object Trash : NavKey
 /** A pet's daily records. */
 @Serializable
 data class PetDetail(val petId: String) : NavKey
+
+/** New record(s) of [type] for [petIds] on [dateEpochDay], or edit [recordId]. */
+@Serializable
+data class RecordEditor(
+    val petIds: List<String>,
+    val type: String,
+    val dateEpochDay: Long,
+    val recordId: String? = null,
+) : NavKey

@@ -1,9 +1,6 @@
 package com.zylinn.petdiary.ui.detail
 
 import android.content.Context
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.requiredSize
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
@@ -27,6 +24,7 @@ import com.zylinn.petdiary.data.record.RecordInput
 import com.zylinn.petdiary.data.record.RecordRepository
 import com.zylinn.petdiary.data.record.RecordType
 import com.zylinn.petdiary.domain.RecordFormat.label
+import com.zylinn.petdiary.testutil.FitToScreen
 import com.zylinn.petdiary.ui.theme.PetDiaryTheme
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -70,8 +68,8 @@ class PetDetailScreenTest {
         val vm = PetDetailViewModel(petId, PetRepository(db.petDao(), clock), records, FileStore(context.cacheDir), clock)
         rule.setContent {
             PetDiaryTheme {
-                Box(Modifier.requiredSize(width, height)) {
-                    PetDetailScreen(vm = vm, onBack = {}, onAddRecord = {}, onOpenRecord = {})
+                FitToScreen(width, height) {
+                    PetDetailScreen(vm = vm, onBack = {}, onPickType = { _, _, _ -> }, onOpenRecord = {})
                 }
             }
         }
