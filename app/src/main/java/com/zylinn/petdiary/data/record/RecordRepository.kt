@@ -2,6 +2,9 @@ package com.zylinn.petdiary.data.record
 
 import com.zylinn.petdiary.data.photo.FileStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import java.time.Clock
 import java.util.UUID
 
@@ -43,6 +46,16 @@ class RecordRepository(
     fun observeAttachments(recordId: String) = attachments.observeForRecord(recordId)
     fun observeAttachmentCounts(recordIds: List<String>) = attachments.observeCounts(recordIds)
     val supplementsList = supplements.observeActive()
+
+    /** P3 search. Blank queries return nothing so the screen can show a hint instead. */
+    fun search(query: SearchQuery): Flow<List<Record>> {
+        if (query.isBlank) return flowOf(emptyList())
+        return flow {
+            val text = query.text.trim()
+            val suppIds = if (text.isEmpty()) emptyList() else supplements.idsMatching(RecordSearch.likePattern(text))
+            emitAll(records.observeSearch(RecordSearch.build(query, suppIds)))
+        }
+    }
 
     suspend fun get(id: String): Record? = records.getById(id)
     suspend fun attachmentsOf(recordId: String) = attachments.getForRecord(recordId)

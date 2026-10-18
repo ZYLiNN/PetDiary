@@ -2,8 +2,11 @@ package com.zylinn.petdiary.data.record
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.RawQuery
 import androidx.room.Query
 import androidx.room.Upsert
+import androidx.sqlite.db.SupportSQLiteQuery
+import com.zylinn.petdiary.data.pet.Pet
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -50,6 +53,10 @@ interface RecordDao {
 
     @Query("DELETE FROM records WHERE id = :id")
     suspend fun deletePermanently(id: String)
+
+    /** Search query built by [RecordSearch]; re-runs whenever records or pets change. */
+    @RawQuery(observedEntities = [Record::class, Pet::class])
+    fun observeSearch(query: SupportSQLiteQuery): Flow<List<Record>>
 }
 
 @Dao
@@ -85,4 +92,7 @@ interface SupplementDao {
 
     @Insert
     suspend fun insert(supplement: Supplement)
+
+    @Query("SELECT id FROM supplements WHERE name LIKE :like ESCAPE '\\'")
+    suspend fun idsMatching(like: String): List<String>
 }
