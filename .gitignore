@@ -18,3 +18,6 @@ google-services.json
 
 # OS
 .DS_Store
+
+# Built APKs for testing
+dist/

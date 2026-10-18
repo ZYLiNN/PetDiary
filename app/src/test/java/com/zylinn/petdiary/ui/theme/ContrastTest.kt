@@ -27,6 +27,12 @@ class ContrastTest {
         assertContrast("$label onSurfaceVariant/background", s.onSurfaceVariant, s.background, 4.5)
         assertContrast("$label onPrimary/primary", s.onPrimary, s.primary, 4.5)
         assertContrast("$label onPrimaryContainer/primaryContainer", s.onPrimaryContainer, s.primaryContainer, 4.5)
+        // Snackbar text and its "復原" action.
+        assertContrast("$label inverseOnSurface/inverseSurface", s.inverseOnSurface, s.inverseSurface, 4.5)
+        assertContrast("$label inversePrimary/inverseSurface", s.inversePrimary, s.inverseSurface, 4.5)
+        // Dialogs and menus sit on the higher surface containers.
+        assertContrast("$label onSurface/surfaceContainerHighest", s.onSurface, s.surfaceContainerHighest, 4.5)
+        assertContrast("$label onSurfaceVariant/surfaceContainerHigh", s.onSurfaceVariant, s.surfaceContainerHigh, 4.5)
     }
 
     @Test fun lightTextContrast() = checkTextPairs("light", LightColors)
