@@ -16,6 +16,7 @@ import com.zylinn.petdiary.data.pet.PetInput
 import com.zylinn.petdiary.data.pet.PetRepository
 import com.zylinn.petdiary.data.pet.Species
 import com.zylinn.petdiary.data.photo.FileStore
+import com.zylinn.petdiary.data.record.RecordRepository
 import com.zylinn.petdiary.data.trash.TrashRepository
 import com.zylinn.petdiary.ui.settings.SettingsScreen
 import com.zylinn.petdiary.ui.theme.PetDiaryTheme
@@ -34,6 +35,7 @@ import java.io.File
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneOffset
 
 @RunWith(AndroidJUnit4::class)
@@ -70,6 +72,7 @@ class TrashScreenTest {
         val clock = clockAt(now)
         val vm = TrashViewModel(
             PetRepository(db.petDao(), clock),
+            RecordRepository(db.recordDao(), db.attachmentDao(), db.supplementDao(), photos, clock),
             TrashRepository(db.petDao(), db.recordDao(), db.attachmentDao(), photos, photos, clock),
             photos,
             clock,
@@ -121,5 +124,45 @@ class TrashScreenTest {
         rule.setContent { PetDiaryTheme { SettingsScreen(onOpenTrash = { opened = true }) } }
         rule.onNodeWithTag("settings_trash").assertIsDisplayed().performClick()
         assertTrue(opened)
+    }
+
+    private fun addRecord(petIdArg: String, trashed: Boolean = true): String = runBlocking {
+        val repo = RecordRepository(db.recordDao(), db.attachmentDao(), db.supplementDao(), photos, clockAt(Duration.ZERO))
+        repo.addForPets(listOf(petIdArg), com.zylinn.petdiary.data.record.RecordInput(
+            com.zylinn.petdiary.data.record.RecordType.DEWORMING, LocalDate.parse("2026-10-15").toEpochDay(), 600, title = "蚤不到",
+        )).single().also { if (trashed) repo.moveToTrash(it) }
+    }
+
+    // T-00, T-04 (record)
+    @Test fun trashedRecordListedAndRestorable() = runBlocking {
+        val id = addRecord(active.id)
+        show(Duration.ofDays(1))
+        rule.onNodeWithTag("trash_record_$id").assertIsDisplayed()
+        rule.onNodeWithText("雷利・10/15").assertIsDisplayed()
+        rule.onNodeWithTag("remaining_$id").assertTextEquals("剩餘 6 天")
+        rule.onNodeWithTag("restore_$id").performClick()
+        rule.waitUntil(5_000) { runCatching { rule.onNodeWithTag("trash_record_$id").assertDoesNotExist() }.isSuccess }
+        assertNull(db.recordDao().getById(id)!!.deletedAt)
+    }
+
+    // T-04a
+    @Test fun restoringRecordOfTrashedPetRestoresPetToo() = runBlocking {
+        val id = addRecord(trashed.id)
+        show(Duration.ofDays(1))
+        rule.onNodeWithText("連同寵物還原").assertIsDisplayed()
+        rule.onNodeWithTag("restore_$id").performClick()
+        rule.waitUntil(5_000) { runCatching { rule.onNodeWithTag("trash_record_$id").assertDoesNotExist() }.isSuccess }
+        assertNull(db.petDao().getById(trashed.id)!!.deletedAt)
+        assertNull(db.recordDao().getById(id)!!.deletedAt)
+    }
+
+    @Test fun recordPermanentDeleteNeedsConfirmation() = runBlocking {
+        val id = addRecord(active.id)
+        show(Duration.ofDays(1))
+        rule.onNodeWithTag("delete_$id").performClick()
+        rule.onNodeWithText("永久刪除這筆「驅蟲」紀錄？").assertIsDisplayed()
+        rule.onNodeWithTag("confirm_permanent_delete").performClick()
+        rule.waitUntil(5_000) { runCatching { rule.onNodeWithTag("trash_record_$id").assertDoesNotExist() }.isSuccess }
+        assertNull(db.recordDao().getById(id))
     }
 }

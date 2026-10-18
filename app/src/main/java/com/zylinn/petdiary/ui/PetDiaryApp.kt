@@ -92,7 +92,7 @@ fun PetDiaryApp() {
                 RecordEditorScreen(vm = vm, onDone = back)
             }
             entry<Trash> {
-                val vm = containerViewModel { TrashViewModel(it.petRepository, it.trashRepository, it.photoStore, it.clock) }
+                val vm = containerViewModel { TrashViewModel(it.petRepository, it.recordRepository, it.trashRepository, it.photoStore, it.clock) }
                 TrashScreen(vm = vm, onBack = back)
             }
         },

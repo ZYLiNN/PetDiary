@@ -9,6 +9,8 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.swipeLeft
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -28,7 +30,10 @@ import com.zylinn.petdiary.domain.RecordFormat.label
 import com.zylinn.petdiary.testutil.FitToScreen
 import com.zylinn.petdiary.ui.theme.PetDiaryTheme
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.first
 import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -188,5 +193,40 @@ class PetDetailScreenTest {
         show()
         rule.onNodeWithTag("attach_count_$id", useUnmergedTree = true).assertExists()
         rule.onNodeWithText("2", useUnmergedTree = true).assertExists()
+    }
+
+    // P2-05g, P2-05h
+    @Test fun swipeLeftDeletesAndUndoRestores() {
+        val id = add(RecordType.WEIGHT, today) { copy(weightKg = 4.2) }
+        show()
+        rule.onNodeWithTag("record_$id").performTouchInput { swipeLeft() }
+        rule.waitUntil(5_000) { runCatching { rule.onNodeWithText("已刪除「體重」").assertExists() }.isSuccess }
+        rule.onNodeWithTag("record_$id").assertDoesNotExist()
+        rule.onNodeWithText("復原").performClick()
+        rule.waitUntil(5_000) { runCatching { rule.onNodeWithTag("record_$id").assertExists() }.isSuccess }
+        assertNull(runBlocking { records.get(id) }!!.deletedAt)
+    }
+
+    // T-00
+    @Test fun swipedRecordStaysInTrashWithoutUndo() {
+        val id = add(RecordType.WEIGHT, today) { copy(weightKg = 4.2) }
+        show()
+        rule.onNodeWithTag("record_$id").performTouchInput { swipeLeft() }
+        rule.waitUntil(5_000) { runCatching { rule.onNodeWithText("復原").assertExists() }.isSuccess }
+        rule.mainClock.advanceTimeBy(5_100)
+        rule.waitUntil(10_000) { runCatching { rule.onNodeWithText("復原").assertDoesNotExist() }.isSuccess }
+        assertEquals(listOf(id), runBlocking { records.observeTrashed().first() }.map { it.id })
+    }
+
+    @Test fun tappingCardOpensItForEditing() {
+        val id = add(RecordType.VACCINE, today) { copy(title = "三合一") }
+        var opened: String? = null
+        val vm = PetDetailViewModel(petId, PetRepository(db.petDao(), clock), records, FileStore(context.cacheDir), clock)
+        rule.setContent {
+            PetDiaryTheme { PetDetailScreen(vm = vm, onBack = {}, onPickType = { _, _, _ -> }, onOpenRecord = { rid, _, _ -> opened = rid }) }
+        }
+        rule.waitUntil(5_000) { runCatching { rule.onNodeWithTag("record_$id").assertExists() }.isSuccess }
+        rule.onNodeWithTag("record_$id").performClick()
+        assertEquals(id, opened)
     }
 }

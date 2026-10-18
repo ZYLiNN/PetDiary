@@ -29,6 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.AttachFile
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -41,14 +42,18 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -67,6 +72,7 @@ import com.zylinn.petdiary.ui.pets.UNDO_WINDOW_MS
 import com.zylinn.petdiary.ui.records.color
 import com.zylinn.petdiary.ui.records.icon
 import java.time.LocalDate
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 /** Width at which the calendar and the record list sit side by side (P2-10). */
@@ -80,7 +86,6 @@ fun PetDetailScreen(
     onPickType: (RecordType, List<String>, LocalDate) -> Unit,
     onOpenRecord: (id: String, type: RecordType, day: LocalDate) -> Unit,
     snackbar: SnackbarHostState = remember { SnackbarHostState() },
-    cardModifier: @Composable (RecordCard, @Composable () -> Unit) -> Unit = { _, content -> content() },
 ) {
     val header by vm.header.collectAsStateWithLifecycle()
     val calendar by vm.calendar.collectAsStateWithLifecycle()
@@ -89,6 +94,7 @@ fun PetDetailScreen(
     val petChoices by vm.petChoices.collectAsStateWithLifecycle()
     val quickFeeding by vm.quickFeeding.collectAsStateWithLifecycle()
     val justAdded by vm.justAdded.collectAsStateWithLifecycle()
+    val justDeleted by vm.justDeleted.collectAsStateWithLifecycle()
     var showPanel by rememberSaveable { mutableStateOf(false) }
     BackHandler(onBack = onBack)
 
@@ -98,6 +104,13 @@ fun PetDetailScreen(
             snackbar.showSnackbar("已記錄餵食", actionLabel = "復原", duration = SnackbarDuration.Indefinite)
         }
         if (result == SnackbarResult.ActionPerformed) vm.undoQuickFeed(ids) else vm.quickFeedAcknowledged()
+    }
+    LaunchedEffect(justDeleted) {
+        val card = justDeleted ?: return@LaunchedEffect
+        val result = withTimeoutOrNull(UNDO_WINDOW_MS) {
+            snackbar.showSnackbar("已刪除「${card.type.label}」", actionLabel = "復原", duration = SnackbarDuration.Indefinite)
+        }
+        if (result == SnackbarResult.ActionPerformed) vm.undoDelete(card) else vm.deleteAcknowledged()
     }
 
     Scaffold(
@@ -161,7 +174,7 @@ fun PetDetailScreen(
                     RecordList(
                         cards = cards,
                         onOpenRecord = { card -> onOpenRecord(card.id, card.type, calendar.selected) },
-                        cardModifier = cardModifier,
+                        onDelete = vm::deleteRecord,
                         modifier = Modifier.weight(1f).fillMaxHeight().testTag("records_pane"),
                     )
                 }
@@ -179,7 +192,7 @@ fun PetDetailScreen(
                     RecordList(
                         cards = cards,
                         onOpenRecord = { card -> onOpenRecord(card.id, card.type, calendar.selected) },
-                        cardModifier = cardModifier,
+                        onDelete = vm::deleteRecord,
                         modifier = Modifier.weight(1f).testTag("records_pane"),
                     )
                 }
@@ -226,7 +239,7 @@ private fun LastChipsRow(chips: List<LastChip>) {
 private fun RecordList(
     cards: List<RecordCard>?,
     onOpenRecord: (RecordCard) -> Unit,
-    cardModifier: @Composable (RecordCard, @Composable () -> Unit) -> Unit,
+    onDelete: (RecordCard) -> Unit,
     modifier: Modifier,
 ) {
     val list = cards ?: return
@@ -248,7 +261,9 @@ private fun RecordList(
                 }
             }
             items(list, key = { it.id }) { card ->
-                cardModifier(card) { RecordCardView(card, onClick = { onOpenRecord(card) }) }
+                SwipeToDelete(onDelete = { onDelete(card) }, modifier = Modifier.animateItem()) {
+                    RecordCardView(card, onClick = { onOpenRecord(card) })
+                }
             }
         }
     }
@@ -306,3 +321,37 @@ fun RecordCardView(card: RecordCard, onClick: () -> Unit) {
         }
     }
 }
+
+/** Swipe a card to the left to delete it (S12). No confirmation: the snackbar offers "復原" (S6). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeToDelete(onDelete: () -> Unit, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    val state = rememberSwipeToDismissBoxState()
+    val scope = rememberCoroutineScope()
+    SwipeToDismissBox(
+        state = state,
+        enableDismissFromStartToEnd = false,
+        onDismiss = { value ->
+            if (value == SwipeToDismissBoxValue.EndToStart) {
+                onDelete()
+                // The list restores item state by key; without resetting, an undone record would come
+                // back still "swiped away" and immediately delete itself again.
+                scope.launch { state.reset() }
+            }
+        },
+        backgroundContent = {
+            Box(
+                contentAlignment = Alignment.CenterEnd,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.errorContainer)
+                    .padding(horizontal = 20.dp),
+            ) {
+                Icon(Icons.Outlined.Delete, contentDescription = "刪除", tint = MaterialTheme.colorScheme.onErrorContainer)
+            }
+        },
+        modifier = modifier,
+    ) { content() }
+}
+

@@ -181,6 +181,26 @@ class PetDetailViewModel(
         _justAdded.value = null
     }
 
+    private val _justDeleted = MutableStateFlow<RecordCard?>(null)
+    /** A record just swiped away, for the 5-second "復原" snackbar (S6 / S12). */
+    val justDeleted: StateFlow<RecordCard?> = _justDeleted
+
+    fun deleteRecord(card: RecordCard) {
+        viewModelScope.launch {
+            records.moveToTrash(card.id)
+            _justDeleted.value = card
+        }
+    }
+
+    fun undoDelete(card: RecordCard) {
+        viewModelScope.launch { records.restore(card.id) }
+        _justDeleted.value = null
+    }
+
+    fun deleteAcknowledged() {
+        _justDeleted.value = null
+    }
+
     fun quickFeedAcknowledged() {
         _justAdded.value = null
     }
