@@ -25,10 +25,14 @@ import androidx.navigation3.ui.NavDisplay
 import com.zylinn.petdiary.ui.navigation.Main
 import com.zylinn.petdiary.ui.navigation.PetEditor
 import com.zylinn.petdiary.ui.navigation.TopLevelDestination
+import com.zylinn.petdiary.ui.navigation.Trash
 import com.zylinn.petdiary.ui.pets.PetHomeRoute
 import com.zylinn.petdiary.ui.pets.editor.PetEditorScreen
 import com.zylinn.petdiary.ui.pets.editor.PetEditorViewModel
 import com.zylinn.petdiary.ui.screens.PlaceholderScreen
+import com.zylinn.petdiary.ui.settings.SettingsScreen
+import com.zylinn.petdiary.ui.trash.TrashScreen
+import com.zylinn.petdiary.ui.trash.TrashViewModel
 
 /** Root navigation: the tabbed main screen, with full-screen pages (editor, detail…) pushed on top. */
 @Composable
@@ -51,6 +55,10 @@ fun PetDiaryApp() {
                     PetEditorViewModel(key.petId, it.petRepository, it.photoStore, it.photoImporter, it.clock)
                 }
                 PetEditorScreen(vm = vm, onDone = back)
+            }
+            entry<Trash> {
+                val vm = containerViewModel { TrashViewModel(it.petRepository, it.trashRepository, it.photoStore, it.clock) }
+                TrashScreen(vm = vm, onBack = back)
             }
         },
     )
@@ -107,6 +115,7 @@ private fun MainScreen(navigate: (NavKey) -> Unit) {
                     onOpenPet = {},
                     onEditPet = { id -> navigate(PetEditor(id)) },
                 )
+                TopLevelDestination.Settings -> SettingsScreen(onOpenTrash = { navigate(Trash) })
                 else -> PlaceholderScreen(destination = current)
             }
         }

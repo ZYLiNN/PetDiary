@@ -37,10 +37,6 @@ private val roadmap: Map<TopLevelDestination, Pair<String, List<String>>> = mapO
         "寵物複選", "時間區間：週 / 月 / 年 / 自訂", "餵食折線圖", "體重折線圖",
         "費用堆疊長條圖", "醫療時間軸", "美容次數", "異常狀況次數", "空資料提示", "每隻寵物一種顏色",
     )),
-    TopLevelDestination.Settings to ("P6–P9" to listOf(
-        "外觀：淺色 / 深色 / 跟隨系統", "保健食品清單", "垃圾桶", "匯出 CSV",
-        "帳號與家人", "家庭群組 QR Code", "綁定 Google 帳號", "雲端同步", "刪除帳號", "關於",
-    )),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)

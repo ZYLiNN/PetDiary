@@ -46,16 +46,16 @@ class NavigationTest {
 
     // P0-03
     @Test fun scrollPositionKeptAcrossTabSwitch() {
-        rule.onNodeWithTag("tab_Settings").performClick()
-        rule.onNodeWithTag("list_Settings").performScrollToIndex(10)
-        rule.onNodeWithTag("item_Settings_9").assertIsDisplayed()
+        rule.onNodeWithTag("tab_Reminders").performClick()
+        rule.onNodeWithTag("list_Reminders").performScrollToIndex(10)
+        rule.onNodeWithTag("item_Reminders_9").assertIsDisplayed()
 
         rule.onNodeWithTag("tab_Stats").performClick()
         rule.onNodeWithTag("list_Stats").assertIsDisplayed()
         rule.onNodeWithTag("item_Stats_0").assertIsDisplayed()
 
-        rule.onNodeWithTag("tab_Settings").performClick()
-        rule.onNodeWithTag("item_Settings_9").assertIsDisplayed()
+        rule.onNodeWithTag("tab_Reminders").performClick()
+        rule.onNodeWithTag("item_Reminders_9").assertIsDisplayed()
     }
 
     // C-07

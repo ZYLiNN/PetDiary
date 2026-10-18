@@ -10,3 +10,7 @@ data object Main : NavKey
 /** Add a pet (petId == null) or edit an existing one. */
 @Serializable
 data class PetEditor(val petId: String? = null) : NavKey
+
+/** Trash: pets (and later records) deleted within the last 7 days. */
+@Serializable
+data object Trash : NavKey
