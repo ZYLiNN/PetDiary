@@ -87,7 +87,7 @@ fun SearchScreen(
                     TextField(
                         value = filters.text,
                         onValueChange = vm::setText,
-                        placeholder = { Text("搜尋紀錄：疫苗、藥名、醫院…") },
+                        placeholder = { Text("搜尋紀錄") },
                         singleLine = true,
                         leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
                         trailingIcon = {
