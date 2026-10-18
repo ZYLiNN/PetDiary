@@ -20,6 +20,10 @@
   開機後等系統負載（`/proc/loadavg`）降到 8 以下再跑測試。
 - 截圖：`adb exec-out screencap -p` 輸出前面會多一段「多螢幕」警告文字，要從 PNG 標頭（`\x89PNG`）開始截取。
 
+## 自主決定（使用者不在時）
+- 需要判斷但使用者不在時：依自己的建議執行，記錄到 `docs/DECISIONS_FOR_REVIEW.md`（問題、決定、理由），使用者回來後一起確認。
+- 不可自主決定的事：刪除使用者資料、變更已確認的需求範圍、需要付費或對外公開的動作。
+
 ## 版本控制（必須遵守）
 - **每一次修改都要 commit**，訊息使用 Conventional Commits 格式（`feat:`、`fix:`、`docs:`、`test:`、`refactor:`、`chore:`）。
 - commit 後推送到 GitHub（`origin` = https://github.com/ZYLiNN/PetDiary ，Private）。
