@@ -15,9 +15,9 @@ data class PetEditor(val petId: String? = null) : NavKey
 @Serializable
 data object Trash : NavKey
 
-/** A pet's daily records. */
+/** A pet's daily records, opened on [dayEpochDay] (today when null). */
 @Serializable
-data class PetDetail(val petId: String) : NavKey
+data class PetDetail(val petId: String, val dayEpochDay: Long? = null) : NavKey
 
 /** New record(s) of [type] for [petIds] on [dateEpochDay], or edit [recordId]. */
 @Serializable
@@ -27,3 +27,7 @@ data class RecordEditor(
     val dateEpochDay: Long,
     val recordId: String? = null,
 ) : NavKey
+
+/** Record search (S8): all pets, or pre-filtered to [petId] when opened from a pet's page. */
+@Serializable
+data class Search(val petId: String? = null) : NavKey

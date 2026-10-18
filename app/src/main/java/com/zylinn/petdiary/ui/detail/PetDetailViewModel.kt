@@ -76,13 +76,15 @@ class PetDetailViewModel(
     private val records: RecordRepository,
     photos: FileStore,
     private val clock: Clock,
+    initialDay: LocalDate? = null,
 ) : ViewModel() {
 
     private fun today() = LocalDate.now(clock)
 
-    private val selected = MutableStateFlow(today())
+    private val startDay = initialDay?.takeIf { !it.isAfter(today()) } ?: today()
+    private val selected = MutableStateFlow(startDay)
     private val expanded = MutableStateFlow(false)
-    private val visibleMonth = MutableStateFlow(YearMonth.from(today()))
+    private val visibleMonth = MutableStateFlow(YearMonth.from(startDay))
 
     val header: StateFlow<PetHeader?> = combine(
         pets.observe(petId),
@@ -108,7 +110,7 @@ class PetDetailViewModel(
         .stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5_000),
-            CalendarState(today(), today(), false, YearMonth.from(today()), emptySet()),
+            CalendarState(today(), startDay, false, YearMonth.from(startDay), emptySet()),
         )
 
     /** null while loading. */

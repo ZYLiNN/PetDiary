@@ -29,6 +29,7 @@ import com.zylinn.petdiary.ui.navigation.Main
 import com.zylinn.petdiary.ui.navigation.PetDetail
 import com.zylinn.petdiary.ui.navigation.PetEditor
 import com.zylinn.petdiary.ui.navigation.RecordEditor
+import com.zylinn.petdiary.ui.navigation.Search
 import com.zylinn.petdiary.ui.navigation.TopLevelDestination
 import com.zylinn.petdiary.ui.navigation.Trash
 import com.zylinn.petdiary.ui.pets.PetHomeRoute
@@ -37,6 +38,8 @@ import com.zylinn.petdiary.ui.pets.editor.PetEditorViewModel
 import com.zylinn.petdiary.ui.records.RecordEditorScreen
 import com.zylinn.petdiary.ui.records.RecordEditorViewModel
 import com.zylinn.petdiary.ui.screens.PlaceholderScreen
+import com.zylinn.petdiary.ui.search.SearchScreen
+import com.zylinn.petdiary.ui.search.SearchViewModel
 import com.zylinn.petdiary.ui.settings.SettingsScreen
 import com.zylinn.petdiary.ui.trash.TrashScreen
 import com.zylinn.petdiary.ui.trash.TrashViewModel
@@ -66,13 +69,17 @@ fun PetDiaryApp() {
             }
             entry<PetDetail> { key ->
                 val vm = containerViewModel {
-                    PetDetailViewModel(key.petId, it.petRepository, it.recordRepository, it.photoStore, it.clock)
+                    PetDetailViewModel(
+                        key.petId, it.petRepository, it.recordRepository, it.photoStore, it.clock,
+                        initialDay = key.dayEpochDay?.let(LocalDate::ofEpochDay),
+                    )
                 }
                 PetDetailScreen(
                     vm = vm,
                     onBack = back,
                     onPickType = { type, petIds, day -> navigate(RecordEditor(petIds, type.name, day.toEpochDay())) },
                     onOpenRecord = { id, type, day -> navigate(RecordEditor(listOf(key.petId), type.name, day.toEpochDay(), id)) },
+                    onSearch = { navigate(Search(key.petId)) },
                 )
             }
             entry<RecordEditor> { key ->
@@ -90,6 +97,16 @@ fun PetDiaryApp() {
                     )
                 }
                 RecordEditorScreen(vm = vm, onDone = back)
+            }
+            entry<Search> { key ->
+                val container = appContainer()
+                val vm = containerViewModel { SearchViewModel(key.petId, it.petRepository, it.recordRepository, it.clock) }
+                SearchScreen(
+                    vm = vm,
+                    onBack = back,
+                    onOpenHit = { petId, day -> navigate(PetDetail(petId, day.toEpochDay())) },
+                    today = LocalDate.now(container.clock),
+                )
             }
             entry<Trash> {
                 val vm = containerViewModel { TrashViewModel(it.petRepository, it.recordRepository, it.trashRepository, it.photoStore, it.clock) }
@@ -149,6 +166,7 @@ private fun MainScreen(navigate: (NavKey) -> Unit) {
                     onAddPet = { navigate(PetEditor()) },
                     onOpenPet = { id -> navigate(PetDetail(id)) },
                     onEditPet = { id -> navigate(PetEditor(id)) },
+                    onSearch = { navigate(Search()) },
                 )
                 TopLevelDestination.Settings -> SettingsScreen(onOpenTrash = { navigate(Trash) })
                 else -> PlaceholderScreen(destination = current)

@@ -30,6 +30,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -85,6 +86,7 @@ fun PetDetailScreen(
     onBack: () -> Unit,
     onPickType: (RecordType, List<String>, LocalDate) -> Unit,
     onOpenRecord: (id: String, type: RecordType, day: LocalDate) -> Unit,
+    onSearch: () -> Unit = {},
     snackbar: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     val header by vm.header.collectAsStateWithLifecycle()
@@ -120,6 +122,11 @@ fun PetDetailScreen(
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回") }
                 },
                 title = { Text(calendar.selected.titleText(), modifier = Modifier.testTag("detail_title")) },
+                actions = {
+                    IconButton(onClick = onSearch, modifier = Modifier.testTag("detail_search")) {
+                        Icon(Icons.Outlined.Search, contentDescription = "搜尋這隻寵物的紀錄")
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
         },
@@ -270,7 +277,7 @@ private fun RecordList(
 }
 
 @Composable
-fun RecordCardView(card: RecordCard, onClick: () -> Unit) {
+fun RecordCardView(card: RecordCard, onClick: () -> Unit, petName: String? = null) {
     val color = card.type.color
     val shape = RoundedCornerShape(14.dp)
     Row(
@@ -301,7 +308,10 @@ fun RecordCardView(card: RecordCard, onClick: () -> Unit) {
                 )
             }
             Column(Modifier.weight(1f)) {
-                Text(card.type.label, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    text = petName?.let { "${card.type.label}・$it" } ?: card.type.label,
+                    style = MaterialTheme.typography.titleSmall,
+                )
                 if (card.summary.isNotEmpty()) {
                     Text(card.summary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }

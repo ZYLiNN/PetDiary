@@ -21,12 +21,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
@@ -64,9 +66,9 @@ import kotlinx.coroutines.withTimeoutOrNull
 private val TileMinWidth = 168.dp
 
 @Composable
-fun PetHomeRoute(onAddPet: () -> Unit, onOpenPet: (String) -> Unit, onEditPet: (String) -> Unit) {
+fun PetHomeRoute(onAddPet: () -> Unit, onOpenPet: (String) -> Unit, onEditPet: (String) -> Unit, onSearch: () -> Unit = {}) {
     val vm = containerViewModel { PetHomeViewModel(it.petRepository, it.photoStore, it.clock) }
-    PetHomeScreen(vm = vm, onAddPet = onAddPet, onOpenPet = onOpenPet, onEditPet = onEditPet)
+    PetHomeScreen(vm = vm, onAddPet = onAddPet, onOpenPet = onOpenPet, onEditPet = onEditPet, onSearch = onSearch)
 }
 
 /** Binds [PetHomeViewModel] to the stateless screen, including the 5-second undo snackbar. */
@@ -76,6 +78,7 @@ fun PetHomeScreen(
     onAddPet: () -> Unit,
     onOpenPet: (String) -> Unit,
     onEditPet: (String) -> Unit,
+    onSearch: () -> Unit = {},
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     val justDeleted by vm.justDeleted.collectAsStateWithLifecycle()
@@ -100,6 +103,7 @@ fun PetHomeScreen(
         onOpenPet = onOpenPet,
         onEditPet = onEditPet,
         onDeletePet = { tile -> vm.delete(tile.id, tile.name) },
+        onSearch = onSearch,
         snackbarHost = { SnackbarHost(snackbar, modifier = Modifier.testTag("snackbar")) },
     )
 }
@@ -114,6 +118,7 @@ fun PetHomeScreen(
     onOpenPet: (String) -> Unit,
     onEditPet: (String) -> Unit = {},
     onDeletePet: (PetTile) -> Unit = {},
+    onSearch: () -> Unit = {},
     snackbarHost: @Composable () -> Unit = {},
 ) {
     Scaffold(
@@ -121,6 +126,11 @@ fun PetHomeScreen(
         topBar = {
             TopAppBar(
                 title = { Text("我的毛孩") },
+                actions = {
+                    IconButton(onClick = onSearch, modifier = Modifier.testTag("home_search")) {
+                        Icon(Icons.Outlined.Search, contentDescription = "搜尋紀錄")
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
         },
