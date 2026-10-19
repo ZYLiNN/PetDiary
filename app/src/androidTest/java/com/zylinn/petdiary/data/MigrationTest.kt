@@ -131,4 +131,23 @@ class MigrationTest {
             db.close()
         }
     }
+
+    @Test fun v6UpgradesToV7WithAnEmptySyncMarkTable() {
+        helper.createDatabase(dbName, 6).apply {
+            execSQL("INSERT INTO supplements (id, name, createdAt, updatedAt, deletedAt) VALUES ('s1', '魚油', 5, 6, NULL)")
+            close()
+        }
+        helper.runMigrationsAndValidate(dbName, 7, true)
+
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val db = Room.databaseBuilder(context, PetDiaryDatabase::class.java, dbName).build()
+        try {
+            runBlocking {
+                assertEquals("魚油", db.supplementDao().getById("s1")!!.name)
+                assertEquals(null, db.syncDao().meta("supplements", "s1")) // never synced → counts as unsent, uploaded on first sync
+            }
+        } finally {
+            db.close()
+        }
+    }
 }

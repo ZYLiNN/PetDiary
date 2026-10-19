@@ -13,30 +13,29 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface SyncDao {
 
-    @Query("SELECT * FROM pets WHERE updatedAt > :t ORDER BY updatedAt")
-    suspend fun petsAfter(t: Long): List<Pet>
+    // "Dirty" = never synced, or edited since the last sync (updatedAt differs from what we recorded).
+    @Query("SELECT p.* FROM pets p LEFT JOIN sync_meta m ON m.tableName = 'pets' AND m.id = p.id WHERE m.id IS NULL OR m.localStamp != p.updatedAt")
+    suspend fun dirtyPets(): List<Pet>
 
-    @Query("SELECT * FROM records WHERE updatedAt > :t ORDER BY updatedAt")
-    suspend fun recordsAfter(t: Long): List<Record>
+    @Query("SELECT r.* FROM records r LEFT JOIN sync_meta m ON m.tableName = 'records' AND m.id = r.id WHERE m.id IS NULL OR m.localStamp != r.updatedAt")
+    suspend fun dirtyRecords(): List<Record>
 
-    @Query("SELECT * FROM reminders WHERE updatedAt > :t ORDER BY updatedAt")
-    suspend fun remindersAfter(t: Long): List<Reminder>
+    @Query("SELECT r.* FROM reminders r LEFT JOIN sync_meta m ON m.tableName = 'reminders' AND m.id = r.id WHERE m.id IS NULL OR m.localStamp != r.updatedAt")
+    suspend fun dirtyReminders(): List<Reminder>
 
-    @Query("SELECT * FROM supplements WHERE updatedAt > :t ORDER BY updatedAt")
-    suspend fun supplementsAfter(t: Long): List<Supplement>
+    @Query("SELECT s.* FROM supplements s LEFT JOIN sync_meta m ON m.tableName = 'supplements' AND m.id = s.id WHERE m.id IS NULL OR m.localStamp != s.updatedAt")
+    suspend fun dirtySupplements(): List<Supplement>
 
-    /** Emit whenever a table changes; the value is the newest updatedAt (a cheap "something happened" signal). */
-    @Query("SELECT COALESCE(MAX(updatedAt), 0) FROM pets")
-    fun petsStamp(): Flow<Long>
+    /** Re-emits whenever a table or the sync marks change; the engine then looks for dirty rows. */
+    @Query("SELECT (SELECT COUNT(*) FROM pets) + (SELECT COUNT(*) FROM records) + (SELECT COUNT(*) FROM reminders) + (SELECT COUNT(*) FROM supplements) + (SELECT COALESCE(SUM(updatedAt), 0) FROM pets) + (SELECT COALESCE(SUM(updatedAt), 0) FROM records) + (SELECT COALESCE(SUM(updatedAt), 0) FROM reminders) + (SELECT COALESCE(SUM(updatedAt), 0) FROM supplements) + (SELECT COUNT(*) FROM sync_meta)")
+    fun changeSignal(): Flow<Long>
 
-    @Query("SELECT COALESCE(MAX(updatedAt), 0) FROM records")
-    fun recordsStamp(): Flow<Long>
+    @Query("SELECT * FROM sync_meta WHERE tableName = :table AND id = :id")
+    suspend fun meta(table: String, id: String): SyncMeta?
 
-    @Query("SELECT COALESCE(MAX(updatedAt), 0) FROM reminders")
-    fun remindersStamp(): Flow<Long>
+    @Upsert suspend fun upsertMeta(meta: SyncMeta)
 
-    @Query("SELECT COALESCE(MAX(updatedAt), 0) FROM supplements")
-    fun supplementsStamp(): Flow<Long>
+    @Upsert suspend fun upsertMetas(metas: List<SyncMeta>)
 
     @Query("SELECT updatedAt FROM pets WHERE id = :id")
     suspend fun petUpdatedAt(id: String): Long?

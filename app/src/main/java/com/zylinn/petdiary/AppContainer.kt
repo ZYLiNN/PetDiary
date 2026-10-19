@@ -47,7 +47,7 @@ class AppContainer(context: Context) {
     val trashRepository: TrashRepository by lazy {
         TrashRepository(database.petDao(), database.recordDao(), database.attachmentDao(), photoStore, attachmentStore, clock, database.reminderDao())
     }
-    val cloudSync: CloudSync by lazy { CloudSync(context, appScope, settings, database.syncDao(), clock) }
+    val cloudSync: CloudSync by lazy { CloudSync(context, appScope, settings, database, clock) }
     val notifier: ReminderNotifier by lazy { ReminderNotifier(context) }
     val reminderSyncer: ReminderSyncer by lazy {
         ReminderSyncer(appScope, reminderRepository, ReminderScheduler(context), notifier, clock)

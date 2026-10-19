@@ -2,6 +2,7 @@ package com.zylinn.petdiary.sync
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.withTransaction
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.zylinn.petdiary.data.PetDiaryDatabase
@@ -28,16 +29,21 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
 
-/** A pretend Firestore shared by several "devices". */
+/** A pretend Firestore shared by several "devices"; stamps every write with its own increasing server clock. */
 class FakeCloud {
     val docs = SyncTable.entries.associateWith { linkedMapOf<String, CloudDoc>() }
     private val listeners = mutableListOf<Pair<SyncTable, (List<CloudDoc>) -> Unit>>()
+    private var serverClock = 1_000L
+    var pushes = 0
+        private set
 
     fun remoteFor() = object : RemoteStore {
         override suspend fun push(table: SyncTable, docs: List<CloudDoc>) {
             synchronized(this@FakeCloud) {
-                docs.forEach { this@FakeCloud.docs.getValue(table)[it["id"] as String] = it }
-                listeners.filter { it.first == table }.forEach { (_, cb) -> cb(docs) }
+                pushes += docs.size
+                val stamped = docs.map { it + (SERVER_AT to ++serverClock) }
+                stamped.forEach { this@FakeCloud.docs.getValue(table)[it["id"] as String] = it }
+                listeners.filter { it.first == table }.forEach { (_, cb) -> cb(stamped) }
             }
         }
         override fun listen(table: SyncTable, onDocs: (List<CloudDoc>) -> Unit, onError: (Throwable) -> Unit): AutoCloseable {
@@ -54,12 +60,15 @@ class FakeCloud {
             }
         }
     }
-}
 
-class MemoryWatermarks : Watermarks {
-    private val map = mutableMapOf<SyncTable, Long>()
-    override fun get(table: SyncTable) = map[table] ?: 0L
-    override fun set(table: SyncTable, value: Long) { map[table] = value }
+    /** A change made by someone else straight in the cloud. */
+    fun external(table: SyncTable, doc: CloudDoc) {
+        synchronized(this) {
+            val stamped = doc + (SERVER_AT to ++serverClock)
+            docs.getValue(table)[doc["id"] as String] = stamped
+            listeners.filter { it.first == table }.forEach { (_, cb) -> cb(listOf(stamped)) }
+        }
+    }
 }
 
 @RunWith(AndroidJUnit4::class)
@@ -80,8 +89,16 @@ class SyncEngineTest {
 
     @After fun tearDown() { dbA.close(); dbB.close() }
 
-    private fun engine(db: PetDiaryDatabase, marks: Watermarks = MemoryWatermarks()) =
-        SyncEngine(db.syncDao(), cloud.remoteFor(), marks, clock, pushDelayMs = 50)
+    private val errors = java.util.Collections.synchronizedList(mutableListOf<Throwable>())
+
+    private fun engine(db: PetDiaryDatabase) = SyncEngine(
+        db.syncDao(), cloud.remoteFor(), clock, pushDelayMs = 50, onError = { errors += it },
+        inTransaction = { block -> db.withTransaction { block() } },
+    )
+
+    /** Pretend this row was synced at [serverAt] and has no unsent edits. */
+    private suspend fun markClean(db: PetDiaryDatabase, table: SyncTable, id: String, stamp: Long, serverAt: Long = 1) =
+        db.syncDao().upsertMeta(SyncMeta(table.path, id, stamp, serverAt))
 
     private fun pet(id: String = "p1", updatedAt: Long = now, name: String = "雷米", deletedAt: Long? = null) =
         Pet(id, name, Species.CAT, birthEpochDay = 19000, createdAt = 1, updatedAt = updatedAt, deletedAt = deletedAt)
@@ -92,73 +109,108 @@ class SyncEngineTest {
     private fun waitUntil(what: String, ms: Long = 8_000, check: suspend () -> Boolean) = runBlocking {
         val end = System.currentTimeMillis() + ms
         while (System.currentTimeMillis() < end) { if (check()) return@runBlocking; Thread.sleep(50) }
-        throw AssertionError("timed out waiting for: $what")
+        throw AssertionError("timed out waiting for: $what; engine errors=$errors")
     }
 
-    @Test fun pushUploadsChangesOnceAndAdvancesTheWatermark() = runBlocking {
-        val marks = MemoryWatermarks()
-        val a = engine(dbA, marks)
+    @Test fun pushUploadsOnlyRowsWithUnsentEdits() = runBlocking {
+        val a = engine(dbA)
         dbA.syncDao().upsertPet(pet()); dbA.syncDao().upsertRecord(record())
         a.pushPending()
         assertEquals(setOf("p1"), cloud.docs.getValue(SyncTable.PETS).keys)
         assertEquals(setOf("r1"), cloud.docs.getValue(SyncTable.RECORDS).keys)
-        assertEquals(now, marks.get(SyncTable.PETS))
+        assertNotNull(cloud.docs.getValue(SyncTable.PETS).getValue("p1")[SERVER_AT])
 
-        cloud.docs.getValue(SyncTable.PETS).clear()
-        a.pushPending() // nothing new → nothing uploaded
-        assertTrue(cloud.docs.getValue(SyncTable.PETS).isEmpty())
+        val before = cloud.pushes
+        a.pushPending() // nothing edited since → nothing uploaded
+        assertEquals(before, cloud.pushes)
 
         dbA.syncDao().upsertPet(pet(updatedAt = now + 1, name = "雷米2"))
         a.pushPending()
+        assertEquals(before + 1, cloud.pushes)
         assertEquals("雷米2", cloud.docs.getValue(SyncTable.PETS).getValue("p1")["name"])
     }
 
+    @Test fun ourOwnUploadEchoingBackChangesNothingAndStaysClean() = runBlocking {
+        val a = engine(dbA)
+        dbA.syncDao().upsertPet(pet())
+        a.pushPending()
+        a.apply(SyncTable.PETS, cloud.docs.getValue(SyncTable.PETS).values.toList())
+        val before = cloud.pushes
+        a.pushPending()
+        assertEquals("the echo must not look like an unsent edit", before, cloud.pushes)
+        assertTrue(dbA.syncDao().meta("pets", "p1")!!.serverAt > 0)
+    }
+
     @Test fun anotherDeviceReceivesAndKeepsItsOwnNotifiedMark() = runBlocking {
-        val syncB = dbB.syncDao()
         val reminder = Reminder("m1", "p1", RecordType.VET, "看診", 20001, 540, createdAt = 1, updatedAt = now, notifiedFor = 999)
         dbA.syncDao().upsertReminder(reminder)
         engine(dbA).pushPending()
+        assertNull(cloud.docs.getValue(SyncTable.REMINDERS).getValue("m1")["notifiedFor"])
 
-        // B already has an older copy that it announced.
-        syncB.upsertReminder(reminder.copy(updatedAt = now - 10, title = "舊", notifiedFor = 555))
+        // B holds an older, fully synced copy that it already announced.
+        dbB.syncDao().upsertReminder(reminder.copy(updatedAt = now - 10, title = "舊", notifiedFor = 555))
+        markClean(dbB, SyncTable.REMINDERS, "m1", stamp = now - 10)
         engine(dbB).apply(SyncTable.REMINDERS, cloud.docs.getValue(SyncTable.REMINDERS).values.toList())
 
         val got = dbB.reminderDao().getById("m1")!!
         assertEquals("看診", got.title)
-        assertEquals(555L, got.notifiedFor) // not overwritten by A's mark (and A's mark was never uploaded)
+        assertEquals(555L, got.notifiedFor)
     }
 
-    @Test fun newestUpdatedAtWinsAndTiesAreIgnored() = runBlocking {
+    @Test fun aSyncedRowFollowsTheCloudEvenIfPhoneClocksDisagree() = runBlocking {
+        // B's clock is far ahead, so its row says updatedAt = far future; the cloud copy carries an "older" phone stamp.
         val b = engine(dbB)
-        dbB.syncDao().upsertPet(pet(updatedAt = now, name = "本機"))
-        b.apply(SyncTable.PETS, listOf(CloudMapper.pet(pet(updatedAt = now - 5, name = "較舊的雲端"))))
-        assertEquals("本機", dbB.petDao().getById("p1")!!.name)
-        b.apply(SyncTable.PETS, listOf(CloudMapper.pet(pet(updatedAt = now, name = "同時間"))))
-        assertEquals("本機", dbB.petDao().getById("p1")!!.name)
-        b.apply(SyncTable.PETS, listOf(CloudMapper.pet(pet(updatedAt = now + 5, name = "較新的雲端"))))
-        assertEquals("較新的雲端", dbB.petDao().getById("p1")!!.name)
+        dbB.syncDao().upsertPet(pet(updatedAt = now + 10 * day, name = "舊版本"))
+        markClean(dbB, SyncTable.PETS, "p1", stamp = now + 10 * day, serverAt = 5)
+        b.apply(SyncTable.PETS, listOf(CloudMapper.pet(pet(updatedAt = now, name = "雲端較新")) + (SERVER_AT to 6L)))
+        assertEquals("雲端較新", dbB.petDao().getById("p1")!!.name)
+    }
+
+    @Test fun anOldServerVersionIsIgnored() = runBlocking {
+        val b = engine(dbB)
+        dbB.syncDao().upsertPet(pet(name = "現在"))
+        markClean(dbB, SyncTable.PETS, "p1", stamp = now, serverAt = 10)
+        b.apply(SyncTable.PETS, listOf(CloudMapper.pet(pet(updatedAt = now + 5, name = "舊的雲端版本")) + (SERVER_AT to 10L)))
+        b.apply(SyncTable.PETS, listOf(CloudMapper.pet(pet(updatedAt = now + 5, name = "更舊")) + (SERVER_AT to 3L)))
+        assertEquals("現在", dbB.petDao().getById("p1")!!.name)
+    }
+
+    @Test fun unsentLocalEditsAreNotOverwrittenAndWinByUploadingLast() = runBlocking {
+        val b = engine(dbB)
+        dbB.syncDao().upsertPet(pet(updatedAt = now, name = "同步過"))
+        markClean(dbB, SyncTable.PETS, "p1", stamp = now, serverAt = 5)
+        dbB.syncDao().upsertPet(pet(updatedAt = now + 1, name = "我剛改的")) // unsent edit
+        b.apply(SyncTable.PETS, listOf(CloudMapper.pet(pet(updatedAt = now + 99, name = "別人改的")) + (SERVER_AT to 6L)))
+        assertEquals("我剛改的", dbB.petDao().getById("p1")!!.name)
+        b.pushPending()
+        assertEquals("我剛改的", cloud.docs.getValue(SyncTable.PETS).getValue("p1")["name"])
+    }
+
+    @Test fun docsNotYetConfirmedByTheCloudAreIgnored() = runBlocking {
+        engine(dbB).apply(SyncTable.PETS, listOf(CloudMapper.pet(pet()))) // no serverUpdatedAt
+        assertNull(dbB.petDao().getById("p1"))
     }
 
     @Test fun trashAndRestorePropagate() = runBlocking {
         val b = engine(dbB)
-        b.apply(SyncTable.PETS, listOf(CloudMapper.pet(pet())))
-        b.apply(SyncTable.PETS, listOf(CloudMapper.pet(pet(updatedAt = now + 1, deletedAt = now + 1))))
+        b.apply(SyncTable.PETS, listOf(CloudMapper.pet(pet()) + (SERVER_AT to 1L)))
+        b.apply(SyncTable.PETS, listOf(CloudMapper.pet(pet(updatedAt = now + 1, deletedAt = now + 1)) + (SERVER_AT to 2L)))
         assertEquals(now + 1, dbB.petDao().getById("p1")!!.deletedAt)
-        b.apply(SyncTable.PETS, listOf(CloudMapper.pet(pet(updatedAt = now + 2))))
+        b.apply(SyncTable.PETS, listOf(CloudMapper.pet(pet(updatedAt = now + 2)) + (SERVER_AT to 3L)))
         assertNull(dbB.petDao().getById("p1")!!.deletedAt)
     }
 
     @Test fun aLongTrashedCloudCopyIsNotResurrected() = runBlocking {
         val old = now - 8 * day
-        engine(dbB).apply(SyncTable.PETS, listOf(CloudMapper.pet(pet(updatedAt = old, deletedAt = old))))
+        engine(dbB).apply(SyncTable.PETS, listOf(CloudMapper.pet(pet(updatedAt = old, deletedAt = old)) + (SERVER_AT to 1L)))
         assertNull(dbB.petDao().getById("p1"))
         val recent = now - 2 * day
-        engine(dbB).apply(SyncTable.PETS, listOf(CloudMapper.pet(pet(id = "p2", updatedAt = recent, deletedAt = recent))))
+        engine(dbB).apply(SyncTable.PETS, listOf(CloudMapper.pet(pet(id = "p2", updatedAt = recent, deletedAt = recent)) + (SERVER_AT to 2L)))
         assertNotNull(dbB.petDao().getById("p2"))
     }
 
     @Test fun malformedCloudDocumentsAreIgnored() = runBlocking {
-        engine(dbB).apply(SyncTable.PETS, listOf(mapOf("id" to "bad", "updatedAt" to now), mapOf("name" to "no id")))
+        engine(dbB).apply(SyncTable.PETS, listOf(mapOf("id" to "bad", "updatedAt" to now, SERVER_AT to 1L), mapOf("name" to "no id")))
         assertNull(dbB.petDao().getById("bad"))
     }
 
@@ -171,8 +223,8 @@ class SyncEngineTest {
 
     @Test fun expiredTrashIsPurgedFromTheCloudAtStart() = runBlocking {
         val old = now - 8 * day
-        cloud.docs.getValue(SyncTable.RECORDS)["old"] = CloudMapper.record(record("old", updatedAt = old).copy(deletedAt = old))
-        cloud.docs.getValue(SyncTable.RECORDS)["fresh"] = CloudMapper.record(record("fresh"))
+        cloud.docs.getValue(SyncTable.RECORDS)["old"] = CloudMapper.record(record("old", updatedAt = old).copy(deletedAt = old)) + (SERVER_AT to 1L)
+        cloud.docs.getValue(SyncTable.RECORDS)["fresh"] = CloudMapper.record(record("fresh")) + (SERVER_AT to 2L)
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         val job = engine(dbA).start(scope)
         waitUntil("expired doc purged") { "old" !in cloud.docs.getValue(SyncTable.RECORDS) }
@@ -191,13 +243,20 @@ class SyncEngineTest {
             dbB.syncDao().upsertRecord(record())
             waitUntil("B→A record") { dbA.recordDao().getById("r1") != null }
 
-            // B renames the pet later; A sees it.
-            dbB.syncDao().upsertPet(pet(updatedAt = now + 100, name = "改名"))
+            // B renames the pet later; A sees it — even though B's phone clock is behind A's.
+            dbB.syncDao().upsertPet(pet(updatedAt = now - 5_000, name = "改名"))
             waitUntil("rename reaches A") { dbA.petDao().getById("p1")!!.name == "改名" }
 
             // A moves the pet to the trash; B sees that too.
             dbA.petDao().softDelete("p1", now + 200)
-            waitUntil("trash reaches B") { dbB.petDao().getById("p1")!!.deletedAt != null }
+            try {
+                waitUntil("trash reaches B") { dbB.petDao().getById("p1")!!.deletedAt != null }
+            } catch (e: AssertionError) {
+                throw AssertionError(
+                    "A=${dbA.petDao().getById("p1")} metaA=${dbA.syncDao().meta("pets", "p1")} " +
+                        "B=${dbB.petDao().getById("p1")} metaB=${dbB.syncDao().meta("pets", "p1")} cloud=${cloud.docs.getValue(SyncTable.PETS)["p1"]}", e,
+                )
+            }
             jobA.cancelAndJoin(); jobB.cancelAndJoin()
         }
     }

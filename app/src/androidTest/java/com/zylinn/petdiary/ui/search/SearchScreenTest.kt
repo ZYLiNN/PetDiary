@@ -104,6 +104,7 @@ class SearchScreenTest {
         val mine = add(cat, RecordType.VACCINE, today, "三合一")
         val other = add(dog, RecordType.VACCINE, today, "狂犬病")
         show(initialPet = cat)
+        waitFor("filter_pet_$cat") // the pet chips appear once the pets have loaded
         rule.onNodeWithTag("filter_pet_$cat").assertIsSelected()
         rule.onNodeWithTag("search_field").performTextInput("疫苗")
         waitFor("record_$mine")

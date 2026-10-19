@@ -1,6 +1,7 @@
 package com.zylinn.petdiary.sync
 
 import com.google.firebase.firestore.DocumentChange
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 
@@ -11,15 +12,22 @@ class FirestoreRemote(private val db: FirebaseFirestore, private val groupId: St
 
     override suspend fun push(table: SyncTable, docs: List<CloudDoc>) {
         val batch = db.batch()
-        docs.forEach { batch.set(collection(table).document(it["id"] as String), it) }
+        // The server fills in its own clock; the security rules insist the value equals the request time.
+        docs.forEach { batch.set(collection(table).document(it["id"] as String), it + (SERVER_AT to FieldValue.serverTimestamp())) }
         batch.commit().await()
     }
 
     override fun listen(table: SyncTable, onDocs: (List<CloudDoc>) -> Unit, onError: (Throwable) -> Unit): AutoCloseable {
         val registration = collection(table).addSnapshotListener { snap, error ->
             if (error != null) return@addSnapshotListener onError(error)
-            val changed = snap?.documentChanges.orEmpty().filter { it.type != DocumentChange.Type.REMOVED }
-            if (changed.isNotEmpty()) onDocs(changed.map { it.document.data })
+            val docs = snap?.documentChanges.orEmpty()
+                .filter { it.type != DocumentChange.Type.REMOVED }
+                .mapNotNull { change ->
+                    val ts = change.document.getTimestamp(SERVER_AT) ?: return@mapNotNull null // our own write, not confirmed yet
+                    val data = change.document.data
+                    data + (SERVER_AT to ts.seconds * 1_000_000L + ts.nanoseconds / 1_000L)
+                }
+            if (docs.isNotEmpty()) onDocs(docs)
         }
         return AutoCloseable { registration.remove() }
     }

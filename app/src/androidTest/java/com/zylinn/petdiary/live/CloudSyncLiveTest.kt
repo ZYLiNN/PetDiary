@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.zylinn.petdiary.PetDiaryApplication
 import com.zylinn.petdiary.data.pet.PetInput
@@ -55,14 +56,14 @@ class CloudSyncLiveTest {
             assertEquals("雲端測試貓", group.collection("pets").document(pet.id).get().await().getString("name"))
 
             // cloud → phone (what a second device would do): newer updatedAt wins
-            group.collection("pets").document(pet.id).update(mapOf("name" to "雲端改名", "updatedAt" to System.currentTimeMillis() + 60_000)).await()
+            group.collection("pets").document(pet.id).update(mapOf("name" to "雲端改名", "updatedAt" to System.currentTimeMillis() + 60_000, "serverUpdatedAt" to FieldValue.serverTimestamp())).await()
             waitUntil("rename arrives on the phone") { container.petRepository.get(pet.id)?.name == "雲端改名" }
 
             // a record created in the cloud shows up locally
             val now = System.currentTimeMillis() + 120_000
             group.collection("records").document("live-r1").set(
                 mapOf("id" to "live-r1", "petId" to pet.id, "type" to "WALK", "dateEpochDay" to 20000L, "minuteOfDay" to 480L,
-                    "durationMin" to 30L, "createdAt" to now, "updatedAt" to now),
+                    "durationMin" to 30L, "createdAt" to now, "updatedAt" to now, "serverUpdatedAt" to FieldValue.serverTimestamp()),
             ).await()
             waitUntil("record arrives on the phone") { container.database.recordDao().getById("live-r1") != null }
             assertEquals(30, container.database.recordDao().getById("live-r1")!!.durationMin)

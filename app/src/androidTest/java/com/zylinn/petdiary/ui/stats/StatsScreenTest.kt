@@ -73,6 +73,10 @@ class StatsScreenTest {
     private fun show(): StatsViewModel {
         val vm = StatsViewModel(pets, records, clock)
         rule.setContent { PetDiaryTheme { StatsScreen(vm) } }
+        // Either the filters (there are pets) or the guide (there are none) show up once the pets have loaded.
+        rule.waitUntil(5_000) {
+            listOf("range_WEEK", "stats_no_pets").any { runCatching { rule.onNodeWithTag(it, useUnmergedTree = true).assertExists() }.isSuccess }
+        }
         return vm
     }
 

@@ -1,6 +1,7 @@
 package com.zylinn.petdiary.sync
 
 import android.content.Context
+import androidx.room.withTransaction
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -36,7 +37,7 @@ class CloudSync(
     private val context: Context,
     private val scope: CoroutineScope,
     private val settings: AppSettings,
-    private val dao: SyncDao,
+    private val database: com.zylinn.petdiary.data.PetDiaryDatabase,
     private val clock: Clock,
 ) {
     private val _status = MutableStateFlow<SyncStatus>(if (settings.cloudSyncEnabled.value) SyncStatus.Connecting else SyncStatus.Off)
@@ -90,16 +91,12 @@ class CloudSync(
         val uid = (auth.currentUser ?: auth.signInAnonymously().await().user)!!.uid
         val db = FirebaseFirestore.getInstance()
         val groupId = ensureGroup(db, uid)
-        val prefs = context.getSharedPreferences("petdiary_sync", Context.MODE_PRIVATE)
-        val watermarks = object : Watermarks {
-            private fun key(t: SyncTable) = "pushed_${groupId}_${t.path}"
-            override fun get(table: SyncTable) = prefs.getLong(key(table), 0L)
-            override fun set(table: SyncTable, value: Long) = prefs.edit().putLong(key(table), value).apply()
-        }
         lateinit var engine: SyncEngine
-        engine = SyncEngine(dao, FirestoreRemote(db, groupId), watermarks, clock, onError = { e ->
-            _status.value = SyncStatus.Error(e.message ?: e.javaClass.simpleName)
-        })
+        engine = SyncEngine(
+            database.syncDao(), FirestoreRemote(db, groupId), clock,
+            onError = { e -> _status.value = SyncStatus.Error(e.message ?: e.javaClass.simpleName) },
+            inTransaction = { block -> database.withTransaction { block() } },
+        )
         val engineJob = engine.start(scope)
         _status.value = SyncStatus.Active(null)
         launchStatusUpdates(engine)
