@@ -1,0 +1,109 @@
+rules_version = '2';
+
+// PetDiary cloud rules (P7). Everything lives under groups/{groupId}; only the group's members can touch it.
+// Every user starts with a private group of their own; the family feature (P8) adds members to it.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function groupPath(gid) { return /databases/$(database)/documents/groups/$(gid); }
+    function isMember(gid) {
+      return signedIn() && exists(groupPath(gid)) && request.auth.uid in get(groupPath(gid)).data.memberUids;
+    }
+
+    // --- field checks -----------------------------------------------------------------------------
+    function str(d, k, max) { return d[k] is string && d[k].size() <= max; }
+    function optStr(d, k, max) { return !(k in d) || str(d, k, max); }
+    function int(d, k) { return d[k] is int; }
+    function optInt(d, k) { return !(k in d) || d[k] is int; }
+    function optBool(d, k) { return !(k in d) || d[k] is bool; }
+    function optNum(d, k) { return !(k in d) || d[k] is number; }
+    function base(d, id) { return d.id == id && int(d, 'createdAt') && int(d, 'updatedAt') && optInt(d, 'deletedAt'); }
+
+    function validPet(d, id) {
+      return d.keys().hasOnly(['id', 'name', 'species', 'customSpecies', 'birthEpochDay', 'birthEstimated', 'sex',
+                 'neutered', 'breed', 'chipNumber', 'note', 'photoFile', 'createdAt', 'updatedAt', 'deletedAt'])
+        && d.keys().hasAll(['id', 'name', 'species', 'birthEpochDay', 'createdAt', 'updatedAt'])
+        && base(d, id) && str(d, 'name', 100) && str(d, 'species', 20) && int(d, 'birthEpochDay')
+        && optStr(d, 'customSpecies', 100) && optBool(d, 'birthEstimated') && optStr(d, 'sex', 20) && optBool(d, 'neutered')
+        && optStr(d, 'breed', 100) && optStr(d, 'chipNumber', 100) && optStr(d, 'note', 2000) && optStr(d, 'photoFile', 200);
+    }
+
+    function validRecord(d, id) {
+      return d.keys().hasOnly(['id', 'petId', 'type', 'dateEpochDay', 'minuteOfDay', 'note', 'cost', 'portions', 'drankWater',
+                 'supplementIds', 'title', 'detail', 'hospital', 'nextEpochDay', 'remindNext', 'dewormKind', 'weightKg',
+                 'durationMin', 'peed', 'pooped', 'createdAt', 'updatedAt', 'deletedAt'])
+        && d.keys().hasAll(['id', 'petId', 'type', 'dateEpochDay', 'minuteOfDay', 'createdAt', 'updatedAt'])
+        && base(d, id) && str(d, 'petId', 64) && str(d, 'type', 20) && int(d, 'dateEpochDay')
+        && int(d, 'minuteOfDay') && d.minuteOfDay >= 0 && d.minuteOfDay < 1440
+        && optStr(d, 'note', 2000) && optInt(d, 'cost') && optNum(d, 'portions') && optBool(d, 'drankWater')
+        && optStr(d, 'supplementIds', 1000) && optStr(d, 'title', 200) && optStr(d, 'detail', 500) && optStr(d, 'hospital', 200)
+        && optInt(d, 'nextEpochDay') && optBool(d, 'remindNext') && optStr(d, 'dewormKind', 20) && optNum(d, 'weightKg')
+        && optInt(d, 'durationMin') && optBool(d, 'peed') && optBool(d, 'pooped');
+    }
+
+    function validReminder(d, id) {
+      return d.keys().hasOnly(['id', 'petId', 'type', 'title', 'dueEpochDay', 'minuteOfDay', 'repeat', 'repeatEvery',
+                 'sourceRecordId', 'completedAt', 'createdAt', 'updatedAt', 'deletedAt'])
+        && d.keys().hasAll(['id', 'petId', 'type', 'dueEpochDay', 'minuteOfDay', 'repeat', 'createdAt', 'updatedAt'])
+        && base(d, id) && str(d, 'petId', 64) && str(d, 'type', 20) && optStr(d, 'title', 200) && int(d, 'dueEpochDay')
+        && int(d, 'minuteOfDay') && d.minuteOfDay >= 0 && d.minuteOfDay < 1440 && str(d, 'repeat', 20)
+        && optInt(d, 'repeatEvery') && optStr(d, 'sourceRecordId', 64) && optInt(d, 'completedAt');
+    }
+
+    function validSupplement(d, id) {
+      return d.keys().hasOnly(['id', 'name', 'createdAt', 'updatedAt', 'deletedAt'])
+        && d.keys().hasAll(['id', 'name', 'createdAt', 'updatedAt'])
+        && base(d, id) && str(d, 'name', 100);
+    }
+
+    // --- per-user pointer to the group the user belongs to ---------------------------------------
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['groupId', 'updatedAt'])
+        && request.resource.data.groupId is string && isMember(request.resource.data.groupId);
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+
+    // --- groups ------------------------------------------------------------------------------------
+    match /groups/{gid} {
+      allow read: if isMember(gid);
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['ownerUid', 'memberUids', 'createdAt', 'updatedAt'])
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.memberUids == [request.auth.uid]
+        && request.resource.data.createdAt is int && request.resource.data.updatedAt is int;
+      // Only the owner changes membership; the owner can never be changed or dropped.
+      allow update: if isMember(gid) && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['ownerUid', 'memberUids', 'createdAt', 'updatedAt'])
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.memberUids is list && request.resource.data.memberUids.size() <= 20
+        && request.auth.uid in request.resource.data.memberUids;
+      allow delete: if isMember(gid) && resource.data.ownerUid == request.auth.uid;
+
+      match /pets/{id} {
+        allow read, delete: if isMember(gid);
+        allow create, update: if isMember(gid) && validPet(request.resource.data, id);
+      }
+      match /records/{id} {
+        allow read, delete: if isMember(gid);
+        allow create, update: if isMember(gid) && validRecord(request.resource.data, id);
+      }
+      match /reminders/{id} {
+        allow read, delete: if isMember(gid);
+        allow create, update: if isMember(gid) && validReminder(request.resource.data, id);
+      }
+      match /supplements/{id} {
+        allow read, delete: if isMember(gid);
+        allow create, update: if isMember(gid) && validSupplement(request.resource.data, id);
+      }
+    }
+
+    // Anything not listed above is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
