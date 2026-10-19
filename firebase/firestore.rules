@@ -7,8 +7,15 @@ service cloud.firestore {
 
     function signedIn() { return request.auth != null; }
     function groupPath(gid) { return /databases/$(database)/documents/groups/$(gid); }
+    function memberPath(gid, uid) { return /databases/$(database)/documents/groups/$(gid)/members/$(uid); }
+    function invitePath(gid, code) { return /databases/$(database)/documents/groups/$(gid)/invites/$(code); }
+    // A member is the group's owner (listed in memberUids) or someone who joined through an invitation (members/{uid}).
     function isMember(gid) {
-      return signedIn() && exists(groupPath(gid)) && request.auth.uid in get(groupPath(gid)).data.memberUids;
+      return signedIn() && exists(groupPath(gid))
+        && (request.auth.uid in get(groupPath(gid)).data.memberUids || exists(memberPath(gid, request.auth.uid)));
+    }
+    function isOwner(gid) {
+      return signedIn() && exists(groupPath(gid)) && get(groupPath(gid)).data.ownerUid == request.auth.uid;
     }
 
     // --- field checks -----------------------------------------------------------------------------
@@ -18,12 +25,15 @@ service cloud.firestore {
     function optInt(d, k) { return !(k in d) || d[k] is int; }
     function optBool(d, k) { return !(k in d) || d[k] is bool; }
     function optNum(d, k) { return !(k in d) || d[k] is number; }
-    function base(d, id) { return d.id == id && int(d, 'createdAt') && int(d, 'updatedAt') && optInt(d, 'deletedAt'); }
+    // serverUpdatedAt is the cloud's own clock (D55): a client can only write the real request time, never a made-up one.
+    function base(d, id) {
+      return d.id == id && int(d, 'createdAt') && int(d, 'updatedAt') && optInt(d, 'deletedAt') && d.serverUpdatedAt == request.time;
+    }
 
     function validPet(d, id) {
       return d.keys().hasOnly(['id', 'name', 'species', 'customSpecies', 'birthEpochDay', 'birthEstimated', 'sex',
-                 'neutered', 'breed', 'chipNumber', 'note', 'photoFile', 'createdAt', 'updatedAt', 'deletedAt'])
-        && d.keys().hasAll(['id', 'name', 'species', 'birthEpochDay', 'createdAt', 'updatedAt'])
+                 'neutered', 'breed', 'chipNumber', 'note', 'photoFile', 'createdAt', 'updatedAt', 'deletedAt', 'serverUpdatedAt'])
+        && d.keys().hasAll(['id', 'name', 'species', 'birthEpochDay', 'createdAt', 'updatedAt', 'serverUpdatedAt'])
         && base(d, id) && str(d, 'name', 100) && str(d, 'species', 20) && int(d, 'birthEpochDay')
         && optStr(d, 'customSpecies', 100) && optBool(d, 'birthEstimated') && optStr(d, 'sex', 20) && optBool(d, 'neutered')
         && optStr(d, 'breed', 100) && optStr(d, 'chipNumber', 100) && optStr(d, 'note', 2000) && optStr(d, 'photoFile', 200);
@@ -32,28 +42,28 @@ service cloud.firestore {
     function validRecord(d, id) {
       return d.keys().hasOnly(['id', 'petId', 'type', 'dateEpochDay', 'minuteOfDay', 'note', 'cost', 'portions', 'drankWater',
                  'supplementIds', 'title', 'detail', 'hospital', 'nextEpochDay', 'remindNext', 'dewormKind', 'weightKg',
-                 'durationMin', 'peed', 'pooped', 'createdAt', 'updatedAt', 'deletedAt'])
-        && d.keys().hasAll(['id', 'petId', 'type', 'dateEpochDay', 'minuteOfDay', 'createdAt', 'updatedAt'])
+                 'durationMin', 'peed', 'pooped', 'authorUid', 'createdAt', 'updatedAt', 'deletedAt', 'serverUpdatedAt'])
+        && d.keys().hasAll(['id', 'petId', 'type', 'dateEpochDay', 'minuteOfDay', 'createdAt', 'updatedAt', 'serverUpdatedAt'])
         && base(d, id) && str(d, 'petId', 64) && str(d, 'type', 20) && int(d, 'dateEpochDay')
         && int(d, 'minuteOfDay') && d.minuteOfDay >= 0 && d.minuteOfDay < 1440
         && optStr(d, 'note', 2000) && optInt(d, 'cost') && optNum(d, 'portions') && optBool(d, 'drankWater')
         && optStr(d, 'supplementIds', 1000) && optStr(d, 'title', 200) && optStr(d, 'detail', 500) && optStr(d, 'hospital', 200)
         && optInt(d, 'nextEpochDay') && optBool(d, 'remindNext') && optStr(d, 'dewormKind', 20) && optNum(d, 'weightKg')
-        && optInt(d, 'durationMin') && optBool(d, 'peed') && optBool(d, 'pooped');
+        && optInt(d, 'durationMin') && optBool(d, 'peed') && optBool(d, 'pooped') && optStr(d, 'authorUid', 64);
     }
 
     function validReminder(d, id) {
       return d.keys().hasOnly(['id', 'petId', 'type', 'title', 'dueEpochDay', 'minuteOfDay', 'repeat', 'repeatEvery',
-                 'sourceRecordId', 'completedAt', 'createdAt', 'updatedAt', 'deletedAt'])
-        && d.keys().hasAll(['id', 'petId', 'type', 'dueEpochDay', 'minuteOfDay', 'repeat', 'createdAt', 'updatedAt'])
+                 'sourceRecordId', 'completedAt', 'createdAt', 'updatedAt', 'deletedAt', 'serverUpdatedAt'])
+        && d.keys().hasAll(['id', 'petId', 'type', 'dueEpochDay', 'minuteOfDay', 'repeat', 'createdAt', 'updatedAt', 'serverUpdatedAt'])
         && base(d, id) && str(d, 'petId', 64) && str(d, 'type', 20) && optStr(d, 'title', 200) && int(d, 'dueEpochDay')
         && int(d, 'minuteOfDay') && d.minuteOfDay >= 0 && d.minuteOfDay < 1440 && str(d, 'repeat', 20)
         && optInt(d, 'repeatEvery') && optStr(d, 'sourceRecordId', 64) && optInt(d, 'completedAt');
     }
 
     function validSupplement(d, id) {
-      return d.keys().hasOnly(['id', 'name', 'createdAt', 'updatedAt', 'deletedAt'])
-        && d.keys().hasAll(['id', 'name', 'createdAt', 'updatedAt'])
+      return d.keys().hasOnly(['id', 'name', 'createdAt', 'updatedAt', 'deletedAt', 'serverUpdatedAt'])
+        && d.keys().hasAll(['id', 'name', 'createdAt', 'updatedAt', 'serverUpdatedAt'])
         && base(d, id) && str(d, 'name', 100);
     }
 
@@ -70,18 +80,56 @@ service cloud.firestore {
     match /groups/{gid} {
       allow read: if isMember(gid);
       allow create: if signedIn()
-        && request.resource.data.keys().hasOnly(['ownerUid', 'memberUids', 'createdAt', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['ownerUid', 'ownerName', 'memberUids', 'createdAt', 'updatedAt'])
         && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.memberUids == [request.auth.uid]
-        && request.resource.data.createdAt is int && request.resource.data.updatedAt is int;
+        && request.resource.data.createdAt is int && request.resource.data.updatedAt is int
+        && optStr(request.resource.data, 'ownerName', 30);
       // Only the owner changes membership; the owner can never be changed or dropped.
       allow update: if isMember(gid) && resource.data.ownerUid == request.auth.uid
-        && request.resource.data.keys().hasOnly(['ownerUid', 'memberUids', 'createdAt', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['ownerUid', 'ownerName', 'memberUids', 'createdAt', 'updatedAt'])
         && request.resource.data.ownerUid == resource.data.ownerUid
         && request.resource.data.createdAt == resource.data.createdAt
-        && request.resource.data.memberUids is list && request.resource.data.memberUids.size() <= 20
-        && request.auth.uid in request.resource.data.memberUids;
+        && request.resource.data.memberUids == resource.data.memberUids
+        && optStr(request.resource.data, 'ownerName', 30);
       allow delete: if isMember(gid) && resource.data.ownerUid == request.auth.uid;
+
+      // --- family: invitations and members -----------------------------------------------------------
+      // The owner creates an invitation (random code, valid for a limited time). Whoever holds the code can join once:
+      // one batch marks the invitation used AND creates their members/{uid}; getAfter() proves both happen together.
+      match /invites/{code} {
+        allow get: if signedIn();
+        allow list, delete: if isOwner(gid);
+        allow create: if isOwner(gid) && code.size() >= 20
+          && request.resource.data.keys().hasOnly(['createdAt', 'expiresAt', 'used'])
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.expiresAt is timestamp
+          && request.resource.data.expiresAt > request.time
+          && request.resource.data.expiresAt <= request.time + duration.value(7, 'd')
+          && request.resource.data.used == false;
+        allow update: if signedIn()
+          && resource.data.used == false && resource.data.expiresAt > request.time
+          && request.resource.data.used == true && request.resource.data.usedBy == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['used', 'usedBy']);
+      }
+
+      match /members/{uid} {
+        allow read: if isMember(gid);
+        allow create: if signedIn() && request.auth.uid == uid && !isMember(gid)
+          && request.resource.data.keys().hasOnly(['name', 'role', 'joinedAt', 'inviteCode'])
+          && request.resource.data.role == 'member'
+          && request.resource.data.name is string && request.resource.data.name.size() <= 30
+          && request.resource.data.joinedAt == request.time
+          && request.resource.data.inviteCode is string && request.resource.data.inviteCode.size() >= 20
+          && get(invitePath(gid, request.resource.data.inviteCode)).data.used == false
+          && get(invitePath(gid, request.resource.data.inviteCode)).data.expiresAt > request.time
+          && getAfter(invitePath(gid, request.resource.data.inviteCode)).data.used == true
+          && getAfter(invitePath(gid, request.resource.data.inviteCode)).data.usedBy == uid;
+        allow update: if request.auth.uid == uid && isMember(gid)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
+          && request.resource.data.name is string && request.resource.data.name.size() <= 30;
+        allow delete: if signedIn() && (request.auth.uid == uid || isOwner(gid));
+      }
 
       match /pets/{id} {
         allow read, delete: if isMember(gid);

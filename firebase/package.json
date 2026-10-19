@@ -3,7 +3,7 @@
   "private": true,
   "description": "Firestore security rules and their emulator tests (P7)",
   "scripts": {
-    "test": "firebase emulators:exec --only firestore --project demo-petdiary \"node --test test/*.test.mjs\""
+    "test": "firebase emulators:exec --only firestore,storage --project demo-petdiary \"node --test --test-concurrency=1 test/*.test.mjs\""
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.0",

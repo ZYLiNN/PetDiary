@@ -1,0 +1,29 @@
+rules_version = '2';
+
+// PetDiary file rules (P8): photos and PDF attachments live under groups/{groupId}/files/.
+// Membership is decided by Firestore (the same members the Firestore rules trust).
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() { return request.auth != null; }
+    function groupDoc(gid) { return /databases/(default)/documents/groups/$(gid); }
+    function isMember(gid) {
+      return signedIn() && firestore.exists(groupDoc(gid))
+        && (request.auth.uid in firestore.get(groupDoc(gid)).data.memberUids
+            || firestore.exists(/databases/(default)/documents/groups/$(gid)/members/$(request.auth.uid)));
+    }
+
+    match /groups/{gid}/files/{name} {
+      allow read, delete: if isMember(gid);
+      // one file ≤ 10 MB, images or PDF only
+      allow create, update: if isMember(gid)
+        && request.resource.size <= 10 * 1024 * 1024
+        && (request.resource.contentType.matches('image/.*') || request.resource.contentType == 'application/pdf')
+        && name.size() <= 100;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
