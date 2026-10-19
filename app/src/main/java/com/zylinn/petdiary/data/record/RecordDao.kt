@@ -54,6 +54,14 @@ interface RecordDao {
     @Query("DELETE FROM records WHERE id = :id")
     suspend fun deletePermanently(id: String)
 
+    /** Stats page (P5): records of living pets, filtered by pets / types / date range. */
+    @Query(
+        "SELECT r.* FROM records r JOIN pets p ON p.id = r.petId " +
+            "WHERE r.deletedAt IS NULL AND p.deletedAt IS NULL AND r.petId IN (:petIds) AND r.type IN (:types) " +
+            "AND r.dateEpochDay BETWEEN :from AND :to ORDER BY r.dateEpochDay, r.minuteOfDay",
+    )
+    fun observeForStats(petIds: List<String>, types: List<RecordType>, from: Long, to: Long): Flow<List<Record>>
+
     /** Search query built by [RecordSearch]; re-runs whenever records or pets change. */
     @RawQuery(observedEntities = [Record::class, Pet::class])
     fun observeSearch(query: SupportSQLiteQuery): Flow<List<Record>>

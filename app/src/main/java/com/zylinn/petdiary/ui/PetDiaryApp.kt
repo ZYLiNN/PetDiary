@@ -42,10 +42,11 @@ import com.zylinn.petdiary.ui.reminders.ReminderEditorScreen
 import com.zylinn.petdiary.ui.reminders.ReminderEditorViewModel
 import com.zylinn.petdiary.ui.reminders.RemindersScreen
 import com.zylinn.petdiary.ui.reminders.RemindersViewModel
-import com.zylinn.petdiary.ui.screens.PlaceholderScreen
 import com.zylinn.petdiary.ui.search.SearchScreen
 import com.zylinn.petdiary.ui.search.SearchViewModel
 import com.zylinn.petdiary.ui.settings.SettingsScreen
+import com.zylinn.petdiary.ui.stats.StatsScreen
+import com.zylinn.petdiary.ui.stats.StatsViewModel
 import com.zylinn.petdiary.ui.trash.TrashScreen
 import com.zylinn.petdiary.ui.trash.TrashViewModel
 import java.time.LocalDate
@@ -194,8 +195,11 @@ private fun MainScreen(navigate: (NavKey) -> Unit) {
                         onEdit = { id -> navigate(ReminderEditor(reminderId = id)) },
                     )
                 }
+                TopLevelDestination.Stats -> {
+                    val vm = containerViewModel { StatsViewModel(it.petRepository, it.recordRepository, it.clock) }
+                    StatsScreen(vm = vm)
+                }
                 TopLevelDestination.Settings -> SettingsScreen(onOpenTrash = { navigate(Trash) })
-                else -> PlaceholderScreen(destination = current)
             }
         }
     }

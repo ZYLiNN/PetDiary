@@ -54,6 +54,8 @@ class RecordRepository(
     fun observeLastOfEachType(petId: String) = records.observeLastOfEachType(petId)
     fun observeLatest(petId: String, type: RecordType) = records.observeLatest(petId, type)
     fun observeTrashed() = records.observeTrashed()
+    fun observeForStats(petIds: List<String>, types: List<RecordType>, from: Long, to: Long) =
+        if (petIds.isEmpty()) flowOf(emptyList()) else records.observeForStats(petIds, types, from, to)
     fun observeAttachments(recordId: String) = attachments.observeForRecord(recordId)
     fun observeAttachmentCounts(recordIds: List<String>) = attachments.observeCounts(recordIds)
     val supplementsList = supplements.observeActive()
