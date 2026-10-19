@@ -150,4 +150,28 @@ class MigrationTest {
             db.close()
         }
     }
+
+    @Test fun v8PetsGetAnEmptyColourOnUpgradeToV9() {
+        helper.createDatabase(dbName, 8).apply {
+            execSQL(
+                """INSERT INTO pets (id, name, species, customSpecies, birthEpochDay, birthEstimated, sex, neutered,
+                   breed, chipNumber, note, photoFile, createdAt, updatedAt, deletedAt)
+                   VALUES ('p1', '雷米', 'CAT', NULL, 19000, 0, 'UNKNOWN', NULL, NULL, NULL, NULL, NULL, 1, 2, NULL)""",
+            )
+            close()
+        }
+        helper.runMigrationsAndValidate(dbName, 9, true)
+
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val db = Room.databaseBuilder(context, PetDiaryDatabase::class.java, dbName).build()
+        try {
+            runBlocking {
+                val p = db.petDao().getById("p1")!!
+                assertEquals("雷米", p.name)
+                assertEquals(null, p.color)
+            }
+        } finally {
+            db.close()
+        }
+    }
 }

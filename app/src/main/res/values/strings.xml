@@ -3,10 +3,11 @@
     <string name="tab_pets">寵物</string>
     <string name="tab_reminders">提醒</string>
     <string name="tab_stats">統計</string>
-    <string name="tab_settings">設定</string>
+    <string name="tab_calendar">行事曆</string>
     <string name="title_pets">我的毛孩</string>
     <string name="title_reminders">提醒</string>
     <string name="title_stats">統計</string>
+    <string name="title_calendar">行事曆</string>
     <string name="title_settings">設定</string>
     <string name="placeholder_coming">此頁面將在 %1$s 實作</string>
 </resources>

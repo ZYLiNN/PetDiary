@@ -14,6 +14,9 @@ interface PetDao {
     @Query("SELECT * FROM pets WHERE deletedAt IS NOT NULL ORDER BY deletedAt DESC")
     fun observeTrashed(): Flow<List<Pet>>
 
+    @Query("SELECT * FROM pets WHERE deletedAt IS NULL ORDER BY createdAt")
+    suspend fun getActive(): List<Pet>
+
     @Query("SELECT * FROM pets WHERE id = :id")
     suspend fun getById(id: String): Pet?
 

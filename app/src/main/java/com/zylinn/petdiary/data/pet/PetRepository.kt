@@ -17,6 +17,8 @@ data class PetInput(
     val chipNumber: String? = null,
     val note: String? = null,
     val photoFile: String? = null,
+    /** null = keep the current colour (or, for a new pet, pick the next free one). */
+    val color: PetColor? = null,
 )
 
 class PetRepository(
@@ -31,9 +33,16 @@ class PetRepository(
 
     fun observe(id: String): Flow<Pet?> = dao.observeById(id)
 
+    /** The colour a newly added pet would get: the first one no living pet is using. */
+    suspend fun nextAutoColor(): PetColor = PetColor.nextFree(PetColor.effective(dao.getActive()).values)
+
+    /** Colours as shown on the calendar, for the pets that exist now. */
+    suspend fun effectiveColors(): Map<String, PetColor> = PetColor.effective(dao.getActive())
+
     suspend fun add(input: PetInput): Pet {
         val now = clock.millis()
         val pet = input.toPet(id = newId(), createdAt = now, updatedAt = now)
+            .let { if (it.color == null) it.copy(color = nextAutoColor().name) else it }
         dao.upsert(pet)
         return pet
     }
@@ -41,7 +50,7 @@ class PetRepository(
     suspend fun update(id: String, input: PetInput): Pet? {
         val existing = dao.getById(id) ?: return null
         val pet = input.toPet(id = id, createdAt = existing.createdAt, updatedAt = clock.millis())
-            .copy(deletedAt = existing.deletedAt)
+            .copy(deletedAt = existing.deletedAt, color = input.color?.name ?: existing.color)
         dao.upsert(pet)
         return pet
     }
@@ -63,6 +72,7 @@ class PetRepository(
         chipNumber = chipNumber?.trim()?.ifEmpty { null },
         note = note?.trim()?.ifEmpty { null },
         photoFile = photoFile,
+        color = color?.name,
         createdAt = createdAt,
         updatedAt = updatedAt,
     )

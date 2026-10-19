@@ -50,6 +50,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.zylinn.petdiary.ui.common.SettingsAction
 import com.zylinn.petdiary.domain.RangeKind
 import com.zylinn.petdiary.domain.StatMetric
 import com.zylinn.petdiary.ui.records.DateDialog
@@ -58,7 +59,7 @@ import com.zylinn.petdiary.ui.records.icon
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun StatsScreen(vm: StatsViewModel) {
+fun StatsScreen(vm: StatsViewModel, onOpenSettings: () -> Unit = {}) {
     val filters by vm.filters.collectAsStateWithLifecycle()
     val choices by vm.petChoices.collectAsStateWithLifecycle()
     val ui by vm.ui.collectAsStateWithLifecycle()
@@ -71,6 +72,7 @@ fun StatsScreen(vm: StatsViewModel) {
         topBar = {
             TopAppBar(
                 title = { Text("統計") },
+                actions = { SettingsAction(onOpenSettings) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
         },

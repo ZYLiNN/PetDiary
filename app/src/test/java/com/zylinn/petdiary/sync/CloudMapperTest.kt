@@ -22,6 +22,12 @@ class CloudMapperTest {
         neutered = true, breed = "x", note = "n", photoFile = "a.jpg", createdAt = 1, updatedAt = 2, deletedAt = 3,
     )
 
+    @Test fun petColourTravelsAndUnknownColoursAreDropped() {
+        assertEquals("BLUE", CloudMapper.pet(pet.copy(color = "BLUE"))["color"])
+        assertEquals("BLUE", CloudMapper.pet(CloudMapper.pet(pet.copy(color = "BLUE")))!!.color)
+        assertNull(CloudMapper.pet(CloudMapper.pet(pet) + ("color" to "MAGENTA"))!!.color)
+    }
+
     @Test fun petRoundTrips() = assertEquals(pet, CloudMapper.pet(CloudMapper.pet(pet)))
 
     @Test fun petWithOnlyRequiredFieldsRoundTrips() {

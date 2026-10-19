@@ -32,11 +32,12 @@ service cloud.firestore {
 
     function validPet(d, id) {
       return d.keys().hasOnly(['id', 'name', 'species', 'customSpecies', 'birthEpochDay', 'birthEstimated', 'sex',
-                 'neutered', 'breed', 'chipNumber', 'note', 'photoFile', 'createdAt', 'updatedAt', 'deletedAt', 'serverUpdatedAt'])
+                 'neutered', 'breed', 'chipNumber', 'note', 'photoFile', 'color', 'createdAt', 'updatedAt', 'deletedAt', 'serverUpdatedAt'])
         && d.keys().hasAll(['id', 'name', 'species', 'birthEpochDay', 'createdAt', 'updatedAt', 'serverUpdatedAt'])
         && base(d, id) && str(d, 'name', 100) && str(d, 'species', 20) && int(d, 'birthEpochDay')
         && optStr(d, 'customSpecies', 100) && optBool(d, 'birthEstimated') && optStr(d, 'sex', 20) && optBool(d, 'neutered')
-        && optStr(d, 'breed', 100) && optStr(d, 'chipNumber', 100) && optStr(d, 'note', 2000) && optStr(d, 'photoFile', 200);
+        && optStr(d, 'breed', 100) && optStr(d, 'chipNumber', 100) && optStr(d, 'note', 2000) && optStr(d, 'photoFile', 200)
+        && optStr(d, 'color', 20);
     }
 
     function validRecord(d, id) {

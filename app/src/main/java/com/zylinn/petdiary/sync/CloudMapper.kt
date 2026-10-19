@@ -1,6 +1,7 @@
 package com.zylinn.petdiary.sync
 
 import com.zylinn.petdiary.data.pet.Pet
+import com.zylinn.petdiary.data.pet.PetColor
 import com.zylinn.petdiary.data.record.Attachment
 import com.zylinn.petdiary.data.pet.Sex
 import com.zylinn.petdiary.data.pet.Species
@@ -36,7 +37,7 @@ object CloudMapper {
         put("id", p.id); put("name", p.name); put("species", p.species.name); put("customSpecies", p.customSpecies)
         put("birthEpochDay", p.birthEpochDay); put("birthEstimated", p.birthEstimated); put("sex", p.sex.name)
         put("neutered", p.neutered); put("breed", p.breed); put("chipNumber", p.chipNumber); put("note", p.note)
-        put("photoFile", p.photoFile); put("createdAt", p.createdAt); put("updatedAt", p.updatedAt); put("deletedAt", p.deletedAt)
+        put("photoFile", p.photoFile); put("color", p.color); put("createdAt", p.createdAt); put("updatedAt", p.updatedAt); put("deletedAt", p.deletedAt)
     }
 
     /** Null when the document is malformed (missing required fields / unknown enum) — such documents are skipped. */
@@ -52,6 +53,7 @@ object CloudMapper {
             neutered = d.bool("neutered"),
             breed = d.str("breed"), chipNumber = d.str("chipNumber"), note = d.str("note"),
             photoFile = d.str("photoFile")?.takeIf { it.isSafeFileName() },
+            color = d.str("color")?.takeIf { PetColor.fromKey(it) != null },
             createdAt = d.long("createdAt") ?: return null,
             updatedAt = d.long("updatedAt") ?: return null,
             deletedAt = d.long("deletedAt"),

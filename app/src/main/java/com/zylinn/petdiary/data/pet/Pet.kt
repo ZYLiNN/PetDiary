@@ -32,6 +32,8 @@ data class Pet(
     val note: String? = null,
     /** File name of the avatar inside the app's private photo directory. */
     val photoFile: String? = null,
+    /** [PetColor] name; null = not chosen (shown with an automatic colour). */
+    @ColumnInfo(defaultValue = "NULL") val color: String? = null,
     val createdAt: Long,
     val updatedAt: Long,
     @ColumnInfo(defaultValue = "NULL") val deletedAt: Long? = null,

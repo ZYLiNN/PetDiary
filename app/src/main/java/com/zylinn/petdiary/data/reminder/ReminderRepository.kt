@@ -41,6 +41,7 @@ class ReminderRepository(
 
     /** Names used for 自訂 reminders, newest first, offered as quick picks (D36). */
     val customTitles: Flow<List<String>> = reminders.observeCustomTitles()
+    fun observeOpenInRange(from: Long, to: Long) = reminders.observeOpenInRange(from, to)
     fun observeOpenForPet(petId: String, from: Long, to: Long) = reminders.observeOpenForPet(petId, from, to)
     suspend fun get(id: String): Reminder? = reminders.getById(id)
 

@@ -46,12 +46,13 @@ import android.content.pm.PackageManager
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.zylinn.petdiary.ui.common.SettingsAction
 import com.zylinn.petdiary.ui.pets.UNDO_WINDOW_MS
 import kotlinx.coroutines.withTimeoutOrNull
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RemindersScreen(vm: RemindersViewModel, onAdd: () -> Unit, onEdit: (String) -> Unit) {
+fun RemindersScreen(vm: RemindersViewModel, onAdd: () -> Unit, onEdit: (String) -> Unit, onOpenSettings: () -> Unit = {}) {
     val state by vm.state.collectAsStateWithLifecycle()
     val justCompleted by vm.justCompleted.collectAsStateWithLifecycle()
     val askLate by vm.askLate.collectAsStateWithLifecycle()
@@ -79,6 +80,7 @@ fun RemindersScreen(vm: RemindersViewModel, onAdd: () -> Unit, onEdit: (String) 
         topBar = {
             TopAppBar(
                 title = { Text("提醒") },
+                actions = { SettingsAction(onOpenSettings) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
         },

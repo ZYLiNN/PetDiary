@@ -125,6 +125,11 @@ describe('field validation', () => {
     await assertFails(put('pets', noName));
     await assertFails(put('pets', pet('p3', { birthEpochDay: 'yesterday' })));
   });
+  it('a pet may carry its calendar colour, as a short string', async () => {
+    await assertSucceeds(put('pets', pet('p1', { color: 'ORANGE' })));
+    await assertFails(put('pets', pet('p2', { color: 'x'.repeat(21) })));
+    await assertFails(put('pets', pet('p3', { color: 5 })));
+  });
   it('strings are length-limited', async () => {
     await assertFails(put('pets', pet('p1', { note: 'x'.repeat(2001) })));
     await assertSucceeds(put('pets', pet('p1', { note: 'x'.repeat(2000) })));

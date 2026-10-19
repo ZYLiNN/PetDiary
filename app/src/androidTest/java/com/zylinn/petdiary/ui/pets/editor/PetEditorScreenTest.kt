@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -21,6 +22,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.zylinn.petdiary.data.PetDiaryDatabase
 import com.zylinn.petdiary.data.pet.PetInput
 import com.zylinn.petdiary.data.pet.PetRepository
+import com.zylinn.petdiary.data.pet.PetColor
 import com.zylinn.petdiary.data.pet.Species
 import com.zylinn.petdiary.data.photo.PhotoImporter
 import com.zylinn.petdiary.data.photo.FileStore
@@ -111,6 +113,30 @@ class PetEditorScreenTest {
         assertEquals(Species.DOG, pet.species)
         assertFalse(pet.birthEstimated)
         assertEquals(LocalDate.parse("2026-10-15").toEpochDay(), pet.birthEpochDay)
+    }
+
+    // P10: calendar colour
+    @Test fun newPetStartsWithTheNextFreeColourAndTheChoiceIsSaved() = runBlocking {
+        repo.add(PetInput(name = "前一隻", species = Species.CAT, birthEpochDay = 1)) // takes ORANGE
+        open()
+        rule.waitUntil(5_000) { runCatching { rule.onNodeWithTag("color_WHITE").performScrollTo().assertIsSelected() }.isSuccess }
+        rule.onNodeWithTag("color_BLUE").performScrollTo().performClick().assertIsSelected()
+        rule.onNodeWithTag("species_DOG").performClick()
+        rule.onNodeWithTag("field_name").performTextInput("雷利")
+        pickBirthday()
+        rule.onNodeWithTag("save_button").performClick()
+        rule.waitUntil(5_000) { done == 1 }
+        assertEquals(PetColor.BLUE, repo.activePets.first().first { it.name == "雷利" }.color?.let { PetColor.valueOf(it) })
+    }
+
+    @Test fun editingShowsAnExistingPetsColourAndKeepsItWhenOtherFieldsChange() = runBlocking {
+        val pet = repo.add(PetInput(name = "雷米", species = Species.CAT, birthEpochDay = 19000, color = PetColor.PINK))
+        open(pet.id)
+        rule.waitUntil(5_000) { runCatching { rule.onNodeWithTag("color_PINK").performScrollTo().assertIsSelected() }.isSuccess }
+        rule.onNodeWithTag("field_name").performTextInput("2")
+        rule.onNodeWithTag("save_button").performClick()
+        rule.waitUntil(5_000) { done == 1 }
+        assertEquals("PINK", repo.get(pet.id)!!.color)
     }
 
     // P1-13

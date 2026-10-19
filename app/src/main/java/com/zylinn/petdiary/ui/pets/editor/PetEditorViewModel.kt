@@ -51,15 +51,21 @@ class PetEditorViewModel(
     private val importedPhotos = mutableSetOf<String>()
 
     init {
+        if (petId == null) viewModelScope.launch {
+            // A new pet starts with the next free colour already picked, so saving needs no extra step.
+            val color = repository.nextAutoColor()
+            _state.update { s -> s.copy(form = s.form.copy(color = color), initialForm = s.initialForm.copy(color = color)) }
+        }
         if (petId != null) viewModelScope.launch {
             val pet = repository.get(petId)
             originalPhoto = pet?.photoFile
+            val shown = pet?.let { repository.effectiveColors()[it.id] }
             _state.update {
                 if (pet == null) it.copy(loading = false)
                 else it.copy(
                     loading = false,
-                    form = PetForm.from(pet),
-                    initialForm = PetForm.from(pet),
+                    form = PetForm.from(pet).copy(color = shown),
+                    initialForm = PetForm.from(pet).copy(color = shown),
                     // Open "更多資料" when the pet already has optional details filled in.
                     showMore = listOf(pet.breed, pet.chipNumber, pet.note).any { v -> v != null } ||
                         pet.neutered != null || pet.sex != Sex.UNKNOWN,

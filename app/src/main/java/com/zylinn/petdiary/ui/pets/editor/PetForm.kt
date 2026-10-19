@@ -1,6 +1,7 @@
 package com.zylinn.petdiary.ui.pets.editor
 
 import com.zylinn.petdiary.data.pet.Pet
+import com.zylinn.petdiary.data.pet.PetColor
 import com.zylinn.petdiary.data.pet.PetInput
 import com.zylinn.petdiary.data.pet.Sex
 import com.zylinn.petdiary.data.pet.Species
@@ -21,6 +22,7 @@ data class PetForm(
     val chipNumber: String = "",
     val note: String = "",
     val photoFile: String? = null,
+    val color: PetColor? = null,
 ) {
     /** Reason shown next to each required field; null when the field is fine. */
     data class Problems(val species: String?, val name: String?, val birth: String?) {
@@ -57,6 +59,7 @@ data class PetForm(
             chipNumber = chipNumber,
             note = note,
             photoFile = photoFile,
+            color = color,
         )
     }
 
@@ -73,6 +76,7 @@ data class PetForm(
             chipNumber = pet.chipNumber.orEmpty(),
             note = pet.note.orEmpty(),
             photoFile = pet.photoFile,
+            color = PetColor.fromKey(pet.color),
         )
     }
 }

@@ -27,6 +27,10 @@ interface RecordDao {
     @Query("SELECT * FROM records WHERE petId = :petId AND type = :type AND deletedAt IS NULL ORDER BY dateEpochDay DESC, minuteOfDay DESC, createdAt DESC LIMIT 1")
     suspend fun latest(petId: String, type: RecordType): Record?
 
+    /** Every living record of every living pet in the range, for the calendar tab. */
+    @Query("SELECT r.* FROM records r JOIN pets p ON p.id = r.petId WHERE r.deletedAt IS NULL AND p.deletedAt IS NULL AND r.dateEpochDay BETWEEN :from AND :to ORDER BY r.dateEpochDay, r.minuteOfDay")
+    fun observeRange(from: Long, to: Long): Flow<List<Record>>
+
     @Query("SELECT * FROM records WHERE id = :id")
     suspend fun getById(id: String): Record?
 

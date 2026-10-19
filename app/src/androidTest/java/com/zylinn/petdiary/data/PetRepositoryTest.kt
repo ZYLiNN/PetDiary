@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.zylinn.petdiary.data.pet.PetColor
 import com.zylinn.petdiary.data.pet.PetInput
 import com.zylinn.petdiary.data.pet.PetRepository
 import com.zylinn.petdiary.data.pet.Sex
@@ -74,6 +75,26 @@ class PetRepositoryTest {
         assertEquals("avatar-1.jpg", pet.photoFile)
         assertEquals(clock.millis(), pet.createdAt)
         assertNull(pet.deletedAt)
+    }
+
+    // P10: calendar colours
+    @Test fun newPetsGetDistinctColoursInOrderAndATrashedPetsColourIsFreedUp() = runTest {
+        var n = 0
+        val repo = PetRepository(db.petDao(), clock) { "color-${++n}" }
+        val a = repo.add(fullInput.copy(name = "A")); val b = repo.add(fullInput.copy(name = "B")); val c = repo.add(fullInput.copy(name = "C"))
+        assertEquals(listOf("ORANGE", "WHITE", "BLUE"), listOf(a, b, c).map { it.color })
+        repo.moveToTrash(b.id)
+        assertEquals("WHITE", repo.add(fullInput.copy(name = "D")).color)
+    }
+
+    @Test fun anExplicitColourIsKeptAndUpdatesOnlyChangeItWhenAsked() = runTest {
+        val repo = PetRepository(db.petDao(), clock) { "color-x" }
+        repo.add(fullInput.copy(color = PetColor.PURPLE))
+        assertEquals("PURPLE", repo.get("color-x")!!.color)
+        repo.update("color-x", fullInput.copy(name = "改名", color = null))
+        assertEquals("PURPLE", repo.get("color-x")!!.color) // not chosen again → unchanged
+        repo.update("color-x", fullInput.copy(color = PetColor.GREEN))
+        assertEquals("GREEN", repo.get("color-x")!!.color)
     }
 
     @Test fun blankOptionalFieldsStoredAsNull() = runTest {

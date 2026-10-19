@@ -1,5 +1,15 @@
 package com.zylinn.petdiary.ui.pets.editor
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -66,7 +76,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.zylinn.petdiary.data.pet.PetColor
 import com.zylinn.petdiary.data.pet.Sex
+import com.zylinn.petdiary.ui.theme.PetPalette
 import com.zylinn.petdiary.data.pet.Species
 import com.zylinn.petdiary.ui.pets.PetAvatar
 import com.zylinn.petdiary.ui.pets.label
@@ -206,6 +218,10 @@ private fun PetEditorContent(
                 BirthdayField(form, today, onEdit)
                 Hint(problems.birth, "hint_birth")
 
+                // 代表色
+                SectionLabel("代表色（月曆上的顏色）", required = false)
+                ColorPicker(form.color) { c -> onEdit { it.copy(color = c) } }
+
                 // 更多資料
                 TextButton(onClick = onToggleMore, modifier = Modifier.testTag("toggle_more")) {
                     Text("更多資料（選填）")
@@ -215,6 +231,31 @@ private fun PetEditorContent(
                     MoreFields(form, onEdit)
                 }
                 Spacer(Modifier.size(24.dp))
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ColorPicker(selected: PetColor?, onSelect: (PetColor) -> Unit) {
+    val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        PetColor.entries.forEach { c ->
+            val sw = PetPalette.swatch(c, dark)
+            val on = c == selected
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(sw.fill)
+                    .border(if (on) 3.dp else 1.dp, if (on) MaterialTheme.colorScheme.primary else sw.line, CircleShape)
+                    .selectable(selected = on, role = Role.RadioButton, onClick = { onSelect(c) })
+                    .semantics { contentDescription = c.label }
+                    .testTag("color_${c.name}"),
+            ) {
+                if (on) Icon(Icons.Filled.Check, contentDescription = null, tint = sw.ink)
             }
         }
     }

@@ -48,6 +48,10 @@ data object Supplements : NavKey
 @Serializable
 data object Family : NavKey
 
+/** Settings: opened from the gear in the top bar of every main tab. */
+@Serializable
+data object Settings : NavKey
+
 /** Version, privacy and open-source licenses. */
 @Serializable
 data object About : NavKey

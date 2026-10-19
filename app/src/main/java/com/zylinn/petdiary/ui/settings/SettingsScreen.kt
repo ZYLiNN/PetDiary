@@ -1,6 +1,9 @@
 package com.zylinn.petdiary.ui.settings
 
 import android.content.Intent
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -151,7 +154,9 @@ fun SettingsScreen(
     onOpenSupplements: () -> Unit,
     onOpenAbout: () -> Unit,
     onOpenFamily: () -> Unit = {},
+    onBack: () -> Unit = {},
 ) {
+    BackHandler(onBack = onBack)
     val theme by vm.themeMode.collectAsStateWithLifecycle()
     val export by vm.export.collectAsStateWithLifecycle()
     val cloud by vm.cloudStatus.collectAsStateWithLifecycle()
@@ -244,6 +249,7 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                navigationIcon = { IconButton(onClick = onBack, modifier = Modifier.testTag("back_button")) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回") } },
                 title = { Text("設定") },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )

@@ -1,5 +1,6 @@
 package com.zylinn.petdiary.ui.pets
 
+import com.zylinn.petdiary.ui.common.SettingsAction
 import com.zylinn.petdiary.ui.reminders.LateCompleteDialog
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.combinedClickable
@@ -75,10 +76,11 @@ fun PetHomeRoute(
     onOpenPet: (String) -> Unit,
     onEditPet: (String) -> Unit,
     onSearch: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     onOpenReminder: (String) -> Unit = {},
 ) {
     val vm = containerViewModel { PetHomeViewModel(it.petRepository, it.photoStore, it.clock, it.reminderRepository) }
-    PetHomeScreen(vm = vm, onAddPet = onAddPet, onOpenPet = onOpenPet, onEditPet = onEditPet, onSearch = onSearch, onOpenReminder = onOpenReminder)
+    PetHomeScreen(vm = vm, onAddPet = onAddPet, onOpenPet = onOpenPet, onEditPet = onEditPet, onSearch = onSearch, onOpenReminder = onOpenReminder, onOpenSettings = onOpenSettings)
 }
 
 /** Binds [PetHomeViewModel] to the stateless screen, including the 5-second undo snackbar. */
@@ -89,6 +91,7 @@ fun PetHomeScreen(
     onOpenPet: (String) -> Unit,
     onEditPet: (String) -> Unit,
     onSearch: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     onOpenReminder: (String) -> Unit = {},
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
@@ -130,6 +133,7 @@ fun PetHomeScreen(
         onEditPet = onEditPet,
         onDeletePet = { tile -> vm.delete(tile.id, tile.name) },
         onSearch = onSearch,
+        onOpenSettings = onOpenSettings,
         snackbarHost = { SnackbarHost(snackbar, modifier = Modifier.testTag("snackbar")) },
     )
 }
@@ -148,6 +152,7 @@ fun PetHomeScreen(
     onEditPet: (String) -> Unit = {},
     onDeletePet: (PetTile) -> Unit = {},
     onSearch: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     snackbarHost: @Composable () -> Unit = {},
 ) {
     Scaffold(
@@ -159,6 +164,7 @@ fun PetHomeScreen(
                     IconButton(onClick = onSearch, modifier = Modifier.testTag("home_search")) {
                         Icon(Icons.Outlined.Search, contentDescription = "搜尋紀錄")
                     }
+                    SettingsAction(onOpenSettings)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )

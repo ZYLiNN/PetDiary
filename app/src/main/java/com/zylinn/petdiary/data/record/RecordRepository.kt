@@ -53,6 +53,7 @@ class RecordRepository(
     private val reminders: ReminderDao? = null,
 ) {
     fun observeDay(petId: String, day: Long): Flow<List<Record>> = records.observeDay(petId, day)
+    fun observeRange(from: Long, to: Long) = records.observeRange(from, to)
     fun observeDaysWithRecords(petId: String, from: Long, to: Long) = records.observeDaysWithRecords(petId, from, to)
     fun observeLastOfEachType(petId: String) = records.observeLastOfEachType(petId)
     fun observeLatest(petId: String, type: RecordType) = records.observeLatest(petId, type)

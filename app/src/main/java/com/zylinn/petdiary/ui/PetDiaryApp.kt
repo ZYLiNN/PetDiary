@@ -26,7 +26,10 @@ import androidx.navigation3.ui.NavDisplay
 import com.zylinn.petdiary.data.record.RecordType
 import com.zylinn.petdiary.ui.detail.PetDetailScreen
 import com.zylinn.petdiary.ui.detail.PetDetailViewModel
+import com.zylinn.petdiary.ui.calendar.CalendarScreen
+import com.zylinn.petdiary.ui.calendar.CalendarViewModel
 import com.zylinn.petdiary.ui.navigation.About
+import com.zylinn.petdiary.ui.navigation.Settings
 import com.zylinn.petdiary.ui.navigation.Family
 import com.zylinn.petdiary.ui.navigation.Main
 import com.zylinn.petdiary.ui.navigation.PetDetail
@@ -141,6 +144,21 @@ fun PetDiaryApp() {
                 val vm = containerViewModel { SupplementsViewModel(it.recordRepository) }
                 SupplementsScreen(vm = vm, onBack = back)
             }
+            entry<Settings> {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val vm = containerViewModel {
+                    SettingsViewModel(it.settings, it.petRepository, it.recordRepository, java.io.File(context.cacheDir, "exports"), it.clock, it.cloudSync, it.accountService)
+                }
+                SettingsScreen(
+                    vm = vm,
+                    versionName = appVersionName(),
+                    onOpenTrash = { navigate(Trash) },
+                    onOpenSupplements = { navigate(Supplements) },
+                    onOpenAbout = { navigate(About) },
+                    onOpenFamily = { navigate(Family) },
+                    onBack = back,
+                )
+            }
             entry<Family> {
                 val vm = containerViewModel { FamilyViewModel(it.cloudSync, it.settings) }
                 FamilyScreen(vm = vm, onBack = back)
@@ -208,32 +226,29 @@ private fun MainScreen(navigate: (NavKey) -> Unit) {
                     onEditPet = { id -> navigate(PetEditor(id)) },
                     onSearch = { navigate(Search()) },
                     onOpenReminder = { id -> navigate(ReminderEditor(reminderId = id)) },
+                    onOpenSettings = { navigate(Settings) },
                 )
+                TopLevelDestination.Calendar -> {
+                    val vm = containerViewModel { CalendarViewModel(it.petRepository, it.recordRepository, it.reminderRepository, it.clock) }
+                    CalendarScreen(
+                        vm = vm,
+                        onOpenDay = { petId, day -> navigate(PetDetail(petId, day.toEpochDay())) },
+                        onAddReminder = { day -> navigate(ReminderEditor(dayEpochDay = day.toEpochDay())) },
+                        onOpenSettings = { navigate(Settings) },
+                    )
+                }
                 TopLevelDestination.Reminders -> {
                     val vm = containerViewModel { RemindersViewModel(it.reminderRepository, it.clock) }
                     RemindersScreen(
                         vm = vm,
                         onAdd = { navigate(ReminderEditor()) },
                         onEdit = { id -> navigate(ReminderEditor(reminderId = id)) },
+                        onOpenSettings = { navigate(Settings) },
                     )
                 }
                 TopLevelDestination.Stats -> {
                     val vm = containerViewModel { StatsViewModel(it.petRepository, it.recordRepository, it.clock) }
-                    StatsScreen(vm = vm)
-                }
-                TopLevelDestination.Settings -> {
-                    val context = androidx.compose.ui.platform.LocalContext.current
-                    val vm = containerViewModel {
-                        SettingsViewModel(it.settings, it.petRepository, it.recordRepository, java.io.File(context.cacheDir, "exports"), it.clock, it.cloudSync, it.accountService)
-                    }
-                    SettingsScreen(
-                        vm = vm,
-                        versionName = appVersionName(),
-                        onOpenTrash = { navigate(Trash) },
-                        onOpenSupplements = { navigate(Supplements) },
-                        onOpenAbout = { navigate(About) },
-                        onOpenFamily = { navigate(Family) },
-                    )
+                    StatsScreen(vm = vm, onOpenSettings = { navigate(Settings) })
                 }
             }
         }
