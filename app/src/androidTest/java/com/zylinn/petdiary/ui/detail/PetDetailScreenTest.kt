@@ -2,6 +2,7 @@ package com.zylinn.petdiary.ui.detail
 
 import android.content.Context
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -103,14 +104,20 @@ class PetDetailScreenTest {
         rule.onNodeWithText("主食 1.5 份").assertIsDisplayed()
     }
 
-    @Test fun futureDaysCannotBeSelected() {
+    // D16: the calendar can move into the future (reminders will live there) but records can't be added on those days.
+    @Test fun futureDaysCanBeBrowsedButNotRecorded() {
         show()
-        rule.onNodeWithTag("week_next").assertExists()
-        // 10/17 is a Saturday, so the week ends today and has no future days; jump back a week then forward.
-        rule.onNodeWithTag("week_prev").performClick()
-        rule.onNodeWithTag("detail_title").assertTextEquals("10 月 10 日（六）")
+        rule.onNodeWithTag("fab_add_record").assertExists()
         rule.onNodeWithTag("week_next").performClick()
-        rule.onNodeWithTag("detail_title").assertTextEquals("10 月 17 日（六）")
+        rule.onNodeWithTag("detail_title").assertTextEquals("10 月 24 日（六）")
+        rule.onNodeWithTag("fab_add_record").assertDoesNotExist()
+        rule.onNodeWithTag("records_empty").assertTextContains("未來的日子", substring = true)
+        day(today.plusDays(4)).performClick()
+        rule.onNodeWithTag("detail_title").assertTextEquals("10 月 21 日（三）")
+        rule.onNodeWithTag("week_prev").performClick()
+        rule.onNodeWithTag("week_prev").performClick()
+        rule.onNodeWithTag("detail_title").assertTextEquals("10 月 7 日（三）")
+        rule.onNodeWithTag("fab_add_record").assertExists()
     }
 
     // P2-02a
@@ -121,8 +128,9 @@ class PetDetailScreenTest {
         rule.onNodeWithTag("month_calendar").assertDoesNotExist()
         rule.onNodeWithTag("toggle_month").performClick()
         rule.onNodeWithTag("month_title").assertTextEquals("2026 年 10 月")
-        rule.onNodeWithTag("month_next").performClick() // can't go past the current month
-        rule.onNodeWithTag("month_title").assertTextEquals("2026 年 10 月")
+        rule.onNodeWithTag("month_next").performClick() // future months are allowed (D16)
+        rule.onNodeWithTag("month_title").assertTextEquals("2026 年 11 月")
+        rule.onNodeWithTag("month_prev").performClick()
         rule.onNodeWithTag("month_prev").performClick()
         rule.onNodeWithTag("month_title").assertTextEquals("2026 年 9 月")
         rule.onNodeWithTag("dot_${lastMonth.toEpochDay()}", useUnmergedTree = true).assertExists()

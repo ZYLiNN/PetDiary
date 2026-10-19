@@ -14,6 +14,7 @@ object RecordFormat {
     val RecordType.label: String
         get() = when (this) {
             RecordType.FEEDING -> "餵食"
+            RecordType.WALK -> "散步"
             RecordType.MEDICINE -> "藥物"
             RecordType.VACCINE -> "疫苗"
             RecordType.DEWORMING -> "驅蟲"
@@ -54,6 +55,13 @@ object RecordFormat {
     /** 490 → "08:10" */
     fun time(minuteOfDay: Int): String = "%02d:%02d".format(minuteOfDay / 60, minuteOfDay % 60)
 
+    /** 30 → "30 分鐘", 60 → "1 小時", 80 → "1 小時 20 分" */
+    fun duration(minutes: Int): String = when {
+        minutes < 60 -> "$minutes 分鐘"
+        minutes % 60 == 0 -> "${minutes / 60} 小時"
+        else -> "${minutes / 60} 小時 ${minutes % 60} 分"
+    }
+
     /** Same year: "11/18"; otherwise "2027/1/5". */
     fun shortDate(day: LocalDate, today: LocalDate): String =
         if (day.year == today.year) "${day.monthValue}/${day.dayOfMonth}"
@@ -83,6 +91,10 @@ object RecordFormat {
                 if (record.drankWater == true) parts += "有喝水"
                 val supps = record.supplementIdList.mapNotNull(supplementNames::get)
                 if (supps.isNotEmpty()) parts += "保健：${supps.joinToString("、")}"
+            }
+            RecordType.WALK -> {
+                record.durationMin?.let { parts += duration(it) }
+                if (record.drankWater == true) parts += "有喝水"
             }
             RecordType.WEIGHT -> record.weightKg?.let { parts += "${number(it)} kg" }
             RecordType.DEWORMING -> {

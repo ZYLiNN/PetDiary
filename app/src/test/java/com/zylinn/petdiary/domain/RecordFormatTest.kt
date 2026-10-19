@@ -84,6 +84,17 @@ class RecordFormatTest {
         assertEquals("外驅・蚤不到・愛心・NT$ 1,200", RecordFormat.summary(r, emptyMap(), today))
     }
 
+    @Test fun durationLabels() {
+        assertEquals("30 分鐘", RecordFormat.duration(30))
+        assertEquals("1 小時", RecordFormat.duration(60))
+        assertEquals("1 小時 20 分", RecordFormat.duration(80))
+    }
+
+    @Test fun walkSummary() {
+        assertEquals("45 分鐘・有喝水", RecordFormat.summary(record(RecordType.WALK).copy(durationMin = 45, drankWater = true), emptyMap(), today))
+        assertEquals("30 分鐘", RecordFormat.summary(record(RecordType.WALK).copy(durationMin = 30, drankWater = false), emptyMap(), today))
+    }
+
     @Test fun weightSummary() =
         assertEquals("4.2 kg", RecordFormat.summary(record(RecordType.WEIGHT).copy(weightKg = 4.2), emptyMap(), today))
 

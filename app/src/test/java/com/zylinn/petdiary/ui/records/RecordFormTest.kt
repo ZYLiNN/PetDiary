@@ -18,6 +18,23 @@ class RecordFormTest {
     @Test fun futureDateRejected() =
         assertEquals("日期不能是未來", form(RecordType.WEIGHT).copy(date = today.plusDays(1), weightKg = "4").problem(today))
 
+    // D22 (walk): time is required, water is an optional checkbox
+    @Test fun walkNeedsDuration() {
+        val f = form(RecordType.WALK)
+        assertEquals("請填散步時間（1～600 分鐘）", f.problem(today))
+        assertEquals("請填散步時間（1～600 分鐘）", f.copy(durationMin = "0").problem(today))
+        assertEquals("請填散步時間（1～600 分鐘）", f.copy(durationMin = "601").problem(today))
+        assertNull(f.copy(durationMin = "30").problem(today))
+        assertNull(f.copy(durationMin = "600").problem(today))
+    }
+
+    @Test fun walkToInputKeepsWater() {
+        val input = form(RecordType.WALK).copy(durationMin = "45", drankWater = true).toInput(today)
+        assertEquals(45, input.durationMin)
+        assertEquals(true, input.drankWater)
+        assertNull(input.portions)
+    }
+
     // P2-06
     @Test fun feedingNeedsSomething() {
         val f = form(RecordType.FEEDING)

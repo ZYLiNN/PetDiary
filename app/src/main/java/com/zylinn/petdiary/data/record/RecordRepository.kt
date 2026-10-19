@@ -25,6 +25,7 @@ data class RecordInput(
     val remindNext: Boolean = false,
     val dewormKind: DewormKind? = null,
     val weightKg: Double? = null,
+    val durationMin: Int? = null,
 )
 
 /** A file already copied into the attachment store, waiting to be linked to a record. */
@@ -133,6 +134,7 @@ class RecordRepository(
         remindNext = remindNext && nextEpochDay != null,
         dewormKind = dewormKind,
         weightKg = weightKg,
+        durationMin = durationMin,
         createdAt = createdAt,
         updatedAt = updatedAt,
     )

@@ -5,7 +5,7 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-enum class RecordType { FEEDING, MEDICINE, VACCINE, DEWORMING, WEIGHT, VET, GROOMING, ABNORMAL }
+enum class RecordType { FEEDING, WALK, MEDICINE, VACCINE, DEWORMING, WEIGHT, VET, GROOMING, ABNORMAL }
 
 /** Types sharing the medical form: name, dosage / diagnosis, hospital, cost, next date. */
 val RecordType.isMedical get() = this in setOf(RecordType.MEDICINE, RecordType.VACCINE, RecordType.DEWORMING, RecordType.VET)
@@ -49,6 +49,8 @@ data class Record(
     val dewormKind: DewormKind? = null,
     // Weight
     val weightKg: Double? = null,
+    // Walk: minutes (the water checklist reuses [drankWater])
+    @ColumnInfo(defaultValue = "NULL") val durationMin: Int? = null,
     val createdAt: Long,
     val updatedAt: Long,
     @ColumnInfo(defaultValue = "NULL") val deletedAt: Long? = null,

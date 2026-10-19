@@ -39,22 +39,8 @@ class PetFormTest {
     @Test fun futureBirthdayRejected() =
         assertEquals("生日不能是未來的日期", valid.copy(birthday = today.plusDays(1)).problems(today).birth)
 
-    @Test fun approximateAgeNeedsSomeValue() {
-        val f = valid.copy(birthMode = BirthMode.APPROXIMATE)
-        assertEquals("請輸入大約幾歲或幾個月", f.problems(today).birth)
-        assertNull(f.copy(approxYears = "3").problems(today).birth)
-        assertNull(f.copy(approxMonths = "5").problems(today).birth)
-        assertEquals("月數請填 0～11", f.copy(approxMonths = "12").problems(today).birth)
-        assertEquals("請輸入數字", f.copy(approxYears = "三").problems(today).birth)
-        assertEquals("年齡最多 40 歲", f.copy(approxYears = "41").problems(today).birth)
-    }
-
-    // P1-02, P1-04
-    @Test fun approximateAgeBecomesEstimatedBirthday() {
-        val input = valid.copy(birthMode = BirthMode.APPROXIMATE, approxYears = "3").toInput(today)
-        assertEquals(LocalDate.parse("2023-10-19").toEpochDay(), input.birthEpochDay)
-        assertTrue(input.birthEstimated)
-    }
+    @Test fun missingBirthdayRejected() =
+        assertEquals("請選擇生日", valid.copy(birthday = null).problems(today).birth)
 
     @Test fun exactBirthdayIsNotEstimated() {
         val input = valid.toInput(today)
@@ -62,18 +48,18 @@ class PetFormTest {
         assertFalse(input.birthEstimated)
     }
 
-    @Test fun editingEstimatedPetKeepsEstimatedFlag() {
+    // D8: the "about N years" mode is gone; a legacy estimate becomes a plain birthday once saved again.
+    @Test fun editingLegacyEstimatedPetSavesExactBirthday() {
         val pet = Pet(
             id = "p", name = "雷利", species = Species.DOG, birthEpochDay = LocalDate.parse("2021-10-19").toEpochDay(),
             birthEstimated = true, sex = Sex.MALE, neutered = true, breed = "柴犬", chipNumber = "123",
             note = "n", photoFile = "a.jpg", createdAt = 0, updatedAt = 0,
         )
         val form = PetForm.from(pet)
-        assertTrue(form.toInput(today).birthEstimated)
+        assertEquals(LocalDate.parse("2021-10-19"), form.birthday)
+        assertFalse(form.toInput(today).birthEstimated)
         assertEquals("柴犬", form.breed)
         assertEquals("a.jpg", form.photoFile)
-        // Picking a new exact date clears the estimate.
-        assertFalse(form.copy(birthday = LocalDate.parse("2021-05-01"), birthdayEstimated = false).toInput(today).birthEstimated)
     }
 
     @Test(expected = IllegalStateException::class)

@@ -11,6 +11,7 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
@@ -31,6 +32,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
+import org.junit.Assert.assertFalse
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
@@ -70,6 +72,13 @@ class PetEditorScreenTest {
         rule.setContent { PetDiaryTheme { PetEditorScreen(vm = vm, onDone = { done++ }) } }
     }
 
+    /** Picks Oct 15, 2026 in the birthday dialog (clock fixed at 2026-10-19; the emulator's English date labels). */
+    private fun pickBirthday() {
+        rule.onNodeWithTag("field_birthday").performScrollTo().performClick()
+        rule.onNode(hasText("October 15, 2026", substring = true), useUnmergedTree = true).performClick()
+        rule.onNodeWithTag("date_confirm").performClick()
+    }
+
     // P1-02, P1-03
     @Test fun requiredFieldsExplainWhySaveIsDisabled() {
         open()
@@ -83,27 +92,25 @@ class PetEditorScreenTest {
         rule.onNodeWithTag("field_name").performTextInput("雷米")
         rule.onNodeWithTag("save_button").assertIsNotEnabled()
 
-        rule.onNodeWithTag("birth_mode_APPROXIMATE").performScrollTo().performClick()
-        rule.onNodeWithTag("field_years").performScrollTo().performTextInput("3")
+        pickBirthday()
         rule.onNodeWithTag("hint_birth").assertDoesNotExist()
         rule.onNodeWithTag("save_button").assertIsEnabled()
     }
 
     // P1-02, P1-04
-    @Test fun savingCreatesPetWithEstimatedBirthday() = runBlocking {
+    @Test fun savingCreatesPetWithPickedBirthday() = runBlocking {
         open()
         rule.onNodeWithTag("species_DOG").performClick()
         rule.onNodeWithTag("field_name").performTextInput("雷利")
-        rule.onNodeWithTag("birth_mode_APPROXIMATE").performScrollTo().performClick()
-        rule.onNodeWithTag("field_years").performScrollTo().performTextInput("5")
+        pickBirthday()
         rule.onNodeWithTag("save_button").performClick()
         rule.waitUntil(5_000) { done == 1 }
 
         val pet = repo.activePets.first().single()
         assertEquals("雷利", pet.name)
         assertEquals(Species.DOG, pet.species)
-        assertTrue(pet.birthEstimated)
-        assertEquals(LocalDate.parse("2021-10-19").toEpochDay(), pet.birthEpochDay)
+        assertFalse(pet.birthEstimated)
+        assertEquals(LocalDate.parse("2026-10-15").toEpochDay(), pet.birthEpochDay)
     }
 
     // P1-13
@@ -115,8 +122,7 @@ class PetEditorScreenTest {
 
         rule.onNodeWithTag("species_CAT").performScrollTo().performClick()
         rule.onNodeWithTag("field_name").performScrollTo().performTextInput("布丁")
-        rule.onNodeWithTag("birth_mode_APPROXIMATE").performScrollTo().performClick()
-        rule.onNodeWithTag("field_months").performScrollTo().performTextInput("8")
+        pickBirthday()
         rule.onNodeWithTag("field_breed").performScrollTo().performTextInput("英短")
         rule.onNodeWithTag("field_chip").performScrollTo().performTextInput("900123")
         rule.onNodeWithTag("sex_2").performScrollTo().performClick()

@@ -84,6 +84,7 @@ internal val DarkColors = darkColorScheme(
  */
 class RecordTypePalette(
     val feeding: Color,
+    val walk: Color,
     val medicine: Color,
     val vaccine: Color,
     val deworming: Color,
@@ -92,11 +93,12 @@ class RecordTypePalette(
     val grooming: Color,
     val abnormal: Color,
 ) {
-    val all get() = listOf(feeding, medicine, vaccine, deworming, weight, vet, grooming, abnormal)
+    val all get() = listOf(feeding, walk, medicine, vaccine, deworming, weight, vet, grooming, abnormal)
 }
 
 val LightRecordTypes = RecordTypePalette(
     feeding = Color(0xFFD97706),
+    walk = Color(0xFF4D7C0F),
     medicine = Color(0xFF7C3AED),
     vaccine = Color(0xFF2563EB),
     deworming = Color(0xFF16A34A),
@@ -108,6 +110,7 @@ val LightRecordTypes = RecordTypePalette(
 
 val DarkRecordTypes = RecordTypePalette(
     feeding = Color(0xFFD97706),
+    walk = Color(0xFFA3E635),
     medicine = Color(0xFFA78BFA),
     vaccine = Color(0xFF60A5FA),
     deworming = Color(0xFF16A34A),

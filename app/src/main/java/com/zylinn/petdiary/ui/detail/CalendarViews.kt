@@ -48,7 +48,7 @@ private val weekdayNames = listOf("日", "一", "二", "三", "四", "五", "六
 /** "10 月 18 日（六）" */
 fun LocalDate.titleText(): String = "$monthValue 月 $dayOfMonth 日（${weekdayNames[dayOfWeek.value % 7]}）"
 
-/** One-week strip with record dots (S5). Arrows move a week; future weeks clamp to today. */
+/** One-week strip with record dots (S5). Arrows move a week; future weeks are allowed (D16). */
 @Composable
 fun WeekStrip(
     state: CalendarState,
@@ -77,16 +77,11 @@ fun WeekStrip(
                     showWeekday = true,
                     selected = day == state.selected,
                     hasRecords = day in state.daysWithRecords,
-                    enabled = !day.isAfter(state.today),
                     onClick = { onSelect(day) },
                     modifier = Modifier.weight(1f),
                 )
             }
-            IconButton(
-                onClick = { onShiftWeek(1) },
-                enabled = state.week.last().isBefore(state.today),
-                modifier = Modifier.testTag("week_next"),
-            ) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "下一週") }
+            IconButton(onClick = { onShiftWeek(1) }, modifier = Modifier.testTag("week_next")) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "下一週") }
         }
         if (showExpandToggle) {
             TextButton(onClick = onToggleExpand, modifier = Modifier.align(Alignment.CenterHorizontally).testTag("toggle_month")) {
@@ -124,11 +119,7 @@ fun MonthCalendar(
                 modifier = Modifier.weight(1f).testTag("month_title"),
                 textAlign = TextAlign.Center,
             )
-            IconButton(
-                onClick = { onShiftMonth(1) },
-                enabled = month.isBefore(YearMonth.from(state.today)),
-                modifier = Modifier.testTag("month_next"),
-            ) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "下個月") }
+            IconButton(onClick = { onShiftMonth(1) }, modifier = Modifier.testTag("month_next")) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "下個月") }
         }
         Row(Modifier.fillMaxWidth()) {
             weekdayNames.forEach {
@@ -153,7 +144,6 @@ fun MonthCalendar(
                             showWeekday = false,
                             selected = day == state.selected,
                             hasRecords = day in state.daysWithRecords,
-                            enabled = !day.isAfter(state.today),
                             onClick = { onSelect(day) },
                             modifier = Modifier.weight(1f),
                         )
@@ -173,14 +163,12 @@ private fun DayCell(
     showWeekday: Boolean,
     selected: Boolean,
     hasRecords: Boolean,
-    enabled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
     val fg = when {
         selected -> scheme.onPrimary
-        !enabled -> scheme.onSurfaceVariant.copy(alpha = 0.4f)
         else -> scheme.onSurface
     }
     Column(
@@ -190,7 +178,7 @@ private fun DayCell(
             .padding(2.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(if (selected) scheme.primary else Color.Transparent)
-            .clickable(enabled = enabled, onClick = onClick)
+            .clickable(onClick = onClick)
             .semantics {
                 this.selected = selected
                 contentDescription = "${day.monthValue} 月 ${day.dayOfMonth} 日" + if (hasRecords) "，有紀錄" else ""

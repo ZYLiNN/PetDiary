@@ -142,6 +142,7 @@ fun RecordEditorScreen(vm: RecordEditorViewModel, onDone: () -> Unit) {
                 DateTimeRow(form, today, vm::edit)
                 when {
                     form.type == RecordType.FEEDING -> FeedingFields(form, supplements, vm::edit, vm::addSupplement)
+                    form.type == RecordType.WALK -> WalkFields(form, vm::edit)
                     form.type == RecordType.WEIGHT -> WeightField(form, vm::edit)
                     form.type == RecordType.GROOMING -> GroomingFields(form, vm::edit)
                     form.type == RecordType.ABNORMAL -> TextInput(form.title, "狀況 *（例如：嘔吐、拉肚子）", "field_title") { v -> vm.edit { it.copy(title = v) } }
@@ -313,6 +314,31 @@ private fun WeightField(form: RecordForm, onEdit: ((RecordForm) -> RecordForm) -
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
         modifier = Modifier.fillMaxWidth().testTag("field_weight"),
     )
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun WalkFields(form: RecordForm, onEdit: ((RecordForm) -> RecordForm) -> Unit) {
+    OutlinedTextField(
+        value = form.durationMin,
+        onValueChange = { v -> onEdit { it.copy(durationMin = v.filter(Char::isDigit).take(3)) } },
+        label = { Text("散步時間 *") },
+        suffix = { Text("分鐘") },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        modifier = Modifier.fillMaxWidth().testTag("field_duration"),
+    )
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        WalkPresets.forEach { m ->
+            FilterChip(
+                selected = form.durationMin == m.toString(),
+                onClick = { onEdit { it.copy(durationMin = m.toString()) } },
+                label = { Text("$m 分鐘") },
+                modifier = Modifier.testTag("duration_$m"),
+            )
+        }
+    }
+    CheckRow("有喝水", form.drankWater, "field_water") { c -> onEdit { it.copy(drankWater = c) } }
 }
 
 @OptIn(ExperimentalLayoutApi::class)

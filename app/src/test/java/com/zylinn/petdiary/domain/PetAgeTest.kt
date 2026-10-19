@@ -42,27 +42,11 @@ class PetAgeTest {
         assertEquals("4 歲", label("2024-02-29", "2028-02-29"))
     }
 
-    // P1-04
-    @Test fun estimatedBirthdayFromYears() {
-        val birth = PetAge.estimatedBirthday(years = 3, today = d("2026-10-19"))
-        assertEquals(d("2023-10-19"), birth)
-        assertEquals("約 3 歲", PetAge.label(birth, estimated = true, today = d("2026-10-19")))
-    }
-
-    @Test fun estimatedLabelGrowsWithTime() {
-        val birth = PetAge.estimatedBirthday(years = 3, today = d("2026-10-19"))
-        assertEquals("約 3 歲", PetAge.label(birth, true, d("2027-10-18")))
+    // Legacy rows saved as estimates by v0.1–v0.3 still render with 約.
+    @Test fun legacyEstimatedLabelKeepsApproxPrefix() {
+        val birth = d("2023-10-19")
+        assertEquals("約 3 歲", PetAge.label(birth, true, d("2026-10-19")))
         assertEquals("約 4 歲", PetAge.label(birth, true, d("2027-10-19")))
-    }
-
-    @Test fun estimatedYoungPetUsesMonths() {
-        val birth = PetAge.estimatedBirthday(years = 0, months = 5, today = d("2026-10-19"))
-        assertEquals(d("2026-05-19"), birth)
-        assertEquals("約 5 個月", PetAge.label(birth, true, d("2026-10-19")))
-    }
-
-    @Test(expected = IllegalArgumentException::class)
-    fun negativeAgeRejected() {
-        PetAge.estimatedBirthday(years = -1, today = d("2026-10-19"))
+        assertEquals("約 5 個月", PetAge.label(d("2026-05-19"), true, d("2026-10-19")))
     }
 }

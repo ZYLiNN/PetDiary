@@ -15,6 +15,10 @@ const val TEXT_MAX = 50
 const val NOTE_MAX = 500
 const val PORTIONS_MAX = 99.0
 const val WEIGHT_MAX_KG = 200.0
+const val WALK_MAX_MIN = 600
+
+/** One-tap walk lengths offered next to the minutes box. */
+val WalkPresets = listOf(15, 30, 45, 60)
 
 /** Labels for the shared medical layout (S11): only the wording differs by type. */
 data class MedicalLabels(val title: String, val detail: String?, val hospital: String, val next: String)
@@ -49,6 +53,8 @@ data class RecordForm(
     val weightKg: String = "",
     // Grooming
     val groomingItems: Set<String> = emptySet(),
+    // Walk (water checklist reuses [drankWater])
+    val durationMin: String = "",
 ) {
     /** First problem to fix, or null when the form can be saved. */
     fun problem(today: LocalDate): String? {
@@ -63,6 +69,10 @@ data class RecordForm(
                     portions.isEmpty() && !drankWater && supplementIds.isEmpty() && note.isBlank() -> "請填主食份數，或勾選喝水 / 保健食品"
                     else -> null
                 }
+            }
+            RecordType.WALK -> {
+                val m = durationMin.toIntOrNull()
+                if (m == null || m <= 0 || m > WALK_MAX_MIN) "請填散步時間（1～$WALK_MAX_MIN 分鐘）" else null
             }
             RecordType.WEIGHT -> {
                 val w = weightKg.toDoubleOrNull()
@@ -86,6 +96,9 @@ data class RecordForm(
             RecordType.FEEDING -> RecordInput(
                 type, date.toEpochDay(), minuteOfDay, note = note,
                 portions = portions.toDoubleOrNull(), drankWater = drankWater, supplementIds = supplementIds.toList(),
+            )
+            RecordType.WALK -> RecordInput(
+                type, date.toEpochDay(), minuteOfDay, note = note, drankWater = drankWater, durationMin = durationMin.toInt(),
             )
             RecordType.WEIGHT -> RecordInput(type, date.toEpochDay(), minuteOfDay, note = note, weightKg = weightKg.toDouble())
             RecordType.GROOMING -> RecordInput(
@@ -120,6 +133,7 @@ data class RecordForm(
             remindNext = r.remindNext,
             dewormKind = r.dewormKind,
             weightKg = r.weightKg?.let(RecordFormat::number).orEmpty(),
+            durationMin = r.durationMin?.toString().orEmpty(),
             groomingItems = if (r.type == RecordType.GROOMING) r.title?.split("、")?.toSet().orEmpty() else emptySet(),
         )
     }

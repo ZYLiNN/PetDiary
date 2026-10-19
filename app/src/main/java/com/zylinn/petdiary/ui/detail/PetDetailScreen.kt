@@ -131,7 +131,7 @@ fun PetDetailScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
+            if (!calendar.selected.isAfter(calendar.today)) FloatingActionButton(
                 onClick = { showPanel = true },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -179,6 +179,7 @@ fun PetDetailScreen(
                         LastChipsRow(chips)
                     }
                     RecordList(
+                        future = calendar.selected.isAfter(calendar.today),
                         cards = cards,
                         onOpenRecord = { card -> onOpenRecord(card.id, card.type, calendar.selected) },
                         onDelete = vm::deleteRecord,
@@ -197,6 +198,7 @@ fun PetDetailScreen(
                         LastChipsRow(chips)
                     }
                     RecordList(
+                        future = calendar.selected.isAfter(calendar.today),
                         cards = cards,
                         onOpenRecord = { card -> onOpenRecord(card.id, card.type, calendar.selected) },
                         onDelete = vm::deleteRecord,
@@ -245,6 +247,7 @@ private fun LastChipsRow(chips: List<LastChip>) {
 @Composable
 private fun RecordList(
     cards: List<RecordCard>?,
+    future: Boolean,
     onOpenRecord: (RecordCard) -> Unit,
     onDelete: (RecordCard) -> Unit,
     modifier: Modifier,
@@ -260,7 +263,7 @@ private fun RecordList(
             if (list.isEmpty()) {
                 item {
                     Text(
-                        "這天還沒有紀錄，按右下角「＋」新增",
+                        if (future) "這是未來的日子，還沒有紀錄。\n之後新增提醒，就會顯示在這裡" else "這天還沒有紀錄，按右下角「＋」新增",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 24.dp).testTag("records_empty"),

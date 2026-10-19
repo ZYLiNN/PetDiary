@@ -138,7 +138,7 @@ private fun PanelContent(
             }
         }
         FlowRow(
-            maxItemsInEachRow = 4,
+            maxItemsInEachRow = 3,
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth(),

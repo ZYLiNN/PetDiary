@@ -91,6 +91,21 @@ class RecordEditorScreenTest {
         rule.onNodeWithTag("editor_title").assertTextContains("新增體重")
     }
 
+    // D22: walk = minutes (required, with one-tap presets) + optional water checkbox
+    @Test fun walkWithDurationPresetAndWater() {
+        open(RecordType.WALK)
+        rule.onNodeWithTag("save_button").assertIsNotEnabled()
+        rule.onNodeWithTag("duration_30").performClick()
+        rule.onNodeWithTag("duration_30").assertIsSelected()
+        rule.onNodeWithTag("field_water").performClick()
+        saveAndWait()
+
+        val r = day(cat).single()
+        assertEquals(RecordType.WALK, r.type)
+        assertEquals(30, r.durationMin)
+        assertEquals(true, r.drankWater)
+    }
+
     // P2-06, P2-06a
     @Test fun feedingWithInlineSupplement() {
         open(RecordType.FEEDING)

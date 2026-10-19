@@ -81,7 +81,7 @@ class PetDetailViewModel(
 
     private fun today() = LocalDate.now(clock)
 
-    private val startDay = initialDay?.takeIf { !it.isAfter(today()) } ?: today()
+    private val startDay = initialDay ?: today()
     private val selected = MutableStateFlow(startDay)
     private val expanded = MutableStateFlow(false)
     private val visibleMonth = MutableStateFlow(YearMonth.from(startDay))
@@ -209,23 +209,18 @@ class PetDetailViewModel(
 
     fun selectedDay(): LocalDate = selected.value
 
-    /** Picks a day (future days are not selectable); collapses the month view (S5). */
+    /** Picks a day (future days included, D16 — reminders will show there); collapses the month view (S5). */
     fun select(day: LocalDate) {
-        if (day.isAfter(today())) return
         selected.value = day
         visibleMonth.value = YearMonth.from(day)
         expanded.value = false
     }
 
     fun shiftWeek(weeks: Long) {
-        val target = selected.value.plusWeeks(weeks)
-        select(if (target.isAfter(today())) today() else target)
+        select(selected.value.plusWeeks(weeks))
     }
 
     fun toggleExpanded() = expanded.update { !it }
 
-    fun shiftMonth(months: Long) = visibleMonth.update { m ->
-        val next = m.plusMonths(months)
-        if (next.isAfter(YearMonth.from(today()))) m else next
-    }
+    fun shiftMonth(months: Long) = visibleMonth.update { it.plusMonths(months) }
 }

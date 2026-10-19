@@ -26,6 +26,8 @@ class SearchKeywordsTest {
         assertEquals(setOf(RecordType.ABNORMAL), SearchKeywords.typesFor("吐毛球"))
         assertEquals(setOf(RecordType.VACCINE), SearchKeywords.typesFor("打針"))
         assertEquals(setOf(RecordType.WEIGHT), SearchKeywords.typesFor("KG"))
+        assertEquals(setOf(RecordType.WALK), SearchKeywords.typesFor("遛狗"))
+        assertEquals(setOf(RecordType.WALK), SearchKeywords.typesFor("散步"))
     }
 
     @Test fun productNameContainingKeywordMatchesItsType() {

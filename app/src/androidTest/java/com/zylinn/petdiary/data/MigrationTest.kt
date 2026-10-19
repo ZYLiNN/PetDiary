@@ -11,7 +11,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** Pets saved with v0.1.0 (DB v1) must survive the upgrade to v2. */
+/** Data saved by older versions must survive each schema upgrade. */
 @RunWith(AndroidJUnit4::class)
 class MigrationTest {
 
@@ -43,6 +43,34 @@ class MigrationTest {
                 assertEquals("a.jpg", pet.photoFile)
                 assertTrue(pet.birthEstimated)
                 assertTrue(db.recordDao().getAllForPet("p1").isEmpty())
+            }
+        } finally {
+            db.close()
+        }
+    }
+
+    @Test fun v2RecordsSurviveUpgradeToV3AndGainDuration() {
+        helper.createDatabase(dbName, 2).apply {
+            execSQL(
+                """INSERT INTO pets (id, name, species, customSpecies, birthEpochDay, birthEstimated, sex, neutered,
+                   breed, chipNumber, note, photoFile, createdAt, updatedAt, deletedAt)
+                   VALUES ('p1', '雷利', 'DOG', NULL, 19000, 0, 'MALE', NULL, NULL, NULL, NULL, NULL, 1, 2, NULL)""",
+            )
+            execSQL(
+                """INSERT INTO records (id, petId, type, dateEpochDay, minuteOfDay, drankWater, remindNext, createdAt, updatedAt)
+                   VALUES ('r1', 'p1', 'FEEDING', 20000, 480, 1, 0, 1, 2)""",
+            )
+            close()
+        }
+        helper.runMigrationsAndValidate(dbName, 3, true)
+
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val db = Room.databaseBuilder(context, PetDiaryDatabase::class.java, dbName).build()
+        try {
+            runBlocking {
+                val r = db.recordDao().getAllForPet("p1").single()
+                assertEquals(true, r.drankWater)
+                assertEquals(null, r.durationMin)
             }
         } finally {
             db.close()

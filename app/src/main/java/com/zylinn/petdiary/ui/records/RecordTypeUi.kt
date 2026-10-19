@@ -1,6 +1,7 @@
 package com.zylinn.petdiary.ui.records
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.DirectionsWalk
 import androidx.compose.material.icons.outlined.ContentCut
 import androidx.compose.material.icons.outlined.LocalHospital
 import androidx.compose.material.icons.outlined.Medication
@@ -20,6 +21,7 @@ import com.zylinn.petdiary.ui.theme.LocalRecordTypes
 val RecordType.icon: ImageVector
     get() = when (this) {
         RecordType.FEEDING -> Icons.Outlined.Restaurant
+        RecordType.WALK -> Icons.AutoMirrored.Outlined.DirectionsWalk
         RecordType.MEDICINE -> Icons.Outlined.Medication
         RecordType.VACCINE -> Icons.Outlined.Vaccines
         RecordType.DEWORMING -> Icons.Outlined.PestControl
@@ -36,6 +38,7 @@ val RecordType.color: Color
         val p = LocalRecordTypes.current
         return when (this) {
             RecordType.FEEDING -> p.feeding
+            RecordType.WALK -> p.walk
             RecordType.MEDICINE -> p.medicine
             RecordType.VACCINE -> p.vaccine
             RecordType.DEWORMING -> p.deworming

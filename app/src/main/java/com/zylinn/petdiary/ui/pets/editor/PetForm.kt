@@ -7,22 +7,14 @@ import com.zylinn.petdiary.data.pet.Species
 import com.zylinn.petdiary.domain.PetAge
 import java.time.LocalDate
 
-enum class BirthMode { EXACT, APPROXIMATE }
-
 const val NAME_MAX = 30
-const val APPROX_YEARS_MAX = 40
 
 /** Everything the add / edit pet screen holds. Pure data so validation is unit-testable. */
 data class PetForm(
     val species: Species? = null,
     val customSpecies: String = "",
     val name: String = "",
-    val birthMode: BirthMode = BirthMode.EXACT,
     val birthday: LocalDate? = null,
-    /** Exact mode only: the date came from an earlier "about N years" entry. Cleared when a new date is picked. */
-    val birthdayEstimated: Boolean = false,
-    val approxYears: String = "",
-    val approxMonths: String = "",
     val sex: Sex = Sex.UNKNOWN,
     val neutered: Boolean? = null,
     val breed: String = "",
@@ -42,24 +34,10 @@ data class PetForm(
             name.trim().length > NAME_MAX -> "名字最多 $NAME_MAX 個字"
             else -> null
         },
-        birth = when (birthMode) {
-            BirthMode.EXACT -> when {
-                birthday == null -> "請選擇生日"
-                birthday.isAfter(today) -> "生日不能是未來的日期"
-                else -> null
-            }
-            BirthMode.APPROXIMATE -> {
-                val y = approxYears.toIntOrNull() ?: 0
-                val m = approxMonths.toIntOrNull() ?: 0
-                when {
-                    approxYears.isNotEmpty() && approxYears.toIntOrNull() == null -> "請輸入數字"
-                    approxMonths.isNotEmpty() && approxMonths.toIntOrNull() == null -> "請輸入數字"
-                    y > APPROX_YEARS_MAX -> "年齡最多 $APPROX_YEARS_MAX 歲"
-                    m > 11 -> "月數請填 0～11"
-                    y == 0 && m == 0 -> "請輸入大約幾歲或幾個月"
-                    else -> null
-                }
-            }
+        birth = when {
+            birthday == null -> "請選擇生日"
+            birthday.isAfter(today) -> "生日不能是未來的日期"
+            else -> null
         },
     )
 
@@ -68,20 +46,11 @@ data class PetForm(
     /** Only valid forms can be converted; call [canSave] first. */
     fun toInput(today: LocalDate): PetInput {
         check(canSave(today)) { "form is not valid" }
-        val (birth, estimated) = when (birthMode) {
-            BirthMode.EXACT -> birthday!! to birthdayEstimated
-            BirthMode.APPROXIMATE -> PetAge.estimatedBirthday(
-                years = approxYears.toIntOrNull() ?: 0,
-                months = approxMonths.toIntOrNull() ?: 0,
-                today = today,
-            ) to true
-        }
         return PetInput(
             name = name,
             species = species!!,
             customSpecies = customSpecies,
-            birthEpochDay = birth.toEpochDay(),
-            birthEstimated = estimated,
+            birthEpochDay = birthday!!.toEpochDay(),
             sex = sex,
             neutered = neutered,
             breed = breed,
@@ -92,14 +61,12 @@ data class PetForm(
     }
 
     companion object {
-        /** Pre-fills the form when editing. Estimated birthdays reopen with their stored date, still marked as estimated. */
+        /** Pre-fills the form when editing. Birthdays saved by older versions as estimates reopen as plain dates. */
         fun from(pet: Pet) = PetForm(
             species = pet.species,
             customSpecies = pet.customSpecies.orEmpty(),
             name = pet.name,
-            birthMode = BirthMode.EXACT,
             birthday = LocalDate.ofEpochDay(pet.birthEpochDay),
-            birthdayEstimated = pet.birthEstimated,
             sex = pet.sex,
             neutered = pet.neutered,
             breed = pet.breed.orEmpty(),

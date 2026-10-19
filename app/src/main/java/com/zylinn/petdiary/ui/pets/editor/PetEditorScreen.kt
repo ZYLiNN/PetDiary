@@ -203,23 +203,7 @@ private fun PetEditorContent(
 
                 // 生日
                 SectionLabel("生日", required = true)
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    BirthMode.entries.forEachIndexed { i, mode ->
-                        SegmentedButton(
-                            selected = form.birthMode == mode,
-                            onClick = { onEdit { it.copy(birthMode = mode) } },
-                            shape = SegmentedButtonDefaults.itemShape(i, BirthMode.entries.size),
-                            modifier = Modifier.testTag("birth_mode_${mode.name}"),
-                        ) { Text(if (mode == BirthMode.EXACT) "知道生日" else "大約幾歲") }
-                    }
-                }
-                when (form.birthMode) {
-                    BirthMode.EXACT -> BirthdayField(form, today, onEdit)
-                    BirthMode.APPROXIMATE -> Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        NumberField(form.approxYears, "歲", "field_years", Modifier.weight(1f)) { v -> onEdit { it.copy(approxYears = v) } }
-                        NumberField(form.approxMonths, "個月", "field_months", Modifier.weight(1f)) { v -> onEdit { it.copy(approxMonths = v) } }
-                    }
-                }
+                BirthdayField(form, today, onEdit)
                 Hint(problems.birth, "hint_birth")
 
                 // 更多資料
@@ -309,11 +293,7 @@ private fun BirthdayField(form: PetForm, today: LocalDate, onEdit: ((PetForm) ->
         Icon(Icons.Outlined.CalendarMonth, contentDescription = null, modifier = Modifier.size(18.dp))
         Spacer(Modifier.size(8.dp))
         Text(
-            when {
-                form.birthday == null -> "選擇生日"
-                form.birthdayEstimated -> "${form.birthday.format(fmt)}（估計）"
-                else -> form.birthday.format(fmt)
-            },
+            form.birthday?.format(fmt) ?: "選擇生日",
         )
     }
     if (open) {
@@ -332,7 +312,7 @@ private fun BirthdayField(form: PetForm, today: LocalDate, onEdit: ((PetForm) ->
                     onClick = {
                         picker.selectedDateMillis?.let { ms ->
                             val date = Instant.ofEpochMilli(ms).atZone(ZoneOffset.UTC).toLocalDate()
-                            onEdit { it.copy(birthday = date, birthdayEstimated = false) }
+                            onEdit { it.copy(birthday = date) }
                         }
                         open = false
                     },

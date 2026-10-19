@@ -7,20 +7,11 @@ import java.time.Period
 object PetAge {
 
     /**
-     * Birthday to store when the user only knows an approximate age ("about 3 years").
-     * Displayed with an "約" prefix via [label].
-     */
-    fun estimatedBirthday(years: Int, months: Int = 0, today: LocalDate): LocalDate {
-        require(years >= 0 && months >= 0) { "age must not be negative" }
-        return today.minusYears(years.toLong()).minusMonths(months.toLong())
-    }
-
-    /**
      * Human-readable age:
      * - under 1 month: "12 天" (birthday today: "今天出生")
      * - under 1 year: "5 個月"
      * - otherwise: "3 歲" / "3 歲 2 個月"
-     * Estimated birthdays drop the finer unit: "約 3 歲", "約 5 個月".
+     * Birthdays flagged as estimates (saved by v0.1–v0.3, no longer created) drop the finer unit: "約 3 歲".
      */
     fun label(birthday: LocalDate, estimated: Boolean, today: LocalDate): String {
         if (birthday.isAfter(today)) return "尚未出生"
