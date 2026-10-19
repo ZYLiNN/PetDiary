@@ -9,6 +9,10 @@ import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteDefaul
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.zylinn.petdiary.PetDiaryApplication
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -70,6 +74,11 @@ fun PetDiaryApp() {
     val backStack = rememberNavBackStack(Main)
     val navigate: (NavKey) -> Unit = { backStack.add(it) }
     val back: () -> Unit = { if (backStack.size > 1) backStack.removeAt(backStack.lastIndex) }
+    val container = (LocalContext.current.applicationContext as PetDiaryApplication).container
+    val pendingInvite by container.incomingInvite.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingInvite) {
+        if (pendingInvite != null && backStack.lastOrNull() != Family) backStack.add(Family)
+    }
 
     NavDisplay(
         backStack = backStack,
@@ -161,7 +170,8 @@ fun PetDiaryApp() {
             }
             entry<Family> {
                 val vm = containerViewModel { FamilyViewModel(it.cloudSync, it.settings) }
-                FamilyScreen(vm = vm, onBack = back)
+                val incoming by container.incomingInvite.collectAsStateWithLifecycle()
+                FamilyScreen(vm = vm, onBack = back, incoming = incoming, onIncomingConsumed = { container.incomingInvite.value = null })
             }
             entry<About> {
                 AboutScreen(versionName = appVersionName(), onBack = back)

@@ -1,6 +1,8 @@
 package com.zylinn.petdiary
 
+import android.content.Intent
 import android.os.Bundle
+import com.zylinn.petdiary.sync.InviteLink
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.SystemBarStyle
@@ -18,7 +20,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val settings = (application as PetDiaryApplication).container.settings
+        val container = (application as PetDiaryApplication).container
+        val settings = container.settings
+        offerInvite(intent)
         setContent {
             val mode by settings.themeMode.collectAsStateWithLifecycle()
             val dark = when (mode) {
@@ -38,5 +42,16 @@ class MainActivity : ComponentActivity() {
                 PetDiaryApp()
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        offerInvite(intent)
+    }
+
+    private fun offerInvite(intent: Intent?) {
+        val link = intent?.takeIf { it.action == Intent.ACTION_VIEW }?.dataString ?: return
+        if (InviteLink.parse(link) != null) (application as PetDiaryApplication).container.incomingInvite.value = link
     }
 }

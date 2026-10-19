@@ -66,7 +66,7 @@ import java.util.Locale
 /** Family group (P8): who is in it, invite someone (QR), join with a scanned / pasted invitation, remove or leave. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FamilyScreen(vm: FamilyViewModel, onBack: () -> Unit) {
+fun FamilyScreen(vm: FamilyViewModel, onBack: () -> Unit, incoming: String? = null, onIncomingConsumed: () -> Unit = {}) {
     BackHandler(onBack = onBack)
     val status by vm.status.collectAsStateWithLifecycle()
     val family by vm.family.collectAsStateWithLifecycle()
@@ -84,6 +84,10 @@ fun FamilyScreen(vm: FamilyViewModel, onBack: () -> Unit) {
     var removing by remember { mutableStateOf<Member?>(null) }
     var leaving by rememberSaveable { mutableStateOf(false) }
     var editName by rememberSaveable { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(incoming) {
+        incoming?.let { pendingInvite = it; nickname = myName; onIncomingConsumed() }
+    }
 
     LaunchedEffect(message) {
         message?.let { snackbar.showSnackbar(it); vm.messageShown() }

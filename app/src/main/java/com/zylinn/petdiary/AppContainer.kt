@@ -28,6 +28,8 @@ import java.time.Clock
 /** Hand-written dependency container (kept simple on purpose; no DI framework). */
 class AppContainer(context: Context) {
     val clock: Clock = Clock.systemDefaultZone()
+    /** Text of a `petdiary://join` link opened from outside (system camera, browser, chat); the UI consumes it. */
+    val incomingInvite = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val database: PetDiaryDatabase by lazy { PetDiaryDatabase.build(context) }
     val photoStore: FileStore by lazy { FileStore(File(context.filesDir, "photos").apply { mkdirs() }) }

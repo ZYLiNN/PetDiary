@@ -64,6 +64,26 @@ class FamilyScreenTest {
     private val owner = FamilyState("g1", listOf(Member("me", "媽媽", true, true), Member("bob", "爸爸", false, false)))
     private val member = FamilyState("g1", listOf(Member("mom", "媽媽", true, false), Member("me", "爸爸", false, true)))
 
+    @Test fun linkOpenedFromOutsideAsksToJoinAndConsumesIt() {
+        val fake = FakeFamily(SyncStatus.Active(null), alone)
+        val link = "petdiary://join?g=abcdef123456&c=abcdefghijklmnopqrstuvwxyz"
+        var consumed = 0
+        rule.setContent { PetDiaryTheme { FamilyScreen(FamilyViewModel(fake, settings), onBack = {}, incoming = link, onIncomingConsumed = { consumed++ }) } }
+        rule.onNodeWithText("加入家庭群組？").assertIsDisplayed()
+        rule.onNodeWithTag("join_ok").performClick()
+        rule.waitUntil(5_000) { fake.joined != null }
+        assertEquals(link, fake.joined?.first)
+        assertEquals(1, consumed)
+    }
+
+    /** The system camera opens the QR's `petdiary://join` link; without an intent filter Android says "no app can open this". */
+    @Test fun inviteLinkResolvesToThisApp() {
+        val link = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("petdiary://join?g=abcdef123456&c=abcdefghijklmnopqrstuvwxyz"))
+            .addCategory(android.content.Intent.CATEGORY_BROWSABLE)
+        val resolved = context.packageManager.resolveActivity(link, 0)
+        assertEquals(context.packageName, resolved?.activityInfo?.packageName)
+    }
+
     @Test fun needsCloudFirst() {
         show(FakeFamily(SyncStatus.Off, null))
         rule.onNodeWithTag("family_need_cloud").assertIsDisplayed().assertTextContains("雲端備份與同步", substring = true)
