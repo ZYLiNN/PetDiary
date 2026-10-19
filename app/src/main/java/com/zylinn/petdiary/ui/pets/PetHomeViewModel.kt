@@ -5,11 +5,16 @@ import androidx.lifecycle.viewModelScope
 import com.zylinn.petdiary.data.pet.PetRepository
 import com.zylinn.petdiary.data.pet.Species
 import com.zylinn.petdiary.data.photo.FileStore
+import com.zylinn.petdiary.data.reminder.Completion
+import com.zylinn.petdiary.data.reminder.ReminderRepository
+import com.zylinn.petdiary.ui.reminders.ReminderUi
+import com.zylinn.petdiary.ui.reminders.withOverdue
 import com.zylinn.petdiary.domain.PetAge
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -36,8 +41,36 @@ sealed interface PetHomeState {
 class PetHomeViewModel(
     private val repository: PetRepository,
     photos: FileStore,
-    clock: Clock,
+    private val clock: Clock,
+    private val reminders: ReminderRepository? = null,
 ) : ViewModel() {
+
+    /** S4 "今天待辦": open reminders due today or earlier; empty hides the whole block (P4-10). */
+    val todos: StateFlow<List<ReminderUi>> = (reminders?.observeOpen() ?: flowOf(emptyList()))
+        .map { rows ->
+            val today = LocalDate.now(clock).toEpochDay()
+            rows.filter { it.reminder.dueEpochDay <= today }.withOverdue(clock)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val _justCompleted = MutableStateFlow<Completion?>(null)
+    val justCompleted: StateFlow<Completion?> = _justCompleted.asStateFlow()
+
+    fun completeTodo(id: String) {
+        val repo = reminders ?: return
+        viewModelScope.launch { _justCompleted.value = repo.complete(id) }
+    }
+
+    fun undoTodo(c: Completion) {
+        val repo = reminders ?: return
+        viewModelScope.launch { repo.undo(c) }
+        _justCompleted.value = null
+    }
+
+    fun todoAcknowledged() {
+        _justCompleted.value = null
+    }
+
 
     val state: StateFlow<PetHomeState> = repository.activePets
         .map { pets ->

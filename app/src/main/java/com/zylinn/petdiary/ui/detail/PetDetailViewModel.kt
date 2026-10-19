@@ -9,6 +9,10 @@ import com.zylinn.petdiary.data.record.Record
 import com.zylinn.petdiary.data.record.RecordInput
 import com.zylinn.petdiary.data.record.RecordRepository
 import com.zylinn.petdiary.data.record.RecordType
+import com.zylinn.petdiary.data.reminder.Completion
+import com.zylinn.petdiary.data.reminder.ReminderRepository
+import com.zylinn.petdiary.ui.reminders.ReminderUi
+import com.zylinn.petdiary.ui.reminders.withOverdue
 import com.zylinn.petdiary.domain.PetAge
 import com.zylinn.petdiary.domain.RecordFormat
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -54,6 +58,8 @@ data class CalendarState(
     val expanded: Boolean,
     val visibleMonth: YearMonth,
     val daysWithRecords: Set<LocalDate>,
+    /** Days with an open reminder → the type of the first one (colors the calendar marker, D32). */
+    val reminderTypes: Map<LocalDate, RecordType> = emptyMap(),
 ) {
     /** Sunday-first week containing the selected day. */
     val week: List<LocalDate>
@@ -77,6 +83,7 @@ class PetDetailViewModel(
     photos: FileStore,
     private val clock: Clock,
     initialDay: LocalDate? = null,
+    private val reminders: ReminderRepository? = null,
 ) : ViewModel() {
 
     private fun today() = LocalDate.now(clock)
@@ -103,8 +110,12 @@ class PetDetailViewModel(
             val weekStart = sel.with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY))
             val from = minOf(weekStart, month.atDay(1))
             val to = maxOf(weekStart.plusDays(6), month.atEndOfMonth())
-            records.observeDaysWithRecords(petId, from.toEpochDay(), to.toEpochDay()).map { days ->
-                CalendarState(today(), sel, exp, month, days.map(LocalDate::ofEpochDay).toSet())
+            val reminderRows = reminders?.observeOpenForPet(petId, from.toEpochDay(), to.toEpochDay()) ?: flowOf(emptyList())
+            combine(records.observeDaysWithRecords(petId, from.toEpochDay(), to.toEpochDay()), reminderRows) { days, rows ->
+                CalendarState(
+                    today(), sel, exp, month, days.map(LocalDate::ofEpochDay).toSet(),
+                    rows.groupBy { LocalDate.ofEpochDay(it.reminder.dueEpochDay) }.mapValues { (_, list) -> list.first().reminder.type },
+                )
             }
         }
         .stateIn(
@@ -112,6 +123,30 @@ class PetDetailViewModel(
             SharingStarted.WhileSubscribed(5_000),
             CalendarState(today(), startDay, false, YearMonth.from(startDay), emptySet()),
         )
+
+    /** Open reminders due on the selected day. */
+    val dayReminders: StateFlow<List<ReminderUi>> = selected
+        .flatMapLatest { day -> reminders?.observeOpenForPet(petId, day.toEpochDay(), day.toEpochDay()) ?: flowOf(emptyList()) }
+        .map { it.withOverdue(clock) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val _reminderCompleted = MutableStateFlow<Completion?>(null)
+    val reminderCompleted: StateFlow<Completion?> = _reminderCompleted
+
+    fun completeReminder(id: String) {
+        val repo = reminders ?: return
+        viewModelScope.launch { _reminderCompleted.value = repo.complete(id) }
+    }
+
+    fun undoReminder(c: Completion) {
+        val repo = reminders ?: return
+        viewModelScope.launch { repo.undo(c) }
+        _reminderCompleted.value = null
+    }
+
+    fun reminderAcknowledged() {
+        _reminderCompleted.value = null
+    }
 
     /** null while loading. */
     val cards: StateFlow<List<RecordCard>?> = selected
@@ -154,9 +189,37 @@ class PetDetailViewModel(
         latest?.let { QuickFeeding(it, RecordFormat.summary(it, supps.associate { s -> s.id to s.name }, today())) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    val quickWalk: StateFlow<QuickFeeding?> = records.observeLatest(petId, RecordType.WALK)
+        .map { latest -> latest?.let { QuickFeeding(it, RecordFormat.summary(it, emptyMap(), today())) } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Type of the last one-tap save, for the snackbar wording. */
+    var justAddedType: RecordType = RecordType.FEEDING
+        private set
+
     private val _justAdded = MutableStateFlow<List<String>?>(null)
     /** Ids created by the last one-tap save, for the "復原" snackbar. */
     val justAdded: StateFlow<List<String>?> = _justAdded
+
+    /** One-tap walk: same minutes / checklist as the last walk, on the selected day at the current time. */
+    fun quickWalk(petIds: List<String>) {
+        val source = quickWalk.value?.source ?: return
+        viewModelScope.launch {
+            val now = LocalTime.now(clock)
+            val input = RecordInput(
+                type = RecordType.WALK,
+                dateEpochDay = selected.value.toEpochDay(),
+                minuteOfDay = now.hour * 60 + now.minute,
+                note = source.note,
+                drankWater = source.drankWater,
+                durationMin = source.durationMin,
+                peed = source.peed,
+                pooped = source.pooped,
+            )
+            justAddedType = input.type
+            _justAdded.value = records.addForPets(petIds, input)
+        }
+    }
 
     /**
      * One-tap feeding: same content as the last feeding, on the selected day at the current time (S2).
@@ -174,6 +237,7 @@ class PetDetailViewModel(
                 drankWater = source.drankWater,
                 supplementIds = source.supplementIdList,
             )
+            justAddedType = input.type
             _justAdded.value = records.addForPets(petIds, input)
         }
     }

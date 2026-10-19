@@ -37,7 +37,11 @@ class NavigationTest {
         )
         TopLevelDestination.entries.forEach { dest ->
             rule.onNodeWithTag("tab_${dest.name}").performClick().assertIsSelected()
-            val content = if (dest == TopLevelDestination.Pets) "pet_grid" else "list_${dest.name}"
+            val content = when (dest) {
+                TopLevelDestination.Pets -> "pet_grid"
+                TopLevelDestination.Reminders -> "reminder_list"
+                else -> "list_${dest.name}"
+            }
             rule.onNodeWithTag(content).assertIsDisplayed()
         }
         rule.onNodeWithTag("tab_Pets").performClick()
@@ -46,16 +50,15 @@ class NavigationTest {
 
     // P0-03
     @Test fun scrollPositionKeptAcrossTabSwitch() {
-        rule.onNodeWithTag("tab_Reminders").performClick()
-        rule.onNodeWithTag("list_Reminders").performScrollToIndex(10)
-        rule.onNodeWithTag("item_Reminders_9").assertIsDisplayed()
+        rule.onNodeWithTag("tab_Stats").performClick()
+        rule.onNodeWithTag("list_Stats").performScrollToIndex(9)
+        rule.onNodeWithTag("item_Stats_9").assertIsDisplayed()
+
+        rule.onNodeWithTag("tab_Settings").performClick()
+        rule.onNodeWithTag("list_Settings").assertIsDisplayed()
 
         rule.onNodeWithTag("tab_Stats").performClick()
-        rule.onNodeWithTag("list_Stats").assertIsDisplayed()
-        rule.onNodeWithTag("item_Stats_0").assertIsDisplayed()
-
-        rule.onNodeWithTag("tab_Reminders").performClick()
-        rule.onNodeWithTag("item_Reminders_9").assertIsDisplayed()
+        rule.onNodeWithTag("item_Stats_9").assertIsDisplayed()
     }
 
     // C-07

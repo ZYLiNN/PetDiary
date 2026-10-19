@@ -49,8 +49,10 @@ data class Record(
     val dewormKind: DewormKind? = null,
     // Weight
     val weightKg: Double? = null,
-    // Walk: minutes (the water checklist reuses [drankWater])
+    // Walk: minutes, plus pee / poop checklist (the water checklist reuses [drankWater])
     @ColumnInfo(defaultValue = "NULL") val durationMin: Int? = null,
+    @ColumnInfo(defaultValue = "NULL") val peed: Boolean? = null,
+    @ColumnInfo(defaultValue = "NULL") val pooped: Boolean? = null,
     val createdAt: Long,
     val updatedAt: Long,
     @ColumnInfo(defaultValue = "NULL") val deletedAt: Long? = null,

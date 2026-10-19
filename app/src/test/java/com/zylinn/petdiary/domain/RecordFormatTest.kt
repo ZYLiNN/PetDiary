@@ -93,6 +93,7 @@ class RecordFormatTest {
     @Test fun walkSummary() {
         assertEquals("45 分鐘・有喝水", RecordFormat.summary(record(RecordType.WALK).copy(durationMin = 45, drankWater = true), emptyMap(), today))
         assertEquals("30 分鐘", RecordFormat.summary(record(RecordType.WALK).copy(durationMin = 30, drankWater = false), emptyMap(), today))
+        assertEquals("20 分鐘・小便・大便", RecordFormat.summary(record(RecordType.WALK).copy(durationMin = 20, peed = true, pooped = true), emptyMap(), today))
     }
 
     @Test fun weightSummary() =

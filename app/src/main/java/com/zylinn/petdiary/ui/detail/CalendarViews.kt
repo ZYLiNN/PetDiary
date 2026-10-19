@@ -38,6 +38,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.zylinn.petdiary.data.record.RecordType
+import com.zylinn.petdiary.ui.records.color
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -77,6 +79,7 @@ fun WeekStrip(
                     showWeekday = true,
                     selected = day == state.selected,
                     hasRecords = day in state.daysWithRecords,
+                    reminderType = state.reminderTypes[day],
                     onClick = { onSelect(day) },
                     modifier = Modifier.weight(1f),
                 )
@@ -144,6 +147,7 @@ fun MonthCalendar(
                             showWeekday = false,
                             selected = day == state.selected,
                             hasRecords = day in state.daysWithRecords,
+                            reminderType = state.reminderTypes[day],
                             onClick = { onSelect(day) },
                             modifier = Modifier.weight(1f),
                         )
@@ -163,6 +167,7 @@ private fun DayCell(
     showWeekday: Boolean,
     selected: Boolean,
     hasRecords: Boolean,
+    reminderType: RecordType?,
     onClick: () -> Unit,
     modifier: Modifier,
 ) {
@@ -181,7 +186,7 @@ private fun DayCell(
             .clickable(onClick = onClick)
             .semantics {
                 this.selected = selected
-                contentDescription = "${day.monthValue} 月 ${day.dayOfMonth} 日" + if (hasRecords) "，有紀錄" else ""
+                contentDescription = "${day.monthValue} 月 ${day.dayOfMonth} 日" + (if (hasRecords) "，有紀錄" else "") + (if (reminderType != null) "，有提醒" else "")
             }
             .padding(vertical = 4.dp)
             .testTag("day_${day.toEpochDay()}"),
@@ -195,7 +200,7 @@ private fun DayCell(
             fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.SemiBold,
             color = fg,
         )
-        Box(Modifier.height(6.dp).aspectRatio(1f), contentAlignment = Alignment.Center) {
+        Row(Modifier.height(6.dp), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
             if (hasRecords) {
                 Box(
                     Modifier
@@ -203,6 +208,16 @@ private fun DayCell(
                         .clip(CircleShape)
                         .background(if (selected) scheme.onPrimary else scheme.primary)
                         .testTag("dot_${day.toEpochDay()}"),
+                )
+            }
+            if (reminderType != null) {
+                // A ring (not a filled dot) in the reminder's type color, so it differs from record dots by shape too.
+                Box(
+                    Modifier
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .border(1.5.dp, if (selected) scheme.onPrimary else reminderType.color, CircleShape)
+                        .testTag("reminder_dot_${day.toEpochDay()}"),
                 )
             }
         }

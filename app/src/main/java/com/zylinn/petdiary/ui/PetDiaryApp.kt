@@ -29,6 +29,7 @@ import com.zylinn.petdiary.ui.navigation.Main
 import com.zylinn.petdiary.ui.navigation.PetDetail
 import com.zylinn.petdiary.ui.navigation.PetEditor
 import com.zylinn.petdiary.ui.navigation.RecordEditor
+import com.zylinn.petdiary.ui.navigation.ReminderEditor
 import com.zylinn.petdiary.ui.navigation.Search
 import com.zylinn.petdiary.ui.navigation.TopLevelDestination
 import com.zylinn.petdiary.ui.navigation.Trash
@@ -37,6 +38,10 @@ import com.zylinn.petdiary.ui.pets.editor.PetEditorScreen
 import com.zylinn.petdiary.ui.pets.editor.PetEditorViewModel
 import com.zylinn.petdiary.ui.records.RecordEditorScreen
 import com.zylinn.petdiary.ui.records.RecordEditorViewModel
+import com.zylinn.petdiary.ui.reminders.ReminderEditorScreen
+import com.zylinn.petdiary.ui.reminders.ReminderEditorViewModel
+import com.zylinn.petdiary.ui.reminders.RemindersScreen
+import com.zylinn.petdiary.ui.reminders.RemindersViewModel
 import com.zylinn.petdiary.ui.screens.PlaceholderScreen
 import com.zylinn.petdiary.ui.search.SearchScreen
 import com.zylinn.petdiary.ui.search.SearchViewModel
@@ -72,6 +77,7 @@ fun PetDiaryApp() {
                     PetDetailViewModel(
                         key.petId, it.petRepository, it.recordRepository, it.photoStore, it.clock,
                         initialDay = key.dayEpochDay?.let(LocalDate::ofEpochDay),
+                        reminders = it.reminderRepository,
                     )
                 }
                 PetDetailScreen(
@@ -80,6 +86,8 @@ fun PetDiaryApp() {
                     onPickType = { type, petIds, day -> navigate(RecordEditor(petIds, type.name, day.toEpochDay())) },
                     onOpenRecord = { id, type, day -> navigate(RecordEditor(listOf(key.petId), type.name, day.toEpochDay(), id)) },
                     onSearch = { navigate(Search(key.petId)) },
+                    onAddReminder = { day -> navigate(ReminderEditor(petId = key.petId, dayEpochDay = day.toEpochDay())) },
+                    onOpenReminder = { id -> navigate(ReminderEditor(reminderId = id)) },
                 )
             }
             entry<RecordEditor> { key ->
@@ -97,6 +105,15 @@ fun PetDiaryApp() {
                     )
                 }
                 RecordEditorScreen(vm = vm, onDone = back)
+            }
+            entry<ReminderEditor> { key ->
+                val vm = containerViewModel {
+                    ReminderEditorViewModel(
+                        key.reminderId, key.petId, key.dayEpochDay?.let(LocalDate::ofEpochDay),
+                        it.petRepository, it.reminderRepository, it.clock,
+                    )
+                }
+                ReminderEditorScreen(vm = vm, onDone = back)
             }
             entry<Search> { key ->
                 val container = appContainer()
@@ -167,7 +184,16 @@ private fun MainScreen(navigate: (NavKey) -> Unit) {
                     onOpenPet = { id -> navigate(PetDetail(id)) },
                     onEditPet = { id -> navigate(PetEditor(id)) },
                     onSearch = { navigate(Search()) },
+                    onOpenReminder = { id -> navigate(ReminderEditor(reminderId = id)) },
                 )
+                TopLevelDestination.Reminders -> {
+                    val vm = containerViewModel { RemindersViewModel(it.reminderRepository, it.clock) }
+                    RemindersScreen(
+                        vm = vm,
+                        onAdd = { navigate(ReminderEditor()) },
+                        onEdit = { id -> navigate(ReminderEditor(reminderId = id)) },
+                    )
+                }
                 TopLevelDestination.Settings -> SettingsScreen(onOpenTrash = { navigate(Trash) })
                 else -> PlaceholderScreen(destination = current)
             }

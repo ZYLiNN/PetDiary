@@ -339,6 +339,8 @@ private fun WalkFields(form: RecordForm, onEdit: ((RecordForm) -> RecordForm) ->
         }
     }
     CheckRow("有喝水", form.drankWater, "field_water") { c -> onEdit { it.copy(drankWater = c) } }
+    CheckRow("有小便", form.peed, "field_pee") { c -> onEdit { it.copy(peed = c) } }
+    CheckRow("有大便", form.pooped, "field_poop") { c -> onEdit { it.copy(pooped = c) } }
 }
 
 @OptIn(ExperimentalLayoutApi::class)

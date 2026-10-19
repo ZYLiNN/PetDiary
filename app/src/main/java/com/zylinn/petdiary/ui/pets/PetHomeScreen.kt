@@ -59,16 +59,25 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.zylinn.petdiary.ui.reminders.ReminderUi
 import com.zylinn.petdiary.ui.containerViewModel
+import com.zylinn.petdiary.ui.reminders.ReminderItem
+import java.time.LocalDate
 import kotlinx.coroutines.withTimeoutOrNull
 
 /** Minimum tile width: 2 columns on a folded phone, 3–4 when unfolded. */
 private val TileMinWidth = 168.dp
 
 @Composable
-fun PetHomeRoute(onAddPet: () -> Unit, onOpenPet: (String) -> Unit, onEditPet: (String) -> Unit, onSearch: () -> Unit = {}) {
-    val vm = containerViewModel { PetHomeViewModel(it.petRepository, it.photoStore, it.clock) }
-    PetHomeScreen(vm = vm, onAddPet = onAddPet, onOpenPet = onOpenPet, onEditPet = onEditPet, onSearch = onSearch)
+fun PetHomeRoute(
+    onAddPet: () -> Unit,
+    onOpenPet: (String) -> Unit,
+    onEditPet: (String) -> Unit,
+    onSearch: () -> Unit = {},
+    onOpenReminder: (String) -> Unit = {},
+) {
+    val vm = containerViewModel { PetHomeViewModel(it.petRepository, it.photoStore, it.clock, it.reminderRepository) }
+    PetHomeScreen(vm = vm, onAddPet = onAddPet, onOpenPet = onOpenPet, onEditPet = onEditPet, onSearch = onSearch, onOpenReminder = onOpenReminder)
 }
 
 /** Binds [PetHomeViewModel] to the stateless screen, including the 5-second undo snackbar. */
@@ -79,8 +88,11 @@ fun PetHomeScreen(
     onOpenPet: (String) -> Unit,
     onEditPet: (String) -> Unit,
     onSearch: () -> Unit = {},
+    onOpenReminder: (String) -> Unit = {},
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
+    val todos by vm.todos.collectAsStateWithLifecycle()
+    val justCompleted by vm.justCompleted.collectAsStateWithLifecycle()
     val justDeleted by vm.justDeleted.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
 
@@ -97,8 +109,19 @@ fun PetHomeScreen(
         if (result == SnackbarResult.ActionPerformed) vm.undo(deleted) else vm.undoExpired()
     }
 
+    LaunchedEffect(justCompleted) {
+        val c = justCompleted ?: return@LaunchedEffect
+        val result = withTimeoutOrNull(UNDO_WINDOW_MS) {
+            snackbar.showSnackbar("已完成並記錄", actionLabel = "復原", duration = SnackbarDuration.Indefinite)
+        }
+        if (result == SnackbarResult.ActionPerformed) vm.undoTodo(c) else vm.todoAcknowledged()
+    }
+
     PetHomeScreen(
         state = state,
+        todos = todos,
+        onToggleTodo = vm::completeTodo,
+        onOpenReminder = onOpenReminder,
         onAddPet = onAddPet,
         onOpenPet = onOpenPet,
         onEditPet = onEditPet,
@@ -114,6 +137,9 @@ const val UNDO_WINDOW_MS = 5_000L
 @Composable
 fun PetHomeScreen(
     state: PetHomeState,
+    todos: List<ReminderUi> = emptyList(),
+    onToggleTodo: (String) -> Unit = {},
+    onOpenReminder: (String) -> Unit = {},
     onAddPet: () -> Unit,
     onOpenPet: (String) -> Unit,
     onEditPet: (String) -> Unit = {},
@@ -144,6 +170,11 @@ fun PetHomeScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            if (todos.isNotEmpty()) {
+                item(key = "todos", span = { GridItemSpan(maxLineSpan) }) {
+                    TodayTodos(todos, LocalDate.now(), onToggleTodo, onOpenReminder)
+                }
+            }
             if (pets.isEmpty()) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Text(
@@ -163,6 +194,25 @@ fun PetHomeScreen(
                 )
             }
             item(key = "add") { AddPetTile(onClick = onAddPet) }
+        }
+    }
+}
+
+/** S4: due-today and overdue reminders, tick to complete (creates the record). */
+@Composable
+private fun TodayTodos(todos: List<ReminderUi>, today: LocalDate, onToggle: (String) -> Unit, onOpen: (String) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.testTag("today_todos")) {
+        Text("今天待辦", style = MaterialTheme.typography.titleSmall)
+        todos.forEach { (row, overdue) ->
+            val r = row.reminder
+            ReminderItem(
+                row = row,
+                today = today,
+                overdue = overdue,
+                onToggle = { onToggle(r.id) },
+                onClick = { onOpen(r.id) },
+                modifier = Modifier.testTag("todo_${r.id}"),
+            )
         }
     }
 }

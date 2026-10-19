@@ -6,13 +6,14 @@ import com.zylinn.petdiary.data.photo.FileStore
 import com.zylinn.petdiary.data.record.AttachmentDao
 import com.zylinn.petdiary.data.record.Record
 import com.zylinn.petdiary.data.record.RecordDao
+import com.zylinn.petdiary.data.reminder.ReminderDao
 import java.time.Clock
 
 /**
  * Permanent deletion for trashed items.
  * - A trashed pet hides its records too; purging the pet removes the records and their attachments.
  * - A record trashed on its own is purged 7 days after its own deletion.
- * Reminders join the cascade in P4.
+ * Reminders are removed together with their pet / source record.
  */
 class TrashRepository(
     private val petDao: PetDao,
@@ -21,6 +22,7 @@ class TrashRepository(
     private val photos: FileStore,
     private val attachmentFiles: FileStore,
     private val clock: Clock,
+    private val reminderDao: ReminderDao? = null,
 ) {
     /** Removes everything that has been in the trash for 7 days or more. Returns the count purged. */
     suspend fun purgeExpired(): Int {
@@ -46,6 +48,7 @@ class TrashRepository(
 
     private suspend fun purgePet(pet: Pet) {
         recordDao.getAllForPet(pet.id).forEach { purgeRecord(it) }
+        reminderDao?.deleteForPet(pet.id)
         pet.photoFile?.let(photos::delete)
         petDao.deletePermanently(pet.id)
     }
@@ -53,6 +56,7 @@ class TrashRepository(
     private suspend fun purgeRecord(record: Record) {
         attachmentDao.getForRecord(record.id).forEach { attachmentFiles.delete(it.fileName) }
         attachmentDao.deleteForRecord(record.id)
+        reminderDao?.deleteBySource(record.id)
         recordDao.deletePermanently(record.id)
     }
 }

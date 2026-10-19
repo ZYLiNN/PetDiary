@@ -95,6 +95,8 @@ object RecordFormat {
             RecordType.WALK -> {
                 record.durationMin?.let { parts += duration(it) }
                 if (record.drankWater == true) parts += "有喝水"
+                if (record.peed == true) parts += "小便"
+                if (record.pooped == true) parts += "大便"
             }
             RecordType.WEIGHT -> record.weightKg?.let { parts += "${number(it)} kg" }
             RecordType.DEWORMING -> {

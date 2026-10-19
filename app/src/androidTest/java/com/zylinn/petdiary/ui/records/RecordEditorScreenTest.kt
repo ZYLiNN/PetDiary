@@ -98,9 +98,13 @@ class RecordEditorScreenTest {
         rule.onNodeWithTag("duration_30").performClick()
         rule.onNodeWithTag("duration_30").assertIsSelected()
         rule.onNodeWithTag("field_water").performClick()
+        rule.onNodeWithTag("field_pee").performClick()
+        rule.onNodeWithTag("field_poop").performClick()
         saveAndWait()
 
         val r = day(cat).single()
+        assertEquals(true, r.peed)
+        assertEquals(true, r.pooped)
         assertEquals(RecordType.WALK, r.type)
         assertEquals(30, r.durationMin)
         assertEquals(true, r.drankWater)

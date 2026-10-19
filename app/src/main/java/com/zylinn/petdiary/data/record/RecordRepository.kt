@@ -1,12 +1,18 @@
 package com.zylinn.petdiary.data.record
 
 import com.zylinn.petdiary.data.photo.FileStore
+import com.zylinn.petdiary.data.reminder.Reminder
+import com.zylinn.petdiary.data.reminder.ReminderDao
+import com.zylinn.petdiary.data.reminder.ReminderTypes
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import java.time.Clock
 import java.util.UUID
+
+/** Reminders created from a record's "下次日期" fire at 09:00 (the reminder can be edited afterwards). */
+const val DEFAULT_REMINDER_MINUTE = 9 * 60
 
 /** Everything the record form produces; ids and timestamps are filled in by the repository. */
 data class RecordInput(
@@ -26,6 +32,8 @@ data class RecordInput(
     val dewormKind: DewormKind? = null,
     val weightKg: Double? = null,
     val durationMin: Int? = null,
+    val peed: Boolean? = null,
+    val pooped: Boolean? = null,
 )
 
 /** A file already copied into the attachment store, waiting to be linked to a record. */
@@ -38,6 +46,8 @@ class RecordRepository(
     private val files: FileStore,
     private val clock: Clock,
     private val newId: () -> String = { UUID.randomUUID().toString() },
+    /** P4-09: records with a "下次日期" + remind flag keep a linked reminder in sync. */
+    private val reminders: ReminderDao? = null,
 ) {
     fun observeDay(petId: String, day: Long): Flow<List<Record>> = records.observeDay(petId, day)
     fun observeDaysWithRecords(petId: String, from: Long, to: Long) = records.observeDaysWithRecords(petId, from, to)
@@ -80,6 +90,7 @@ class RecordRepository(
         }
         records.upsertAll(created.map { it.first })
         attachments.insertAll(created.flatMap { it.second })
+        created.forEach { syncReminder(it.first) }
         return created.map { it.first.id }
     }
 
@@ -102,11 +113,49 @@ class RecordRepository(
             files.delete(it.fileName)
         }
         attachments.insertAll(added.map { Attachment(newId(), id, it.fileName, it.mimeType, it.displayName, it.sizeBytes, now) })
+        records.getById(id)?.let { syncReminder(it) }
     }
 
-    suspend fun moveToTrash(id: String) = records.softDelete(id, clock.millis())
+    /** The record's reminder follows its "下次日期": created, moved, or dropped when the flag is cleared. */
+    private suspend fun syncReminder(record: Record) {
+        val dao = reminders ?: return
+        val linked = dao.getBySource(record.id)
+        val wanted = record.remindNext && record.nextEpochDay != null && record.type in ReminderTypes && record.deletedAt == null
+        if (!wanted) {
+            linked.filter { it.completedAt == null }.forEach { dao.softDelete(it.id, clock.millis()) }
+            return
+        }
+        val now = clock.millis()
+        val open = linked.firstOrNull { it.completedAt == null && it.deletedAt == null }
+        val title = record.title
+        when {
+            open != null -> if (open.dueEpochDay != record.nextEpochDay || open.title != title || open.petId != record.petId) {
+                dao.upsert(
+                    open.copy(petId = record.petId, type = record.type, title = title, dueEpochDay = record.nextEpochDay!!, notifiedFor = null, updatedAt = now),
+                )
+            }
+            linked.any { it.completedAt != null } -> Unit // already ticked off from the list; don't bring it back
+            else -> dao.upsert(
+                Reminder(
+                    id = newId(), petId = record.petId, type = record.type, title = title,
+                    dueEpochDay = record.nextEpochDay!!, minuteOfDay = DEFAULT_REMINDER_MINUTE,
+                    sourceRecordId = record.id, createdAt = now, updatedAt = now,
+                ),
+            )
+        }
+    }
 
-    suspend fun restore(id: String) = records.restore(id, clock.millis())
+    suspend fun moveToTrash(id: String) {
+        val now = clock.millis()
+        records.softDelete(id, now)
+        reminders?.softDeleteBySource(id, now)
+    }
+
+    suspend fun restore(id: String) {
+        val now = clock.millis()
+        records.restore(id, now)
+        reminders?.restoreBySource(id, now)
+    }
 
     /** Returns the existing supplement with this name, or creates it (S7: add from the feeding form). */
     suspend fun addSupplement(name: String): Supplement {
@@ -135,6 +184,8 @@ class RecordRepository(
         dewormKind = dewormKind,
         weightKg = weightKg,
         durationMin = durationMin,
+        peed = peed,
+        pooped = pooped,
         createdAt = createdAt,
         updatedAt = updatedAt,
     )

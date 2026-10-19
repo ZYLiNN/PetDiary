@@ -137,6 +137,21 @@ class AddRecordPanelTest {
         rule.waitUntil(5_000) { runBlocking { records.observeDay(cat, today.toEpochDay()).first().isEmpty() } }
     }
 
+    // D33: walk has its own "同上次"
+    @Test fun quickWalkCopiesLastWalk() = runBlocking {
+        records.addForPets(listOf(cat), RecordInput(RecordType.WALK, today.minusDays(1).toEpochDay(), 8 * 60, durationMin = 40, drankWater = true, peed = true))
+        show()
+        openPanel()
+        rule.onNodeWithTag("quick_feeding").assertDoesNotExist()
+        rule.onNodeWithText("散步・同上次（40 分鐘・有喝水・小便）").assertIsDisplayed()
+        rule.onNodeWithTag("quick_walk_save").performClick()
+        rule.waitUntil(5_000) { runCatching { rule.onNodeWithText("已記錄散步").assertExists() }.isSuccess }
+        val r = records.observeDay(cat, today.toEpochDay()).first().single()
+        assertEquals(40, r.durationMin)
+        assertEquals(true, r.peed)
+        assertEquals(19 * 60 + 30, r.minuteOfDay)
+    }
+
     // P2-05c
     @Test fun wideScreenUsesDialog() {
         show(width = 840.dp)

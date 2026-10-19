@@ -55,6 +55,8 @@ data class RecordForm(
     val groomingItems: Set<String> = emptySet(),
     // Walk (water checklist reuses [drankWater])
     val durationMin: String = "",
+    val peed: Boolean = false,
+    val pooped: Boolean = false,
 ) {
     /** First problem to fix, or null when the form can be saved. */
     fun problem(today: LocalDate): String? {
@@ -98,7 +100,7 @@ data class RecordForm(
                 portions = portions.toDoubleOrNull(), drankWater = drankWater, supplementIds = supplementIds.toList(),
             )
             RecordType.WALK -> RecordInput(
-                type, date.toEpochDay(), minuteOfDay, note = note, drankWater = drankWater, durationMin = durationMin.toInt(),
+                type, date.toEpochDay(), minuteOfDay, note = note, drankWater = drankWater, durationMin = durationMin.toInt(), peed = peed, pooped = pooped,
             )
             RecordType.WEIGHT -> RecordInput(type, date.toEpochDay(), minuteOfDay, note = note, weightKg = weightKg.toDouble())
             RecordType.GROOMING -> RecordInput(
@@ -134,6 +136,8 @@ data class RecordForm(
             dewormKind = r.dewormKind,
             weightKg = r.weightKg?.let(RecordFormat::number).orEmpty(),
             durationMin = r.durationMin?.toString().orEmpty(),
+            peed = r.peed == true,
+            pooped = r.pooped == true,
             groomingItems = if (r.type == RecordType.GROOMING) r.title?.split("、")?.toSet().orEmpty() else emptySet(),
         )
     }

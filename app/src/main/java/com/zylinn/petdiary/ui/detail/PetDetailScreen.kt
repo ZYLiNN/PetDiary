@@ -34,6 +34,7 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -70,6 +71,8 @@ import com.zylinn.petdiary.data.record.RecordType
 import com.zylinn.petdiary.domain.RecordFormat.label
 import com.zylinn.petdiary.ui.pets.PetAvatar
 import com.zylinn.petdiary.ui.pets.UNDO_WINDOW_MS
+import com.zylinn.petdiary.ui.reminders.ReminderUi
+import com.zylinn.petdiary.ui.reminders.ReminderItem
 import com.zylinn.petdiary.ui.records.color
 import com.zylinn.petdiary.ui.records.icon
 import java.time.LocalDate
@@ -87,6 +90,8 @@ fun PetDetailScreen(
     onPickType: (RecordType, List<String>, LocalDate) -> Unit,
     onOpenRecord: (id: String, type: RecordType, day: LocalDate) -> Unit,
     onSearch: () -> Unit = {},
+    onAddReminder: (LocalDate) -> Unit = {},
+    onOpenReminder: (String) -> Unit = {},
     snackbar: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     val header by vm.header.collectAsStateWithLifecycle()
@@ -95,17 +100,27 @@ fun PetDetailScreen(
     val chips by vm.lastChips.collectAsStateWithLifecycle()
     val petChoices by vm.petChoices.collectAsStateWithLifecycle()
     val quickFeeding by vm.quickFeeding.collectAsStateWithLifecycle()
+    val quickWalk by vm.quickWalk.collectAsStateWithLifecycle()
     val justAdded by vm.justAdded.collectAsStateWithLifecycle()
     val justDeleted by vm.justDeleted.collectAsStateWithLifecycle()
+    val dayReminders by vm.dayReminders.collectAsStateWithLifecycle()
+    val reminderCompleted by vm.reminderCompleted.collectAsStateWithLifecycle()
     var showPanel by rememberSaveable { mutableStateOf(false) }
     BackHandler(onBack = onBack)
 
     LaunchedEffect(justAdded) {
         val ids = justAdded ?: return@LaunchedEffect
         val result = withTimeoutOrNull(UNDO_WINDOW_MS) {
-            snackbar.showSnackbar("已記錄餵食", actionLabel = "復原", duration = SnackbarDuration.Indefinite)
+            snackbar.showSnackbar("已記錄${vm.justAddedType.label}", actionLabel = "復原", duration = SnackbarDuration.Indefinite)
         }
         if (result == SnackbarResult.ActionPerformed) vm.undoQuickFeed(ids) else vm.quickFeedAcknowledged()
+    }
+    LaunchedEffect(reminderCompleted) {
+        val c = reminderCompleted ?: return@LaunchedEffect
+        val result = withTimeoutOrNull(UNDO_WINDOW_MS) {
+            snackbar.showSnackbar("已完成並記錄", actionLabel = "復原", duration = SnackbarDuration.Indefinite)
+        }
+        if (result == SnackbarResult.ActionPerformed) vm.undoReminder(c) else vm.reminderAcknowledged()
     }
     LaunchedEffect(justDeleted) {
         val card = justDeleted ?: return@LaunchedEffect
@@ -131,7 +146,17 @@ fun PetDetailScreen(
             )
         },
         floatingActionButton = {
-            if (!calendar.selected.isAfter(calendar.today)) FloatingActionButton(
+            if (calendar.selected.isAfter(calendar.today)) {
+                ExtendedFloatingActionButton(
+                    onClick = { onAddReminder(calendar.selected) },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    shape = MaterialTheme.shapes.medium,
+                    icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                    text = { Text("新增提醒") },
+                    modifier = Modifier.testTag("fab_add_reminder"),
+                )
+            } else FloatingActionButton(
                 onClick = { showPanel = true },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -151,6 +176,7 @@ fun PetDetailScreen(
                     currentPetId = vm.petId,
                     pets = petChoices,
                     quickFeeding = quickFeeding,
+                    quickWalk = quickWalk,
                     onDismiss = { showPanel = false },
                     onPickType = { type, petIds ->
                         showPanel = false
@@ -159,6 +185,10 @@ fun PetDetailScreen(
                     onQuickFeed = { petIds ->
                         showPanel = false
                         vm.quickFeed(petIds)
+                    },
+                    onQuickWalk = { petIds ->
+                        showPanel = false
+                        vm.quickWalk(petIds)
                     },
                 )
             }
@@ -180,6 +210,10 @@ fun PetDetailScreen(
                     }
                     RecordList(
                         future = calendar.selected.isAfter(calendar.today),
+                        reminders = dayReminders,
+                        today = calendar.today,
+                        onToggleReminder = vm::completeReminder,
+                        onOpenReminder = onOpenReminder,
                         cards = cards,
                         onOpenRecord = { card -> onOpenRecord(card.id, card.type, calendar.selected) },
                         onDelete = vm::deleteRecord,
@@ -199,6 +233,10 @@ fun PetDetailScreen(
                     }
                     RecordList(
                         future = calendar.selected.isAfter(calendar.today),
+                        reminders = dayReminders,
+                        today = calendar.today,
+                        onToggleReminder = vm::completeReminder,
+                        onOpenReminder = onOpenReminder,
                         cards = cards,
                         onOpenRecord = { card -> onOpenRecord(card.id, card.type, calendar.selected) },
                         onDelete = vm::deleteRecord,
@@ -248,6 +286,10 @@ private fun LastChipsRow(chips: List<LastChip>) {
 private fun RecordList(
     cards: List<RecordCard>?,
     future: Boolean,
+    reminders: List<ReminderUi>,
+    today: LocalDate,
+    onToggleReminder: (String) -> Unit,
+    onOpenReminder: (String) -> Unit,
     onOpenRecord: (RecordCard) -> Unit,
     onDelete: (RecordCard) -> Unit,
     modifier: Modifier,
@@ -260,10 +302,21 @@ private fun RecordList(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.widthIn(max = 720.dp).fillMaxWidth().testTag("record_list"),
         ) {
-            if (list.isEmpty()) {
+            items(reminders, key = { "rem_" + it.row.reminder.id }) { (row, overdue) ->
+                val r = row.reminder
+                ReminderItem(
+                    row = row,
+                    today = today,
+                    overdue = overdue,
+                    onToggle = { onToggleReminder(r.id) },
+                    onClick = { onOpenReminder(r.id) },
+                    showPet = false,
+                )
+            }
+            if (list.isEmpty() && reminders.isEmpty()) {
                 item {
                     Text(
-                        if (future) "這是未來的日子，還沒有紀錄。\n之後新增提醒，就會顯示在這裡" else "這天還沒有紀錄，按右下角「＋」新增",
+                        if (future) "這是未來的日子，還沒有安排。\n點右下角「新增提醒」，到時會通知你" else "這天還沒有紀錄，按右下角「＋」新增",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 24.dp).testTag("records_empty"),

@@ -57,9 +57,11 @@ fun AddRecordPanel(
     currentPetId: String,
     pets: List<PetChoice>,
     quickFeeding: QuickFeeding?,
+    quickWalk: QuickFeeding?,
     onDismiss: () -> Unit,
     onPickType: (RecordType, List<String>) -> Unit,
     onQuickFeed: (List<String>) -> Unit,
+    onQuickWalk: (List<String>) -> Unit,
 ) {
     var chosen by rememberSaveable { mutableStateOf(listOf(currentPetId)) }
     val content: @Composable () -> Unit = {
@@ -71,8 +73,10 @@ fun AddRecordPanel(
                 chosen = if (id in chosen) (chosen - id).ifEmpty { chosen } else chosen + id
             },
             quickFeeding = quickFeeding,
+            quickWalk = quickWalk,
             onPickType = { onPickType(it, chosen) },
             onQuickFeed = { onQuickFeed(chosen) },
+            onQuickWalk = { onQuickWalk(chosen) },
         )
     }
     if (wide) {
@@ -100,8 +104,10 @@ private fun PanelContent(
     chosen: List<String>,
     onToggle: (String) -> Unit,
     quickFeeding: QuickFeeding?,
+    quickWalk: QuickFeeding?,
     onPickType: (RecordType) -> Unit,
     onQuickFeed: () -> Unit,
+    onQuickWalk: () -> Unit,
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -145,29 +151,35 @@ private fun PanelContent(
         ) {
             RecordType.entries.forEach { type -> TypeTile(type, onClick = { onPickType(type) }, modifier = Modifier.weight(1f)) }
         }
-        if (quickFeeding != null) {
+        if (quickFeeding != null || quickWalk != null) {
             HorizontalDivider(color = MaterialTheme.colorScheme.outline)
             Text("一鍵記錄", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 8.dp)
-                    .testTag("quick_feeding"),
-            ) {
-                Icon(RecordType.FEEDING.icon, contentDescription = null, tint = RecordType.FEEDING.color)
-                Text(
-                    text = "餵食・同上次" + quickFeeding.summary.takeIf { it.isNotEmpty() }?.let { "（$it）" }.orEmpty(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(1f),
-                )
-                Button(onClick = onQuickFeed, modifier = Modifier.testTag("quick_feeding_save")) { Text("記錄") }
-            }
+            if (quickFeeding != null) QuickRow("quick_feeding", RecordType.FEEDING, quickFeeding, onQuickFeed)
+            if (quickWalk != null) QuickRow("quick_walk", RecordType.WALK, quickWalk, onQuickWalk)
         }
         Spacer(Modifier.height(4.dp))
+    }
+}
+
+@Composable
+private fun QuickRow(tag: String, type: RecordType, quick: QuickFeeding, onSave: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 8.dp)
+            .testTag(tag),
+    ) {
+        Icon(type.icon, contentDescription = null, tint = type.color)
+        Text(
+            text = "${type.label}・同上次" + quick.summary.takeIf { it.isNotEmpty() }?.let { "（$it）" }.orEmpty(),
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f),
+        )
+        Button(onClick = onSave, modifier = Modifier.testTag("${tag}_save")) { Text("記錄") }
     }
 }
 

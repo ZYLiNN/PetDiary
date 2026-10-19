@@ -31,3 +31,11 @@ data class RecordEditor(
 /** Record search (S8): all pets, or pre-filtered to [petId] when opened from a pet's page. */
 @Serializable
 data class Search(val petId: String? = null) : NavKey
+
+/** New reminder (optionally for [petId] on [dayEpochDay]) or edit [reminderId]. */
+@Serializable
+data class ReminderEditor(
+    val reminderId: String? = null,
+    val petId: String? = null,
+    val dayEpochDay: Long? = null,
+) : NavKey

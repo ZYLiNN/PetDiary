@@ -4,6 +4,7 @@ import androidx.room.Room
 import androidx.room.testing.MigrationTestHelper
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -71,6 +72,40 @@ class MigrationTest {
                 val r = db.recordDao().getAllForPet("p1").single()
                 assertEquals(true, r.drankWater)
                 assertEquals(null, r.durationMin)
+            }
+        } finally {
+            db.close()
+        }
+    }
+
+    @Test fun v4RecordsSurviveUpgradeToV5AndRemindersWork() {
+        helper.createDatabase(dbName, 4).apply {
+            execSQL(
+                """INSERT INTO pets (id, name, species, customSpecies, birthEpochDay, birthEstimated, sex, neutered,
+                   breed, chipNumber, note, photoFile, createdAt, updatedAt, deletedAt)
+                   VALUES ('p1', '雷利', 'DOG', NULL, 19000, 0, 'MALE', NULL, NULL, NULL, NULL, NULL, 1, 2, NULL)""",
+            )
+            execSQL(
+                """INSERT INTO records (id, petId, type, dateEpochDay, minuteOfDay, durationMin, peed, pooped, remindNext, createdAt, updatedAt)
+                   VALUES ('r1', 'p1', 'WALK', 20000, 480, 30, 1, 0, 0, 1, 2)""",
+            )
+            close()
+        }
+        helper.runMigrationsAndValidate(dbName, 5, true)
+
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val db = Room.databaseBuilder(context, PetDiaryDatabase::class.java, dbName).build()
+        try {
+            runBlocking {
+                val r = db.recordDao().getAllForPet("p1").single()
+                assertEquals(30, r.durationMin)
+                assertEquals(true, r.peed)
+                db.reminderDao().upsert(
+                    com.zylinn.petdiary.data.reminder.Reminder(
+                        "m1", "p1", com.zylinn.petdiary.data.record.RecordType.VET, null, 20010, 540, createdAt = 1, updatedAt = 1,
+                    ),
+                )
+                assertEquals("m1", db.reminderDao().observeOpen().first().single().reminder.id)
             }
         } finally {
             db.close()

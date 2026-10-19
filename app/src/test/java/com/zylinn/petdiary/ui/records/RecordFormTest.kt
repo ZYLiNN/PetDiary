@@ -29,7 +29,9 @@ class RecordFormTest {
     }
 
     @Test fun walkToInputKeepsWater() {
-        val input = form(RecordType.WALK).copy(durationMin = "45", drankWater = true).toInput(today)
+        val input = form(RecordType.WALK).copy(durationMin = "45", drankWater = true, peed = true, pooped = false).toInput(today)
+        assertEquals(true, input.peed)
+        assertEquals(false, input.pooped)
         assertEquals(45, input.durationMin)
         assertEquals(true, input.drankWater)
         assertNull(input.portions)

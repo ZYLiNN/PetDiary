@@ -8,7 +8,11 @@ import com.zylinn.petdiary.data.photo.PhotoImporter
 import com.zylinn.petdiary.data.photo.AttachmentImporter
 import com.zylinn.petdiary.data.photo.FileStore
 import com.zylinn.petdiary.data.record.RecordRepository
+import com.zylinn.petdiary.data.reminder.ReminderRepository
 import com.zylinn.petdiary.data.trash.PurgeTrashWorker
+import com.zylinn.petdiary.reminder.ReminderNotifier
+import com.zylinn.petdiary.reminder.ReminderScheduler
+import com.zylinn.petdiary.reminder.ReminderSyncer
 import com.zylinn.petdiary.data.trash.TrashRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,11 +32,19 @@ class AppContainer(context: Context) {
     val attachmentImporter: AttachmentImporter by lazy { AttachmentImporter(context.contentResolver, attachmentStore) }
     val petRepository: PetRepository by lazy { PetRepository(database.petDao(), clock) }
     val recordRepository: RecordRepository by lazy {
-        RecordRepository(database.recordDao(), database.attachmentDao(), database.supplementDao(), attachmentStore, clock)
+        RecordRepository(
+            database.recordDao(), database.attachmentDao(), database.supplementDao(), attachmentStore, clock,
+            reminders = database.reminderDao(),
+        )
     }
     val trashRepository: TrashRepository by lazy {
-        TrashRepository(database.petDao(), database.recordDao(), database.attachmentDao(), photoStore, attachmentStore, clock)
+        TrashRepository(database.petDao(), database.recordDao(), database.attachmentDao(), photoStore, attachmentStore, clock, database.reminderDao())
     }
+    val notifier: ReminderNotifier by lazy { ReminderNotifier(context) }
+    val reminderSyncer: ReminderSyncer by lazy {
+        ReminderSyncer(appScope, reminderRepository, ReminderScheduler(context), notifier, clock)
+    }
+    val reminderRepository: ReminderRepository by lazy { ReminderRepository(database.reminderDao(), recordRepository, clock) }
 }
 
 class PetDiaryApplication : Application() {
@@ -45,5 +57,6 @@ class PetDiaryApplication : Application() {
         // Purge on every launch (covers long gaps without opening the app) plus a daily job.
         container.appScope.launch { container.trashRepository.purgeExpired() }
         PurgeTrashWorker.schedule(this)
+        container.reminderSyncer.start()
     }
 }
