@@ -54,7 +54,7 @@ class CloudSync(
     private val photos: FileStore,
     private val attachments: FileStore,
     private val clock: Clock,
-) : FamilyController {
+) : FamilyController, CloudSwitch {
     private val _status = MutableStateFlow<SyncStatus>(if (settings.cloudSyncEnabled.value) SyncStatus.Connecting else SyncStatus.Off)
     override val status: StateFlow<SyncStatus> = _status.asStateFlow()
 
@@ -81,12 +81,12 @@ class CloudSync(
         if (settings.cloudSyncEnabled.value) connect()
     }
 
-    fun enable() {
+    override fun enable() {
         settings.setCloudSyncEnabled(true)
         connect()
     }
 
-    fun disable() {
+    override fun disable() {
         settings.setCloudSyncEnabled(false)
         job?.cancel()
         job = null
@@ -235,6 +235,19 @@ class CloudSync(
         val clean = name.trim().ifEmpty { return }
         settings.setDisplayName(clean)
         if (fam.iAmOwner) familyService.renameOwner(fam.groupId, clean) else familyService.renameMember(fam.groupId, uid, clean)
+    }
+
+    /** A different cloud user signed in (Google account switch): re-sync everything against that user's group. */
+    suspend fun userChanged() {
+        database.syncDao().clearMeta()
+        connect()
+    }
+
+    /** After the cloud account was deleted: forget the cloud's marks and uploaded-file lists; local data stays. */
+    suspend fun afterAccountDeleted() {
+        database.syncDao().clearMeta()
+        context.getSharedPreferences("petdiary_sync", Context.MODE_PRIVATE).edit().clear().apply()
+        _uid.value = null
     }
 
     /** Repoint this user at [groupId] and restart: everything local counts as unsent for the new group. */

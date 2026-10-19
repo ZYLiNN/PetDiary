@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Cloud
+import androidx.compose.material.icons.outlined.DeleteForever
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.FileDownload
@@ -50,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zylinn.petdiary.data.settings.ThemeMode
+import com.zylinn.petdiary.sync.AccountState
 import com.zylinn.petdiary.sync.SyncStatus
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -112,6 +115,32 @@ private fun CloudSyncRow(status: SyncStatus, onToggle: (Boolean) -> Unit) {
     HorizontalDivider(color = MaterialTheme.colorScheme.outline)
 }
 
+@Composable
+private fun GoogleAccountRow(cloud: SyncStatus, account: AccountState?, busy: Boolean, onLink: () -> Unit) {
+    val ready = cloud is SyncStatus.Active
+    val linked = account?.isGoogle == true
+    ListItem(
+        headlineContent = { Text("Google 帳號") },
+        supportingContent = {
+            Text(
+                when {
+                    linked -> "已綁定：${account?.googleEmail}"
+                    !ready -> "先開啟雲端備份與同步，才能綁定"
+                    else -> "綁定後，換手機或重新安裝也能找回雲端資料"
+                },
+                modifier = Modifier.testTag("google_status"),
+            )
+        },
+        leadingContent = { Icon(Icons.Outlined.AccountCircle, contentDescription = null) },
+        trailingContent = if (ready && !linked) {
+            { TextButton(onClick = onLink, enabled = !busy, modifier = Modifier.testTag("link_google")) { Text("綁定") } }
+        } else null,
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
+        modifier = Modifier.testTag("settings_google"),
+    )
+    HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+}
+
 /** Settings (P6): appearance, custom items, data export, trash, about; cloud account is a "coming soon" block (S9). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -126,9 +155,51 @@ fun SettingsScreen(
     val theme by vm.themeMode.collectAsStateWithLifecycle()
     val export by vm.export.collectAsStateWithLifecycle()
     val cloud by vm.cloudStatus.collectAsStateWithLifecycle()
+    val account by vm.account.collectAsStateWithLifecycle()
+    val accountBusy by vm.accountBusy.collectAsStateWithLifecycle()
+    val accountMessage by vm.accountMessage.collectAsStateWithLifecycle()
+    val switchOffer by vm.switchOffer.collectAsStateWithLifecycle()
+    var askDelete by rememberSaveable { mutableStateOf(false) }
+    val host = androidx.activity.compose.LocalActivity.current ?: LocalContext.current
     var askConsent by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
+
+    LaunchedEffect(accountMessage) {
+        accountMessage?.let { snackbar.showSnackbar(it); vm.accountMessageShown() }
+    }
+
+    switchOffer?.let { offer ->
+        AlertDialog(
+            onDismissRequest = vm::dismissSwitchOffer,
+            title = { Text("這個 Google 帳號已經在使用中") },
+            text = {
+                Text(
+                    (offer.email?.let { "$it 已經綁定過另一個雲端身分（例如你的舊手機）。\n\n" } ?: "") +
+                        "要改用它登入嗎？這支手機現有的資料會和該帳號的雲端資料合併，不會被刪除。",
+                )
+            },
+            confirmButton = { TextButton(onClick = { vm.switchToGoogle(offer.idToken) }, modifier = Modifier.testTag("switch_ok")) { Text("改用這個帳號") } },
+            dismissButton = { TextButton(onClick = vm::dismissSwitchOffer, modifier = Modifier.testTag("switch_cancel")) { Text("取消") } },
+        )
+    }
+
+    if (askDelete) {
+        AlertDialog(
+            onDismissRequest = { askDelete = false },
+            title = { Text("刪除雲端資料與帳號？") },
+            text = {
+                Text(
+                    "會刪掉雲端上屬於你的備份：寵物、紀錄、提醒、照片與附件，以及你的雲端帳號。\n\n" +
+                        "• 你手機上的資料不會被刪除，但會停止同步\n" +
+                        "• 如果你是家庭群組的擁有者，其他成員會失去群組的雲端資料（他們手機上的資料仍保留）\n" +
+                        "• 這個動作無法復原",
+                )
+            },
+            confirmButton = { TextButton(onClick = { askDelete = false; vm.deleteCloudAccount(host) }, modifier = Modifier.testTag("delete_cloud_ok")) { Text("刪除") } },
+            dismissButton = { TextButton(onClick = { askDelete = false }, modifier = Modifier.testTag("delete_cloud_cancel")) { Text("取消") } },
+        )
+    }
 
     if (askConsent) {
         AlertDialog(
@@ -186,7 +257,11 @@ fun SettingsScreen(
                 item {
                     SectionHeader("帳號與家人")
                     CloudSyncRow(cloud, onToggle = { on -> if (on) askConsent = true else vm.setCloudSync(false) })
+                    GoogleAccountRow(cloud, account, busy = accountBusy, onLink = { vm.linkGoogle(host) })
                     SettingRow("家庭群組", "用 QR Code 邀請家人一起記錄、查看成員", Icons.Outlined.Groups, "settings_account", onClick = onOpenFamily)
+                    if (cloud is SyncStatus.Active) {
+                        SettingRow("刪除雲端資料與帳號", "刪掉雲端上的備份與檔案（手機上的資料不受影響）", Icons.Outlined.DeleteForever, "settings_delete_cloud", onClick = { askDelete = true })
+                    }
                 }
                 item {
                     SectionHeader("外觀")

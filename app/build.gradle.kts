@@ -17,8 +17,8 @@ android {
         applicationId = "com.zylinn.petdiary"
         minSdk = 26
         targetSdk = 37
-        versionCode = 9
-        versionName = "0.8.0"
+        versionCode = 10
+        versionName = "0.9.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -79,6 +79,9 @@ dependencies {
     implementation(libs.firebase.storage)
     implementation(libs.zxing.core)
     implementation(libs.gms.code.scanner)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play)
+    implementation(libs.google.id)
     implementation(libs.kotlinx.coroutines.play.services)
 
     testImplementation(libs.junit)
