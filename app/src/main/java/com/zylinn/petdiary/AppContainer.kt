@@ -42,12 +42,13 @@ class AppContainer(context: Context) {
         RecordRepository(
             database.recordDao(), database.attachmentDao(), database.supplementDao(), attachmentStore, clock,
             reminders = database.reminderDao(),
+            author = { cloudSync.currentUid() },
         )
     }
     val trashRepository: TrashRepository by lazy {
         TrashRepository(database.petDao(), database.recordDao(), database.attachmentDao(), photoStore, attachmentStore, clock, database.reminderDao())
     }
-    val cloudSync: CloudSync by lazy { CloudSync(context, appScope, settings, database, clock) }
+    val cloudSync: CloudSync by lazy { CloudSync(context, appScope, settings, database, photoStore, attachmentStore, clock) }
     val notifier: ReminderNotifier by lazy { ReminderNotifier(context) }
     val reminderSyncer: ReminderSyncer by lazy {
         ReminderSyncer(appScope, reminderRepository, ReminderScheduler(context), notifier, clock)

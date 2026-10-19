@@ -8,6 +8,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.zylinn.petdiary.data.PetDiaryDatabase
 import com.zylinn.petdiary.data.pet.Pet
 import com.zylinn.petdiary.data.pet.Species
+import com.zylinn.petdiary.data.record.Attachment
 import com.zylinn.petdiary.data.record.Record
 import com.zylinn.petdiary.data.record.RecordType
 import com.zylinn.petdiary.data.record.Supplement
@@ -212,6 +213,24 @@ class SyncEngineTest {
     @Test fun malformedCloudDocumentsAreIgnored() = runBlocking {
         engine(dbB).apply(SyncTable.PETS, listOf(mapOf("id" to "bad", "updatedAt" to now, SERVER_AT to 1L), mapOf("name" to "no id")))
         assertNull(dbB.petDao().getById("bad"))
+    }
+
+    @Test fun attachmentListsTravelWithTheRecord() = runBlocking {
+        dbA.syncDao().upsertRecord(record())
+        dbA.syncDao().insertAttachments(listOf(Attachment("a1", "r1", "x.pdf", "application/pdf", "報告.pdf", 10, 1)))
+        engine(dbA).pushPending()
+        val doc = cloud.docs.getValue(SyncTable.RECORDS).getValue("r1")
+        assertEquals(1, (doc["attachments"] as List<*>).size)
+
+        engine(dbB).apply(SyncTable.RECORDS, listOf(doc))
+        assertEquals(listOf("x.pdf"), dbB.syncDao().attachmentsFor(listOf("r1")).map { it.fileName })
+
+        // removed on A → the next version of the record has an empty list → B drops it too
+        dbA.attachmentDao().delete("a1")
+        dbA.syncDao().upsertRecord(record(updatedAt = now + 1))
+        engine(dbA).pushPending()
+        engine(dbB).apply(SyncTable.RECORDS, listOf(cloud.docs.getValue(SyncTable.RECORDS).getValue("r1")))
+        assertTrue(dbB.syncDao().attachmentsFor(listOf("r1")).isEmpty())
     }
 
     @Test fun supplementsSync() = runBlocking {

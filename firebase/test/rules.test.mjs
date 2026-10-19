@@ -297,6 +297,13 @@ describe('family: members', () => {
   it('a member can point their user record at the family group', async () => {
     await assertSucceeds(setDoc(doc(db('bob'), 'users/bob'), { groupId: 'g1', updatedAt: NOW }));
   });
+  it('attachment lists travel with the record, up to 20 entries', async () => {
+    const one = { id: 'a1', fileName: 'x.jpg', mimeType: 'image/jpeg', displayName: 'x.jpg', sizeBytes: 10, createdAt: NOW };
+    await assertSucceeds(setDoc(doc(db('bob'), 'groups/g1/records/r1'), record('r1', { attachments: [one] })));
+    await assertSucceeds(setDoc(doc(db('bob'), 'groups/g1/records/r2'), record('r2', { attachments: [] })));
+    await assertFails(setDoc(doc(db('bob'), 'groups/g1/records/r3'), record('r3', { attachments: Array(21).fill(one) })));
+    await assertFails(setDoc(doc(db('bob'), 'groups/g1/records/r4'), record('r4', { attachments: 'nope' })));
+  });
   it('record authors can be stored', async () => {
     await assertSucceeds(setDoc(doc(db('bob'), 'groups/g1/records/r1'), record('r1', { authorUid: 'bob' })));
   });

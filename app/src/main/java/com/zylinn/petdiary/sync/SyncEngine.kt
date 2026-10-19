@@ -71,7 +71,9 @@ class SyncEngine(
     /** Uploads every row with unsent edits. Public for tests. */
     suspend fun pushPending() {
         push(SyncTable.PETS, dao.dirtyPets().map { Triple(it.id, it.updatedAt, CloudMapper.pet(it)) })
-        push(SyncTable.RECORDS, dao.dirtyRecords().map { Triple(it.id, it.updatedAt, CloudMapper.record(it)) })
+        val dirtyRecords = dao.dirtyRecords()
+        val attachments = if (dirtyRecords.isEmpty()) emptyMap() else dao.attachmentsFor(dirtyRecords.map { it.id }).groupBy { it.recordId }
+        push(SyncTable.RECORDS, dirtyRecords.map { Triple(it.id, it.updatedAt, CloudMapper.record(it, attachments[it.id].orEmpty())) })
         push(SyncTable.REMINDERS, dao.dirtyReminders().map { Triple(it.id, it.updatedAt, CloudMapper.reminder(it)) })
         push(SyncTable.SUPPLEMENTS, dao.dirtySupplements().map { Triple(it.id, it.updatedAt, CloudMapper.supplement(it)) })
     }
@@ -121,7 +123,13 @@ class SyncEngine(
             }
             val stored = when (table) {
                 SyncTable.PETS -> CloudMapper.pet(d)?.also { dao.upsertPet(it) }
-                SyncTable.RECORDS -> CloudMapper.record(d)?.also { dao.upsertRecord(it) }
+                SyncTable.RECORDS -> CloudMapper.record(d)?.also {
+                    dao.upsertRecord(it)
+                    CloudMapper.attachments(d)?.let { list ->
+                        dao.deleteAttachmentsOf(id)
+                        dao.insertAttachments(list)
+                    }
+                }
                 SyncTable.REMINDERS -> CloudMapper.reminder(d, dao.reminderNotifiedFor(id))?.also { dao.upsertReminder(it) }
                 SyncTable.SUPPLEMENTS -> CloudMapper.supplement(d)?.also { dao.upsertSupplement(it) }
             }

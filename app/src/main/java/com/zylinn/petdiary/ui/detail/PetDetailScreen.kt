@@ -380,6 +380,9 @@ fun RecordCardView(card: RecordCard, onClick: () -> Unit, petName: String? = nul
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(card.time, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                card.author?.let {
+                    Text("$it 記錄", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("author_${card.id}"))
+                }
                 if (card.attachmentCount > 0) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.testTag("attach_count_${card.id}")) {
                         Icon(Icons.Outlined.AttachFile, contentDescription = "附件", modifier = Modifier.size(14.dp))

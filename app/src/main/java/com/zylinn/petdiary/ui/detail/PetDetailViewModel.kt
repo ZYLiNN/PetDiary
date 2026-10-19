@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -44,6 +45,8 @@ data class RecordCard(
     val summary: String,
     val note: String?,
     val attachmentCount: Int,
+    /** Who recorded it; only set when the group has more than one person. */
+    val author: String? = null,
 )
 
 data class LastChip(val type: RecordType, val text: String)
@@ -85,6 +88,7 @@ class PetDetailViewModel(
     private val clock: Clock,
     initialDay: LocalDate? = null,
     private val reminders: ReminderRepository? = null,
+    private val authorNames: Flow<Map<String, String>> = flowOf(emptyMap()),
 ) : ViewModel() {
 
     private fun today() = LocalDate.now(clock)
@@ -170,7 +174,7 @@ class PetDetailViewModel(
         .flatMapLatest { day -> records.observeDay(petId, day.toEpochDay()) }
         .flatMapLatest { list ->
             val counts = if (list.isEmpty()) flowOf(emptyList()) else records.observeAttachmentCounts(list.map { it.id })
-            combine(counts, records.supplementNames) { c, supps ->
+            combine(counts, records.supplementNames, authorNames) { c, supps, authors ->
                 val countMap = c.associate { it.recordId to it.count }
                 val names = supps
                 list.map { r ->
@@ -181,6 +185,7 @@ class PetDetailViewModel(
                         summary = RecordFormat.summary(r, names, today()),
                         note = r.note,
                         attachmentCount = countMap[r.id] ?: 0,
+                        author = r.authorUid?.let(authors::get),
                     )
                 }
             }

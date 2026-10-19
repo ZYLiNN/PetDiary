@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -53,6 +54,7 @@ class SearchViewModel(
     pets: PetRepository,
     private val records: RecordRepository,
     private val clock: Clock,
+    private val authorNames: Flow<Map<String, String>> = flowOf(emptyMap()),
 ) : ViewModel() {
 
     private val _filters = MutableStateFlow(SearchFilters(petIds = setOfNotNull(initialPetId)))
@@ -79,7 +81,7 @@ class SearchViewModel(
         .flatMapLatest { f ->
             val query = f.toQuery()
             if (query.isBlank) return@flatMapLatest flowOf(SearchResults.Idle)
-            combine(records.search(query), pets.activePets, records.supplementNames) { found, petList, supps ->
+            combine(records.search(query), pets.activePets, records.supplementNames, authorNames) { found, petList, supps, authors ->
                 val names = petList.associate { it.id to it.name }
                 val suppNames = supps
                 val today = today()
@@ -97,6 +99,7 @@ class SearchViewModel(
                                     summary = RecordFormat.summary(r, suppNames, today),
                                     note = r.note,
                                     attachmentCount = 0,
+                                    author = r.authorUid?.let(authors::get),
                                 ),
                                 petId = r.petId,
                                 petName = names[r.petId].orEmpty(),

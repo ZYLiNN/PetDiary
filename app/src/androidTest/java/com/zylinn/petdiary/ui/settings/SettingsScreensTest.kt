@@ -96,7 +96,7 @@ class SettingsScreensTest {
     @Test fun settingsListsEveryEntry() {
         showSettings()
         rule.onNodeWithTag("settings_account").assertIsDisplayed()
-        rule.onNodeWithTag("settings_account").assertTextContains("即將推出", substring = true)
+        rule.onNodeWithTag("settings_account").assertTextContains("家庭群組", substring = true)
         rule.onNodeWithTag("settings_supplements").assertIsDisplayed().performClick()
         rule.onNodeWithTag("settings_export").assertIsDisplayed()
         rule.onNodeWithTag("settings_trash").assertIsDisplayed().performClick()

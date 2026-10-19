@@ -59,6 +59,8 @@ data class Record(
     @ColumnInfo(defaultValue = "NULL") val durationMin: Int? = null,
     @ColumnInfo(defaultValue = "NULL") val peed: Boolean? = null,
     @ColumnInfo(defaultValue = "NULL") val pooped: Boolean? = null,
+    /** Cloud user who recorded it (family groups show "誰記錄的"); null when recorded without cloud sync. */
+    @ColumnInfo(defaultValue = "NULL") val authorUid: String? = null,
     val createdAt: Long,
     val updatedAt: Long,
     @ColumnInfo(defaultValue = "NULL") val deletedAt: Long? = null,

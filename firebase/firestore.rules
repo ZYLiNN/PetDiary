@@ -42,14 +42,15 @@ service cloud.firestore {
     function validRecord(d, id) {
       return d.keys().hasOnly(['id', 'petId', 'type', 'dateEpochDay', 'minuteOfDay', 'note', 'cost', 'portions', 'drankWater',
                  'supplementIds', 'title', 'detail', 'hospital', 'nextEpochDay', 'remindNext', 'dewormKind', 'weightKg',
-                 'durationMin', 'peed', 'pooped', 'authorUid', 'createdAt', 'updatedAt', 'deletedAt', 'serverUpdatedAt'])
+                 'durationMin', 'peed', 'pooped', 'authorUid', 'attachments', 'createdAt', 'updatedAt', 'deletedAt', 'serverUpdatedAt'])
         && d.keys().hasAll(['id', 'petId', 'type', 'dateEpochDay', 'minuteOfDay', 'createdAt', 'updatedAt', 'serverUpdatedAt'])
         && base(d, id) && str(d, 'petId', 64) && str(d, 'type', 20) && int(d, 'dateEpochDay')
         && int(d, 'minuteOfDay') && d.minuteOfDay >= 0 && d.minuteOfDay < 1440
         && optStr(d, 'note', 2000) && optInt(d, 'cost') && optNum(d, 'portions') && optBool(d, 'drankWater')
         && optStr(d, 'supplementIds', 1000) && optStr(d, 'title', 200) && optStr(d, 'detail', 500) && optStr(d, 'hospital', 200)
         && optInt(d, 'nextEpochDay') && optBool(d, 'remindNext') && optStr(d, 'dewormKind', 20) && optNum(d, 'weightKg')
-        && optInt(d, 'durationMin') && optBool(d, 'peed') && optBool(d, 'pooped') && optStr(d, 'authorUid', 64);
+        && optInt(d, 'durationMin') && optBool(d, 'peed') && optBool(d, 'pooped') && optStr(d, 'authorUid', 64)
+        && (!('attachments' in d) || (d.attachments is list && d.attachments.size() <= 20));
     }
 
     function validReminder(d, id) {

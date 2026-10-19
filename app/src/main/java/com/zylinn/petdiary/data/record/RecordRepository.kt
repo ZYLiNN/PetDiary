@@ -47,6 +47,8 @@ class RecordRepository(
     private val files: FileStore,
     private val clock: Clock,
     private val newId: () -> String = { UUID.randomUUID().toString() },
+    /** Who is recording right now (cloud user id), or null when cloud sync is off. */
+    private val author: () -> String? = { null },
     /** P4-09: records with a "下次日期" + remind flag keep a linked reminder in sync. */
     private val reminders: ReminderDao? = null,
 ) {
@@ -94,8 +96,10 @@ class RecordRepository(
             }
             record to links
         }
-        records.upsertAll(created.map { it.first })
+        // Attachments first: the cloud copy of a record carries its attachment list, so by the time the record
+        // shows up as changed its attachments must already be in place.
         attachments.insertAll(created.flatMap { it.second })
+        records.upsertAll(created.map { it.first })
         created.forEach { syncReminder(it.first) }
         return created.map { it.first.id }
     }
@@ -109,16 +113,17 @@ class RecordRepository(
     ) {
         val existing = records.getById(id) ?: return
         val now = clock.millis()
-        records.upsert(
-            input.toRecord(id = id, petId = existing.petId, createdAt = existing.createdAt, updatedAt = now)
-                .copy(deletedAt = existing.deletedAt),
-        )
         val current = attachments.getForRecord(id).associateBy { it.id }
         removedAttachmentIds.mapNotNull(current::get).forEach {
             attachments.delete(it.id)
             files.delete(it.fileName)
         }
         attachments.insertAll(added.map { Attachment(newId(), id, it.fileName, it.mimeType, it.displayName, it.sizeBytes, now) })
+        // The record itself last (see addForPets): this is what marks it as changed for cloud sync.
+        records.upsert(
+            input.toRecord(id = id, petId = existing.petId, createdAt = existing.createdAt, updatedAt = now)
+                .copy(deletedAt = existing.deletedAt, authorUid = existing.authorUid),
+        )
         records.getById(id)?.let { syncReminder(it) }
     }
 
@@ -210,6 +215,7 @@ class RecordRepository(
         durationMin = durationMin,
         peed = peed,
         pooped = pooped,
+        authorUid = author(),
         createdAt = createdAt,
         updatedAt = updatedAt,
     )

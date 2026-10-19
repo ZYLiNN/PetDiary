@@ -27,6 +27,7 @@ import com.zylinn.petdiary.data.record.RecordType
 import com.zylinn.petdiary.ui.detail.PetDetailScreen
 import com.zylinn.petdiary.ui.detail.PetDetailViewModel
 import com.zylinn.petdiary.ui.navigation.About
+import com.zylinn.petdiary.ui.navigation.Family
 import com.zylinn.petdiary.ui.navigation.Main
 import com.zylinn.petdiary.ui.navigation.PetDetail
 import com.zylinn.petdiary.ui.navigation.PetEditor
@@ -48,6 +49,8 @@ import com.zylinn.petdiary.ui.reminders.RemindersViewModel
 import com.zylinn.petdiary.ui.search.SearchScreen
 import com.zylinn.petdiary.ui.search.SearchViewModel
 import com.zylinn.petdiary.ui.settings.AboutScreen
+import com.zylinn.petdiary.ui.settings.FamilyScreen
+import com.zylinn.petdiary.ui.settings.FamilyViewModel
 import com.zylinn.petdiary.ui.settings.SettingsScreen
 import com.zylinn.petdiary.ui.settings.SettingsViewModel
 import com.zylinn.petdiary.ui.settings.SupplementsScreen
@@ -86,6 +89,7 @@ fun PetDiaryApp() {
                         key.petId, it.petRepository, it.recordRepository, it.photoStore, it.clock,
                         initialDay = key.dayEpochDay?.let(LocalDate::ofEpochDay),
                         reminders = it.reminderRepository,
+                        authorNames = it.cloudSync.authorNames,
                     )
                 }
                 PetDetailScreen(
@@ -125,7 +129,7 @@ fun PetDiaryApp() {
             }
             entry<Search> { key ->
                 val container = appContainer()
-                val vm = containerViewModel { SearchViewModel(key.petId, it.petRepository, it.recordRepository, it.clock) }
+                val vm = containerViewModel { SearchViewModel(key.petId, it.petRepository, it.recordRepository, it.clock, it.cloudSync.authorNames) }
                 SearchScreen(
                     vm = vm,
                     onBack = back,
@@ -136,6 +140,10 @@ fun PetDiaryApp() {
             entry<Supplements> {
                 val vm = containerViewModel { SupplementsViewModel(it.recordRepository) }
                 SupplementsScreen(vm = vm, onBack = back)
+            }
+            entry<Family> {
+                val vm = containerViewModel { FamilyViewModel(it.cloudSync, it.settings) }
+                FamilyScreen(vm = vm, onBack = back)
             }
             entry<About> {
                 AboutScreen(versionName = appVersionName(), onBack = back)
@@ -224,6 +232,7 @@ private fun MainScreen(navigate: (NavKey) -> Unit) {
                         onOpenTrash = { navigate(Trash) },
                         onOpenSupplements = { navigate(Supplements) },
                         onOpenAbout = { navigate(About) },
+                        onOpenFamily = { navigate(Family) },
                     )
                 }
             }

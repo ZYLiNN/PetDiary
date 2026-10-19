@@ -1,6 +1,7 @@
 package com.zylinn.petdiary.sync
 
 import com.zylinn.petdiary.data.pet.Pet
+import com.zylinn.petdiary.data.record.Attachment
 import com.zylinn.petdiary.data.pet.Sex
 import com.zylinn.petdiary.data.pet.Species
 import com.zylinn.petdiary.data.record.DewormKind
@@ -49,12 +50,43 @@ object CloudMapper {
             birthEstimated = d.bool("birthEstimated") ?: false,
             sex = d.enum<Sex>("sex") ?: Sex.UNKNOWN,
             neutered = d.bool("neutered"),
-            breed = d.str("breed"), chipNumber = d.str("chipNumber"), note = d.str("note"), photoFile = d.str("photoFile"),
+            breed = d.str("breed"), chipNumber = d.str("chipNumber"), note = d.str("note"),
+            photoFile = d.str("photoFile")?.takeIf { it.isSafeFileName() },
             createdAt = d.long("createdAt") ?: return null,
             updatedAt = d.long("updatedAt") ?: return null,
             deletedAt = d.long("deletedAt"),
         )
     }
+
+    /** The attachment list travels inside the record document; always written (maybe empty) so removals sync too. */
+    fun record(r: Record, attachments: List<Attachment>): CloudDoc = record(r) + ("attachments" to attachments.map { a ->
+        mapOf(
+            "id" to a.id, "fileName" to a.fileName, "mimeType" to a.mimeType, "displayName" to a.displayName,
+            "sizeBytes" to a.sizeBytes, "createdAt" to a.createdAt,
+        )
+    })
+
+    /** null = the document says nothing about attachments (leave ours alone); otherwise the full list. */
+    fun attachments(d: CloudDoc): List<Attachment>? {
+        val recordId = d.str("id") ?: return null
+        val list = d["attachments"] as? List<*> ?: return null
+        return list.mapNotNull { item ->
+            @Suppress("UNCHECKED_CAST")
+            val m = item as? Map<String, Any> ?: return@mapNotNull null
+            Attachment(
+                id = m.str("id") ?: return@mapNotNull null,
+                recordId = recordId,
+                fileName = m.str("fileName")?.takeIf { it.isSafeFileName() } ?: return@mapNotNull null,
+                mimeType = m.str("mimeType") ?: return@mapNotNull null,
+                displayName = m.str("displayName") ?: return@mapNotNull null,
+                sizeBytes = m.long("sizeBytes") ?: return@mapNotNull null,
+                createdAt = m.long("createdAt") ?: return@mapNotNull null,
+            )
+        }
+    }
+
+    /** File names come from other people's phones: never let one point outside our folder. */
+    private fun String.isSafeFileName() = isNotEmpty() && length <= 100 && none { it == '/' || it == '\\' } && this != ".." && this != "."
 
     fun record(r: Record): CloudDoc = buildMap {
         put("id", r.id); put("petId", r.petId); put("type", r.type.name); put("dateEpochDay", r.dateEpochDay)
@@ -62,7 +94,7 @@ object CloudMapper {
         put("drankWater", r.drankWater); put("supplementIds", r.supplementIds); put("title", r.title); put("detail", r.detail)
         put("hospital", r.hospital); put("nextEpochDay", r.nextEpochDay); put("remindNext", r.remindNext)
         put("dewormKind", r.dewormKind?.name); put("weightKg", r.weightKg); put("durationMin", r.durationMin)
-        put("peed", r.peed); put("pooped", r.pooped)
+        put("peed", r.peed); put("pooped", r.pooped); put("authorUid", r.authorUid)
         put("createdAt", r.createdAt); put("updatedAt", r.updatedAt); put("deletedAt", r.deletedAt)
     }
 
@@ -76,7 +108,7 @@ object CloudMapper {
         supplementIds = d.str("supplementIds"), title = d.str("title"), detail = d.str("detail"), hospital = d.str("hospital"),
         nextEpochDay = d.long("nextEpochDay"), remindNext = d.bool("remindNext") ?: false,
         dewormKind = d.enum<DewormKind>("dewormKind"), weightKg = d.dbl("weightKg"),
-        durationMin = d.int("durationMin"), peed = d.bool("peed"), pooped = d.bool("pooped"),
+        durationMin = d.int("durationMin"), peed = d.bool("peed"), pooped = d.bool("pooped"), authorUid = d.str("authorUid"),
         createdAt = d.long("createdAt") ?: return null,
         updatedAt = d.long("updatedAt") ?: return null,
         deletedAt = d.long("deletedAt"),

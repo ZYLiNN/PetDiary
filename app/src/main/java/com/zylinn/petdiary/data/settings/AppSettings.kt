@@ -31,7 +31,18 @@ class AppSettings(context: Context) {
         _cloudSyncEnabled.value = on
     }
 
+    private val _displayName = MutableStateFlow(prefs.getString(KEY_NAME, "") ?: "")
+    /** The name family members see next to my records (empty = not set yet). */
+    val displayName: StateFlow<String> = _displayName.asStateFlow()
+
+    fun setDisplayName(name: String) {
+        val clean = name.trim().take(30)
+        prefs.edit().putString(KEY_NAME, clean).apply()
+        _displayName.value = clean
+    }
+
     private companion object {
+        const val KEY_NAME = "display_name"
         const val KEY_CLOUD = "cloud_sync_enabled"
         const val KEY_THEME = "theme_mode"
     }

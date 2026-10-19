@@ -44,6 +44,10 @@ data class ReminderEditor(
 @Serializable
 data object Supplements : NavKey
 
+/** Family group: members, invitations (QR), joining and leaving (P8). */
+@Serializable
+data object Family : NavKey
+
 /** Version, privacy and open-source licenses. */
 @Serializable
 data object About : NavKey

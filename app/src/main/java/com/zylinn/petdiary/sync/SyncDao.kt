@@ -1,9 +1,12 @@
 package com.zylinn.petdiary.sync
 
 import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Upsert
 import com.zylinn.petdiary.data.pet.Pet
+import com.zylinn.petdiary.data.record.Attachment
 import com.zylinn.petdiary.data.record.Record
 import com.zylinn.petdiary.data.record.Supplement
 import com.zylinn.petdiary.data.reminder.Reminder
@@ -52,6 +55,25 @@ interface SyncDao {
     /** This device's own "already announced" mark, kept when a reminder is overwritten by a cloud copy. */
     @Query("SELECT notifiedFor FROM reminders WHERE id = :id")
     suspend fun reminderNotifiedFor(id: String): Long?
+
+    @Query("SELECT * FROM attachments WHERE recordId IN (:recordIds)")
+    suspend fun attachmentsFor(recordIds: List<String>): List<Attachment>
+
+    @Query("DELETE FROM attachments WHERE recordId = :recordId")
+    suspend fun deleteAttachmentsOf(recordId: String)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAttachments(attachments: List<Attachment>)
+
+    /** Forget what was synced with the old group, so everything counts as unsent for the new one. */
+    @Query("DELETE FROM sync_meta")
+    suspend fun clearMeta()
+
+    @Query("SELECT photoFile FROM pets WHERE photoFile IS NOT NULL")
+    suspend fun petPhotoFiles(): List<String>
+
+    @Query("SELECT fileName FROM attachments")
+    suspend fun attachmentFiles(): List<String>
 
     @Upsert suspend fun upsertPet(pet: Pet)
     @Upsert suspend fun upsertRecord(record: Record)

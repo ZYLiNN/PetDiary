@@ -67,7 +67,7 @@ fun AboutScreen(versionName: String, onBack: () -> Unit) {
                         "• 需要的權限：通知（提醒）、相機（拍照，選用）。相簿和檔案由你自己選取，App 不會自行讀取。\n" +
                         "• 「匯出紀錄」會產生一個檔案交給你選擇的 App（例如 Email、雲端硬碟），由你決定要不要分享。\n" +
                         "• 刪除的寵物和紀錄會在垃圾桶保留 7 天，之後永久刪除，無法復原。\n" +
-                        "• 你可以在設定裡自己開啟「雲端備份與同步」：開啟前會徵求你的同意，之後寵物、紀錄和提醒會上傳到 Google Firebase（用匿名身分，不需要 Email）。照片和附件目前不會上傳。關閉後就停止上傳。",
+                        "• 你可以在設定裡自己開啟「雲端備份與同步」：開啟前會徵求你的同意，之後寵物、紀錄、提醒，以及照片和 PDF 附件會上傳到 Google Firebase（用匿名身分，不需要 Email）。你邀請加入「家庭群組」的人，才看得到群組裡的資料，每張紀錄會顯示是誰記的。關閉後就停止上傳。",
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.testTag("about_privacy"),
                 )

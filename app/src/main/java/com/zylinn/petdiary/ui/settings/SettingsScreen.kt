@@ -12,7 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Cloud
-import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Info
@@ -121,6 +121,7 @@ fun SettingsScreen(
     onOpenTrash: () -> Unit,
     onOpenSupplements: () -> Unit,
     onOpenAbout: () -> Unit,
+    onOpenFamily: () -> Unit = {},
 ) {
     val theme by vm.themeMode.collectAsStateWithLifecycle()
     val export by vm.export.collectAsStateWithLifecycle()
@@ -135,10 +136,10 @@ fun SettingsScreen(
             title = { Text("開啟雲端備份與同步？") },
             text = {
                 Text(
-                    "開啟後，寵物、紀錄和提醒會上傳到 Google Firebase，讓你在其他裝置也能看到同樣的資料。\n\n" +
+                    "開啟後，寵物、紀錄、提醒，以及照片和 PDF 附件會上傳到 Google Firebase，讓你在其他裝置也能看到同樣的資料。\n\n" +
                         "• 不需要登入、不需要 Email，系統會建立一個匿名身分\n" +
                         "• 目前解除安裝 App 或換手機後，找不回這個匿名身分的雲端資料（綁定 Google 帳號功能之後推出）\n" +
-                        "• 照片和附件檔案這個版本還不會上傳\n" +
+                        "• 只有你邀請加入「家庭群組」的人看得到這些資料\n" +
                         "• 隨時可以關閉；關閉只會停止同步，不會刪除資料",
                 )
             },
@@ -185,7 +186,7 @@ fun SettingsScreen(
                 item {
                     SectionHeader("帳號與家人")
                     CloudSyncRow(cloud, onToggle = { on -> if (on) askConsent = true else vm.setCloudSync(false) })
-                    SettingRow("家庭群組", "用 QR Code 邀請家人一起記錄・即將推出", Icons.Outlined.CloudOff, "settings_account", enabled = false)
+                    SettingRow("家庭群組", "用 QR Code 邀請家人一起記錄、查看成員", Icons.Outlined.Groups, "settings_account", onClick = onOpenFamily)
                 }
                 item {
                     SectionHeader("外觀")

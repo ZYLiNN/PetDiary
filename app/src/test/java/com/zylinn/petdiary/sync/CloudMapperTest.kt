@@ -3,6 +3,7 @@ package com.zylinn.petdiary.sync
 import com.zylinn.petdiary.data.pet.Pet
 import com.zylinn.petdiary.data.pet.Sex
 import com.zylinn.petdiary.data.pet.Species
+import com.zylinn.petdiary.data.record.Attachment
 import com.zylinn.petdiary.data.record.DewormKind
 import com.zylinn.petdiary.data.record.Record
 import com.zylinn.petdiary.data.record.RecordType
@@ -82,5 +83,31 @@ class CloudMapperTest {
 
     @Test fun tableNamesMatchTheSecurityRules() {
         assertEquals(listOf("pets", "records", "reminders", "supplements"), SyncTable.entries.map { it.path })
+    }
+
+    @Test fun recordCarriesItsAuthorAndAttachmentList() {
+        val r = Record("r1", "p1", RecordType.VET, 20000, 480, authorUid = "u1", createdAt = 1, updatedAt = 2)
+        val att = listOf(Attachment("a1", "r1", "x.pdf", "application/pdf", "報告.pdf", 1234, 5), Attachment("a2", "r1", "y.jpg", "image/jpeg", "y.jpg", 99, 6))
+        val doc = CloudMapper.record(r, att)
+        assertEquals("u1", doc["authorUid"])
+        assertEquals(r, CloudMapper.record(doc))
+        assertEquals(att, CloudMapper.attachments(doc))
+    }
+
+    @Test fun anEmptyAttachmentListIsKeptSoRemovalsSync_butAbsentMeansUntouched() {
+        val r = Record("r1", "p1", RecordType.VET, 20000, 480, createdAt = 1, updatedAt = 2)
+        assertEquals(emptyList<Attachment>(), CloudMapper.attachments(CloudMapper.record(r, emptyList())))
+        assertNull(CloudMapper.attachments(CloudMapper.record(r))) // an older document that says nothing
+    }
+
+    @Test fun fileNamesFromOtherPhonesCannotEscapeOurFolder() {
+        val r = Record("r1", "p1", RecordType.VET, 20000, 480, createdAt = 1, updatedAt = 2)
+        val evil = CloudMapper.record(r, emptyList()) + ("attachments" to listOf(
+            mapOf("id" to "a1", "fileName" to "../../databases/x", "mimeType" to "image/jpeg", "displayName" to "x", "sizeBytes" to 1L, "createdAt" to 1L),
+            mapOf("id" to "a2", "fileName" to "ok.jpg", "mimeType" to "image/jpeg", "displayName" to "ok", "sizeBytes" to 1L, "createdAt" to 1L),
+        ))
+        assertEquals(listOf("ok.jpg"), CloudMapper.attachments(evil)!!.map { it.fileName })
+        val pet = CloudMapper.pet(Pet("p", "n", Species.CAT, birthEpochDay = 1, createdAt = 1, updatedAt = 1, photoFile = "a.jpg")) + ("photoFile" to "/etc/passwd")
+        assertNull(CloudMapper.pet(pet)!!.photoFile)
     }
 }
