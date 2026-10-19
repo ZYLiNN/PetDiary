@@ -62,7 +62,10 @@ class StatsScreenTest {
         dog = pets.add(PetInput(name = "雷利", species = Species.DOG, birthEpochDay = 1)).id
     }
 
-    @After fun tearDown() = db.close()
+    @After fun tearDown() {
+        rule.waitForIdle() // let in-flight flow collections finish before the DB goes away
+        db.close()
+    }
 
     private fun add(pet: String, type: RecordType, day: LocalDate, f: RecordInput.() -> RecordInput = { this }) =
         runBlocking { records.addForPets(listOf(pet), RecordInput(type, day.toEpochDay(), 600).f()) }

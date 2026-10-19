@@ -20,6 +20,7 @@ import com.zylinn.petdiary.data.photo.FileStore
 import com.zylinn.petdiary.data.record.RecordInput
 import com.zylinn.petdiary.data.record.RecordRepository
 import com.zylinn.petdiary.data.record.RecordType
+import com.zylinn.petdiary.data.record.RecordableTypes
 import com.zylinn.petdiary.testutil.FitToScreen
 import com.zylinn.petdiary.ui.theme.PetDiaryTheme
 import kotlinx.coroutines.flow.first
@@ -82,7 +83,7 @@ class AddRecordPanelTest {
     @Test fun fabOpensPanelAndTypeTapGoesStraightToForm() {
         show()
         openPanel()
-        RecordType.entries.forEach { rule.onNodeWithTag("type_${it.name}").assertExists() }
+        RecordableTypes.forEach { rule.onNodeWithTag("type_${it.name}").assertExists() }
         rule.onNodeWithTag("type_WEIGHT").performClick()
         assertEquals(Triple(RecordType.WEIGHT, listOf(cat), today), picked)
     }

@@ -1,5 +1,12 @@
 package com.zylinn.petdiary.ui
 
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
+import com.zylinn.petdiary.PetDiaryApplication
+import com.zylinn.petdiary.data.pet.PetInput
+import com.zylinn.petdiary.data.pet.Species
+import kotlinx.coroutines.runBlocking
+import org.junit.After
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
@@ -23,8 +30,17 @@ class NavigationTest {
 
     @get:Rule val rule = createComposeRule()
 
+    private val container = (ApplicationProvider.getApplicationContext<Context>().applicationContext as PetDiaryApplication).container
+    private var petId: String? = null
+
+    // The stats page shows an empty state without pets, so the test brings its own pet instead of relying on leftovers.
     @Before fun setUp() {
+        petId = runBlocking { container.petRepository.add(PetInput(name = "導覽貓", species = Species.CAT, birthEpochDay = 1)).id }
         rule.setContent { PetDiaryTheme { PetDiaryApp() } }
+    }
+
+    @After fun tearDown() {
+        petId?.let { id -> runBlocking { container.petRepository.moveToTrash(id) } }
     }
 
     // P0-01

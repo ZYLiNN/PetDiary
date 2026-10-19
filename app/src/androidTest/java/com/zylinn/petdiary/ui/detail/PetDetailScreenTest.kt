@@ -27,6 +27,7 @@ import com.zylinn.petdiary.data.record.NewAttachment
 import com.zylinn.petdiary.data.record.RecordInput
 import com.zylinn.petdiary.data.record.RecordRepository
 import com.zylinn.petdiary.data.record.RecordType
+import com.zylinn.petdiary.data.record.RecordableTypes
 import com.zylinn.petdiary.domain.RecordFormat.label
 import com.zylinn.petdiary.testutil.FitToScreen
 import com.zylinn.petdiary.ui.theme.PetDiaryTheme
@@ -161,9 +162,9 @@ class PetDetailScreenTest {
 
     // P2-09
     @Test fun everyTypeHasIconAndLabel() {
-        RecordType.entries.forEachIndexed { i, t -> add(t, today, minute = 480 + i) }
+        RecordableTypes.forEachIndexed { i, t -> add(t, today, minute = 480 + i) }
         show(height = 2400.dp)
-        RecordType.entries.forEach { t ->
+        RecordableTypes.forEach { t ->
             rule.onNodeWithContentDescription("${t.label}圖示", useUnmergedTree = true).assertExists()
         }
     }
