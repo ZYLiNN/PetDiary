@@ -6,6 +6,9 @@ plugins {
     alias(libs.plugins.androidx.room)
 }
 
+// google-services.json is private (never committed). Without it the app still builds and simply has no cloud sync.
+if (file("google-services.json").exists()) apply(plugin = "com.google.gms.google-services")
+
 android {
     namespace = "com.zylinn.petdiary"
     compileSdk = 37
@@ -70,6 +73,10 @@ dependencies {
     implementation(libs.androidx.navigation3.ui)
     implementation(libs.androidx.lifecycle.viewmodel.navigation3)
     implementation(libs.kotlinx.serialization.core)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+    implementation(libs.kotlinx.coroutines.play.services)
 
     testImplementation(libs.junit)
 

@@ -7,6 +7,8 @@ import com.zylinn.petdiary.data.pet.PetRepository
 import com.zylinn.petdiary.data.record.RecordRepository
 import com.zylinn.petdiary.data.settings.AppSettings
 import com.zylinn.petdiary.data.settings.ThemeMode
+import com.zylinn.petdiary.sync.CloudSync
+import com.zylinn.petdiary.sync.SyncStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,7 +34,15 @@ class SettingsViewModel(
     private val records: RecordRepository,
     private val exportDir: File,
     private val clock: Clock,
+    private val cloud: CloudSync? = null,
 ) : ViewModel() {
+
+    /** Cloud backup & sync (P7); null-safe so screens without a cloud (tests) simply show it as unavailable. */
+    val cloudStatus: StateFlow<SyncStatus> = cloud?.status ?: MutableStateFlow(SyncStatus.Unavailable)
+
+    fun setCloudSync(on: Boolean) {
+        if (on) cloud?.enable() else cloud?.disable()
+    }
 
     val themeMode: StateFlow<ThemeMode> = settings.themeMode
 

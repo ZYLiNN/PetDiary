@@ -22,7 +22,17 @@ class AppSettings(context: Context) {
         _themeMode.value = mode
     }
 
+    private val _cloudSyncEnabled = MutableStateFlow(prefs.getBoolean(KEY_CLOUD, false))
+    /** Cloud backup & sync is opt-in (off until the user agrees on the consent dialog). */
+    val cloudSyncEnabled: StateFlow<Boolean> = _cloudSyncEnabled.asStateFlow()
+
+    fun setCloudSyncEnabled(on: Boolean) {
+        prefs.edit().putBoolean(KEY_CLOUD, on).apply()
+        _cloudSyncEnabled.value = on
+    }
+
     private companion object {
+        const val KEY_CLOUD = "cloud_sync_enabled"
         const val KEY_THEME = "theme_mode"
     }
 }

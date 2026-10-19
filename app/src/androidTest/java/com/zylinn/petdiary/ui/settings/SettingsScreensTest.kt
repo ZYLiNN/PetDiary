@@ -85,6 +85,13 @@ class SettingsScreensTest {
     private fun waitFor(tag: String) =
         rule.waitUntil(5_000) { runCatching { rule.onNodeWithTag(tag, useUnmergedTree = true).assertExists() }.isSuccess }
 
+    // P7: without a Firebase configuration the switch is shown but cannot be turned on
+    @Test fun cloudSwitchIsDisabledWhenThisBuildHasNoCloud() {
+        showSettings()
+        rule.onNodeWithTag("cloud_status", useUnmergedTree = true).assertTextContains("尚未設定", substring = true)
+        rule.onNodeWithTag("cloud_switch").assertIsNotEnabled()
+    }
+
     // P6-05, P6-06, P6-04
     @Test fun settingsListsEveryEntry() {
         showSettings()

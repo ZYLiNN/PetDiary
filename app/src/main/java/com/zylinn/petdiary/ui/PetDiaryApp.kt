@@ -216,7 +216,7 @@ private fun MainScreen(navigate: (NavKey) -> Unit) {
                 TopLevelDestination.Settings -> {
                     val context = androidx.compose.ui.platform.LocalContext.current
                     val vm = containerViewModel {
-                        SettingsViewModel(it.settings, it.petRepository, it.recordRepository, java.io.File(context.cacheDir, "exports"), it.clock)
+                        SettingsViewModel(it.settings, it.petRepository, it.recordRepository, java.io.File(context.cacheDir, "exports"), it.clock, it.cloudSync)
                     }
                     SettingsScreen(
                         vm = vm,

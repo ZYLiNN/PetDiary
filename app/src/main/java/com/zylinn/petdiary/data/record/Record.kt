@@ -84,6 +84,8 @@ data class Supplement(
     @PrimaryKey val id: String,
     val name: String,
     val createdAt: Long,
+    /** Needed for cloud sync (last write wins); old rows start at 0 and are older than any edit. */
+    @ColumnInfo(defaultValue = "0") val updatedAt: Long = 0,
     @ColumnInfo(defaultValue = "NULL") val deletedAt: Long? = null,
 )
 

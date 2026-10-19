@@ -168,7 +168,7 @@ class RecordRepository(
         val trimmed = name.trim()
         require(trimmed.isNotEmpty()) { "name required" }
         supplements.findByName(trimmed)?.let { return it }
-        return Supplement(newId(), trimmed, clock.millis()).also { supplements.insert(it) }
+        return clock.millis().let { Supplement(newId(), trimmed, it, it) }.also { supplements.insert(it) }
     }
 
     /** P6-02: false when another supplement already has this name (or the name is blank). */
@@ -177,14 +177,14 @@ class RecordRepository(
         if (trimmed.isEmpty()) return false
         val clash = supplements.findByName(trimmed)
         if (clash != null && clash.id != id) return false
-        supplements.rename(id, trimmed)
+        supplements.rename(id, trimmed, clock.millis())
         return true
     }
 
     /** Soft delete: old records keep the name; the chip just stops being offered. */
     suspend fun deleteSupplement(id: String) = supplements.softDelete(id, clock.millis())
 
-    suspend fun restoreSupplement(id: String) = supplements.restore(id)
+    suspend fun restoreSupplement(id: String) = supplements.restore(id, clock.millis())
 
     /** Rows for the CSV export (P6-03). */
     suspend fun allForExport(): List<Record> = records.allForExport()

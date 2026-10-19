@@ -13,6 +13,7 @@ import com.zylinn.petdiary.data.record.RecordRepository
 import com.zylinn.petdiary.data.reminder.ReminderRepository
 import com.zylinn.petdiary.data.trash.PurgeTrashWorker
 import com.zylinn.petdiary.reminder.ReminderNotifier
+import com.zylinn.petdiary.sync.CloudSync
 import com.zylinn.petdiary.reminder.ReminderScheduler
 import com.zylinn.petdiary.reminder.ReminderSyncer
 import com.zylinn.petdiary.data.trash.TrashRepository
@@ -46,6 +47,7 @@ class AppContainer(context: Context) {
     val trashRepository: TrashRepository by lazy {
         TrashRepository(database.petDao(), database.recordDao(), database.attachmentDao(), photoStore, attachmentStore, clock, database.reminderDao())
     }
+    val cloudSync: CloudSync by lazy { CloudSync(context, appScope, settings, database.syncDao(), clock) }
     val notifier: ReminderNotifier by lazy { ReminderNotifier(context) }
     val reminderSyncer: ReminderSyncer by lazy {
         ReminderSyncer(appScope, reminderRepository, ReminderScheduler(context), notifier, clock)
@@ -67,5 +69,6 @@ class PetDiaryApplication : Application() {
         }
         PurgeTrashWorker.schedule(this)
         container.reminderSyncer.start()
+        container.cloudSync.start()
     }
 }

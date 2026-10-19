@@ -62,12 +62,12 @@ fun AboutScreen(versionName: String, onBack: () -> Unit) {
 
                 Text("隱私", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "• 目前所有資料（寵物、紀錄、照片、PDF、提醒）只存在這支手機裡，沒有上傳到任何伺服器。\n" +
+                    "• 預設所有資料（寵物、紀錄、照片、PDF、提醒）只存在這支手機裡，沒有上傳到任何伺服器。\n" +
                         "• App 不要求你登入、不收集 Email 或位置，也沒有廣告和追蹤程式。\n" +
                         "• 需要的權限：通知（提醒）、相機（拍照，選用）。相簿和檔案由你自己選取，App 不會自行讀取。\n" +
                         "• 「匯出紀錄」會產生一個檔案交給你選擇的 App（例如 Email、雲端硬碟），由你決定要不要分享。\n" +
                         "• 刪除的寵物和紀錄會在垃圾桶保留 7 天，之後永久刪除，無法復原。\n" +
-                        "• 之後若加入雲端同步，會先徵求你的同意，並在這裡更新說明。",
+                        "• 你可以在設定裡自己開啟「雲端備份與同步」：開啟前會徵求你的同意，之後寵物、紀錄和提醒會上傳到 Google Firebase（用匿名身分，不需要 Email）。照片和附件目前不會上傳。關閉後就停止上傳。",
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.testTag("about_privacy"),
                 )

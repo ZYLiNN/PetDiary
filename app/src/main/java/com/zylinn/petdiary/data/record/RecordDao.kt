@@ -121,12 +121,12 @@ interface SupplementDao {
     @Query("SELECT * FROM supplements WHERE id = :id")
     suspend fun getById(id: String): Supplement?
 
-    @Query("UPDATE supplements SET name = :name WHERE id = :id")
-    suspend fun rename(id: String, name: String)
+    @Query("UPDATE supplements SET name = :name, updatedAt = :now WHERE id = :id")
+    suspend fun rename(id: String, name: String, now: Long)
 
-    @Query("UPDATE supplements SET deletedAt = :now WHERE id = :id")
+    @Query("UPDATE supplements SET deletedAt = :now, updatedAt = :now WHERE id = :id")
     suspend fun softDelete(id: String, now: Long)
 
-    @Query("UPDATE supplements SET deletedAt = NULL WHERE id = :id")
-    suspend fun restore(id: String)
+    @Query("UPDATE supplements SET deletedAt = NULL, updatedAt = :now WHERE id = :id")
+    suspend fun restore(id: String, now: Long)
 }

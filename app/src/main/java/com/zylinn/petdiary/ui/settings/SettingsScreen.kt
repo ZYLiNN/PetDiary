@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.FileDownload
@@ -28,13 +29,19 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -43,6 +50,10 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zylinn.petdiary.data.settings.ThemeMode
+import com.zylinn.petdiary.sync.SyncStatus
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 private fun SectionHeader(text: String) {
@@ -78,6 +89,29 @@ private fun SettingRow(
     HorizontalDivider(color = MaterialTheme.colorScheme.outline)
 }
 
+@Composable
+private fun CloudSyncRow(status: SyncStatus, onToggle: (Boolean) -> Unit) {
+    val on = status != SyncStatus.Off && status != SyncStatus.Unavailable
+    val subtitle = when (status) {
+        SyncStatus.Off -> "未開啟：資料只存在這支手機"
+        SyncStatus.Unavailable -> "這個版本尚未設定雲端"
+        SyncStatus.Connecting -> "連線中…"
+        is SyncStatus.Active -> status.lastSyncedAt?.let { "已開啟・上次同步 " + SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(it)) } ?: "已開啟・同步中"
+        is SyncStatus.Error -> "同步遇到問題，會自動重試（${status.message}）"
+    }
+    ListItem(
+        headlineContent = { Text("雲端備份與同步") },
+        supportingContent = { Text(subtitle, modifier = Modifier.testTag("cloud_status")) },
+        leadingContent = { Icon(Icons.Outlined.Cloud, contentDescription = null) },
+        trailingContent = {
+            Switch(checked = on, onCheckedChange = onToggle, enabled = status != SyncStatus.Unavailable, modifier = Modifier.testTag("cloud_switch"))
+        },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
+        modifier = Modifier.testTag("settings_cloud"),
+    )
+    HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+}
+
 /** Settings (P6): appearance, custom items, data export, trash, about; cloud account is a "coming soon" block (S9). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -90,8 +124,30 @@ fun SettingsScreen(
 ) {
     val theme by vm.themeMode.collectAsStateWithLifecycle()
     val export by vm.export.collectAsStateWithLifecycle()
+    val cloud by vm.cloudStatus.collectAsStateWithLifecycle()
+    var askConsent by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
+
+    if (askConsent) {
+        AlertDialog(
+            onDismissRequest = { askConsent = false },
+            title = { Text("開啟雲端備份與同步？") },
+            text = {
+                Text(
+                    "開啟後，寵物、紀錄和提醒會上傳到 Google Firebase，讓你在其他裝置也能看到同樣的資料。\n\n" +
+                        "• 不需要登入、不需要 Email，系統會建立一個匿名身分\n" +
+                        "• 目前解除安裝 App 或換手機後，找不回這個匿名身分的雲端資料（綁定 Google 帳號功能之後推出）\n" +
+                        "• 照片和附件檔案這個版本還不會上傳\n" +
+                        "• 隨時可以關閉；關閉只會停止同步，不會刪除資料",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { askConsent = false; vm.setCloudSync(true) }, modifier = Modifier.testTag("cloud_consent_ok")) { Text("同意並開啟") }
+            },
+            dismissButton = { TextButton(onClick = { askConsent = false }, modifier = Modifier.testTag("cloud_consent_cancel")) { Text("先不要") } },
+        )
+    }
 
     LaunchedEffect(export) {
         when (val e = export) {
@@ -128,7 +184,8 @@ fun SettingsScreen(
                 // S9: one block for everything cloud-related
                 item {
                     SectionHeader("帳號與家人")
-                    SettingRow("帳號與家人", "Google 帳號、家庭群組（QR Code）・即將推出", Icons.Outlined.CloudOff, "settings_account", enabled = false)
+                    CloudSyncRow(cloud, onToggle = { on -> if (on) askConsent = true else vm.setCloudSync(false) })
+                    SettingRow("家庭群組", "用 QR Code 邀請家人一起記錄・即將推出", Icons.Outlined.CloudOff, "settings_account", enabled = false)
                 }
                 item {
                     SectionHeader("外觀")

@@ -111,4 +111,24 @@ class MigrationTest {
             db.close()
         }
     }
+
+    @Test fun v5SupplementsGetUpdatedAtOnUpgradeToV6() {
+        helper.createDatabase(dbName, 5).apply {
+            execSQL("INSERT INTO supplements (id, name, createdAt, deletedAt) VALUES ('s1', '魚油', 5, NULL)")
+            close()
+        }
+        helper.runMigrationsAndValidate(dbName, 6, true)
+
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val db = Room.databaseBuilder(context, PetDiaryDatabase::class.java, dbName).build()
+        try {
+            runBlocking {
+                val s = db.supplementDao().getById("s1")!!
+                assertEquals("魚油", s.name)
+                assertEquals(0L, s.updatedAt)
+            }
+        } finally {
+            db.close()
+        }
+    }
 }
