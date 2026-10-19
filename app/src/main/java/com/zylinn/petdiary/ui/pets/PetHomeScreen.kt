@@ -1,5 +1,6 @@
 package com.zylinn.petdiary.ui.pets
 
+import com.zylinn.petdiary.ui.reminders.LateCompleteDialog
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -93,6 +94,8 @@ fun PetHomeScreen(
     val state by vm.state.collectAsStateWithLifecycle()
     val todos by vm.todos.collectAsStateWithLifecycle()
     val justCompleted by vm.justCompleted.collectAsStateWithLifecycle()
+    val askLate by vm.askLate.collectAsStateWithLifecycle()
+    askLate?.let { ask -> LateCompleteDialog(ask, onChoose = { vm.completeTodoLate(ask.id, it) }, onDismiss = vm::dismissLate) }
     val justDeleted by vm.justDeleted.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
 

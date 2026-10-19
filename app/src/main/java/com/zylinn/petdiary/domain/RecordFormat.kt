@@ -22,6 +22,7 @@ object RecordFormat {
             RecordType.VET -> "就診"
             RecordType.GROOMING -> "美容"
             RecordType.ABNORMAL -> "異常狀況"
+            RecordType.CUSTOM -> "自訂"
         }
 
     val DewormKind.label: String

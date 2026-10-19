@@ -24,9 +24,12 @@ data class ReminderInput(
 /** What a completion changed, so the "復原" button can put everything back (P4-12). */
 data class Completion(
     val reminderId: String,
-    val recordId: String,
+    val recordId: String?,
     val previous: Reminder,
 )
+
+/** A repeating reminder finished late, where "keep the old rhythm" and "count from today" differ (D37). */
+data class LateChoice(val id: String, val lateDays: Int, val rolled: LocalDate, val anchored: LocalDate)
 
 class ReminderRepository(
     private val reminders: ReminderDao,
@@ -35,6 +38,9 @@ class ReminderRepository(
     private val newId: () -> String = { UUID.randomUUID().toString() },
 ) {
     fun observeOpen(): Flow<List<ReminderRow>> = reminders.observeOpen()
+
+    /** Names used for 自訂 reminders, newest first, offered as quick picks (D36). */
+    val customTitles: Flow<List<String>> = reminders.observeCustomTitles()
     fun observeOpenForPet(petId: String, from: Long, to: Long) = reminders.observeOpenForPet(petId, from, to)
     suspend fun get(id: String): Reminder? = reminders.getById(id)
 
@@ -74,27 +80,43 @@ class ReminderRepository(
 
     suspend fun row(id: String) = reminders.getRow(id)
 
+    /** Non-null only when finishing [id] now is late AND the two ways of picking the next date disagree. */
+    suspend fun lateChoice(id: String): LateChoice? {
+        val r = reminders.getById(id) ?: return null
+        if (r.deletedAt != null || r.completedAt != null || r.repeat == ReminderRepeat.NONE) return null
+        val today = LocalDate.now(clock)
+        val due = LocalDate.ofEpochDay(r.dueEpochDay)
+        if (!today.isAfter(due)) return null
+        val anchored = ReminderSchedule.next(due, r.repeat, r.repeatEvery, today) ?: return null
+        val rolled = ReminderSchedule.nextFromDone(r.repeat, r.repeatEvery, today) ?: return null
+        if (anchored == rolled) return null
+        return LateChoice(id, (today.toEpochDay() - due.toEpochDay()).toInt(), rolled, anchored)
+    }
+
     /**
      * Ticking a reminder off (list, today's to-do, or the notification button): creates the matching
      * record today at the current time, then moves a repeating reminder to its next date (P4-03/04/11).
-     * Returns null if the reminder is gone or already done.
+     * When finished late, [rollFromToday] picks the next date: counted from today (default, D37) or kept on the
+     * original rhythm. Returns null if the reminder is gone or already done.
      */
-    suspend fun complete(id: String): Completion? {
+    suspend fun complete(id: String, rollFromToday: Boolean = true): Completion? {
         val r = reminders.getById(id) ?: return null
         if (r.deletedAt != null || r.completedAt != null) return null
         val today = LocalDate.now(clock)
         val now = LocalTime.now(clock)
-        val title = r.title ?: r.type.label
-        val recordId = records.addForPets(
+        // A 自訂 reminder has no matching record type, so ticking it off only advances / closes it (D36).
+        val recordId = if (r.type == RecordType.CUSTOM) null else records.addForPets(
             listOf(r.petId),
             RecordInput(
                 type = r.type,
                 dateEpochDay = today.toEpochDay(),
                 minuteOfDay = now.hour * 60 + now.minute,
-                title = title,
+                title = r.title ?: r.type.label,
             ),
         ).single()
-        val next = ReminderSchedule.next(LocalDate.ofEpochDay(r.dueEpochDay), r.repeat, r.repeatEvery, today)
+        val due = LocalDate.ofEpochDay(r.dueEpochDay)
+        val next = if (rollFromToday && today.isAfter(due)) ReminderSchedule.nextFromDone(r.repeat, r.repeatEvery, today)
+        else ReminderSchedule.next(due, r.repeat, r.repeatEvery, today)
         reminders.upsert(
             if (next == null) r.copy(completedAt = clock.millis(), updatedAt = clock.millis())
             else r.copy(dueEpochDay = next.toEpochDay(), notifiedFor = null, updatedAt = clock.millis()),
@@ -104,7 +126,7 @@ class ReminderRepository(
 
     /** P4-12: removes the auto-created record and puts the reminder back as it was. */
     suspend fun undo(c: Completion) {
-        records.moveToTrash(c.recordId)
+        c.recordId?.let { records.moveToTrash(it) }
         reminders.upsert(c.previous.copy(updatedAt = clock.millis()))
     }
 }

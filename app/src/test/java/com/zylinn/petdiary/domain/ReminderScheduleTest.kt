@@ -55,6 +55,16 @@ class ReminderScheduleTest {
         assertEquals(d("2026-10-21"), next("2026-10-20", ReminderRepeat.EVERY_N_DAYS, 0, "2026-10-20"))
     }
 
+    // D37: counted from the day it was actually done
+    @Test fun nextFromDoneCountsFromToday() {
+        val today = d("2026-10-24")
+        assertNull(ReminderSchedule.nextFromDone(ReminderRepeat.NONE, 1, today))
+        assertEquals(d("2026-10-25"), ReminderSchedule.nextFromDone(ReminderRepeat.DAILY, 1, today))
+        assertEquals(d("2026-10-27"), ReminderSchedule.nextFromDone(ReminderRepeat.EVERY_N_DAYS, 3, today))
+        assertEquals(d("2026-11-24"), ReminderSchedule.nextFromDone(ReminderRepeat.MONTHLY, 1, today))
+        assertEquals(d("2027-10-24"), ReminderSchedule.nextFromDone(ReminderRepeat.YEARLY, 1, today))
+    }
+
     @Test fun labels() {
         assertEquals("只提醒一次", ReminderSchedule.repeatLabel(ReminderRepeat.NONE, 1))
         assertEquals("每天", ReminderSchedule.repeatLabel(ReminderRepeat.DAILY, 1))

@@ -42,6 +42,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.zylinn.petdiary.data.record.RecordType
+import com.zylinn.petdiary.data.record.RecordableTypes
 import com.zylinn.petdiary.domain.RecordFormat.label
 import com.zylinn.petdiary.ui.records.color
 import com.zylinn.petdiary.ui.records.icon
@@ -149,7 +150,7 @@ private fun PanelContent(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            RecordType.entries.forEach { type -> TypeTile(type, onClick = { onPickType(type) }, modifier = Modifier.weight(1f)) }
+            RecordableTypes.forEach { type -> TypeTile(type, onClick = { onPickType(type) }, modifier = Modifier.weight(1f)) }
         }
         if (quickFeeding != null || quickWalk != null) {
             HorizontalDivider(color = MaterialTheme.colorScheme.outline)

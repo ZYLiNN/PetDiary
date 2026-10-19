@@ -1,5 +1,6 @@
 package com.zylinn.petdiary.ui.detail
 
+import com.zylinn.petdiary.ui.reminders.LateCompleteDialog
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -105,6 +106,8 @@ fun PetDetailScreen(
     val justDeleted by vm.justDeleted.collectAsStateWithLifecycle()
     val dayReminders by vm.dayReminders.collectAsStateWithLifecycle()
     val reminderCompleted by vm.reminderCompleted.collectAsStateWithLifecycle()
+    val askLate by vm.askLate.collectAsStateWithLifecycle()
+    askLate?.let { ask -> LateCompleteDialog(ask, onChoose = { vm.completeReminderLate(ask.id, it) }, onDismiss = vm::dismissLate) }
     var showPanel by rememberSaveable { mutableStateOf(false) }
     BackHandler(onBack = onBack)
 

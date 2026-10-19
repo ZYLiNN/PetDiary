@@ -97,11 +97,41 @@ class ReminderRepositoryTest {
     // P4-04
     @Test fun completingRepeatingReminderSchedulesNext() = runBlocking {
         val r = reminders.add(input(today.minusDays(2), ReminderRepeat.EVERY_N_DAYS, 7))
-        reminders.complete(r.id)
+        reminders.complete(r.id, rollFromToday = false)
         val next = open().single().reminder
         assertEquals(today.plusDays(5).toEpochDay(), next.dueEpochDay) // schedule: -2, +5, ...
         assertNull(next.completedAt)
         assertEquals(1, recordsOn(today).size)
+    }
+
+    // D37: finishing late counts the next date from today by default
+    @Test fun lateCompletionRollsFromTodayByDefault() = runBlocking {
+        val r = reminders.add(input(today.minusDays(2), ReminderRepeat.EVERY_N_DAYS, 7))
+        reminders.complete(r.id)
+        assertEquals(today.plusDays(7).toEpochDay(), open().single().reminder.dueEpochDay)
+    }
+
+    @Test fun lateChoiceOnlyWhenTheTwoDatesDiffer() = runBlocking {
+        val weekly = reminders.add(input(today.minusDays(2), ReminderRepeat.EVERY_N_DAYS, 7))
+        val choice = reminders.lateChoice(weekly.id)!!
+        assertEquals(2, choice.lateDays)
+        assertEquals(today.plusDays(7), choice.rolled)
+        assertEquals(today.plusDays(5), choice.anchored)
+        assertNull(reminders.lateChoice(reminders.add(input(today.minusDays(2), ReminderRepeat.DAILY)).id)) // same either way
+        assertNull(reminders.lateChoice(reminders.add(input(today.minusDays(2))).id)) // does not repeat
+        assertNull(reminders.lateChoice(reminders.add(input(today, ReminderRepeat.EVERY_N_DAYS, 7)).id)) // not late
+    }
+
+    // D36: a custom reminder has no record type, so finishing it records nothing
+    @Test fun completingCustomReminderCreatesNoRecord() = runBlocking {
+        val r = reminders.add(input(today, title = "剪指甲").let { it.copy(type = RecordType.CUSTOM) })
+        assertEquals(listOf("剪指甲"), reminders.customTitles.first())
+        val c = reminders.complete(r.id)!!
+        assertNull(c.recordId)
+        assertTrue(open().isEmpty())
+        assertTrue(recordsOn(today).isEmpty())
+        reminders.undo(c)
+        assertEquals(r.id, open().single().reminder.id)
     }
 
     // P4-12

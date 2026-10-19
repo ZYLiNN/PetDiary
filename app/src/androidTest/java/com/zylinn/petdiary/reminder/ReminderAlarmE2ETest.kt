@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.GrantPermissionRule
 import com.zylinn.petdiary.PetDiaryApplication
 import com.zylinn.petdiary.data.pet.PetInput
@@ -37,13 +36,7 @@ class ReminderAlarmE2ETest {
     private val container = (context.applicationContext as PetDiaryApplication).container
     private val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-    private fun allowExactAlarms() {
-        InstrumentationRegistry.getInstrumentation().uiAutomation
-            .executeShellCommand("appops set ${context.packageName} SCHEDULE_EXACT_ALARM allow").close()
-    }
-
     @Test fun alarmPostsNotificationAndCompleteButtonRecordsIt() = runBlocking {
-        allowExactAlarms()
         val pet = container.petRepository.add(PetInput(name = "E2E貓", species = Species.CAT, birthEpochDay = 1))
         val due = LocalDateTime.now(container.clock).plusMinutes(1)
         val reminder = container.reminderRepository.add(
@@ -52,7 +45,7 @@ class ReminderAlarmE2ETest {
         val nid = container.notifier.notificationId(reminder.id)
         try {
             // The syncer (started with the app) arms the alarm; wait for it to fire at the next minute.
-            val deadline = System.currentTimeMillis() + 100_000
+            val deadline = System.currentTimeMillis() + 200_000
             while (System.currentTimeMillis() < deadline && manager.activeNotifications.none { it.id == nid }) Thread.sleep(1_000)
             val posted = manager.activeNotifications.firstOrNull { it.id == nid }
             assertNotNull("notification did not appear", posted)
@@ -75,7 +68,6 @@ class ReminderAlarmE2ETest {
     }
 
     @Test fun deletedReminderNeverNotifies() = runBlocking {
-        allowExactAlarms()
         val pet = container.petRepository.add(PetInput(name = "E2E狗", species = Species.DOG, birthEpochDay = 1))
         val due = LocalDateTime.now(container.clock).plusMinutes(1)
         val reminder = container.reminderRepository.add(

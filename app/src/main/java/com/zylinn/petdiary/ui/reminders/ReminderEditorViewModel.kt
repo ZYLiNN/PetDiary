@@ -6,6 +6,8 @@ import com.zylinn.petdiary.data.pet.PetRepository
 import com.zylinn.petdiary.data.reminder.ReminderRepository
 import com.zylinn.petdiary.ui.detail.PetChoice
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
@@ -34,6 +36,9 @@ class ReminderEditorViewModel(
 ) : ViewModel() {
 
     fun today(): LocalDate = LocalDate.now(clock)
+
+    val customTitles: StateFlow<List<String>> =
+        reminders.customTitles.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _state = MutableStateFlow(ReminderEditorState(defaultForm(initialPetId, initialDay), isEdit = reminderId != null))
     val state: StateFlow<ReminderEditorState> = _state.asStateFlow()

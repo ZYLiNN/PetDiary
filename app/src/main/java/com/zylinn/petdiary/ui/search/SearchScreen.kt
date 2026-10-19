@@ -49,6 +49,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zylinn.petdiary.data.record.RecordType
+import com.zylinn.petdiary.data.record.RecordableTypes
 import com.zylinn.petdiary.domain.RecordFormat.label
 import com.zylinn.petdiary.ui.detail.PetChoice
 import com.zylinn.petdiary.ui.detail.RecordCardView
@@ -182,7 +183,7 @@ private fun Filters(filters: SearchFilters, pets: List<PetChoice>, vm: SearchVie
             }
         }
         LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            items(RecordType.entries) { type ->
+            items(RecordableTypes) { type ->
                 FilterChip(
                     selected = type in filters.types,
                     onClick = { vm.toggleType(type) },

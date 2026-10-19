@@ -84,6 +84,7 @@ data class RecordForm(
                 if (groomingItems.isEmpty() && note.isBlank()) "請選擇美容項目" else null
             RecordType.ABNORMAL ->
                 if (title.isBlank()) "請描述狀況（例如：嘔吐）" else null
+            RecordType.CUSTOM -> null
             else -> // medical
                 if (title.isBlank()) "請填寫${medicalLabels(type).title.removeSuffix(" *")}" else null
         }
@@ -109,6 +110,7 @@ data class RecordForm(
                 hospital = hospital,
             )
             RecordType.ABNORMAL -> RecordInput(type, date.toEpochDay(), minuteOfDay, note = note, title = title)
+            RecordType.CUSTOM -> error("custom is reminder-only")
             else -> RecordInput(
                 type, date.toEpochDay(), minuteOfDay, note = note, cost = costValue,
                 title = title, detail = detail.takeIf { medicalLabels(type).detail != null },

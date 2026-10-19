@@ -27,6 +27,7 @@ import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -55,6 +56,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zylinn.petdiary.data.reminder.ReminderRepeat
+import com.zylinn.petdiary.data.record.RecordType
 import com.zylinn.petdiary.data.reminder.ReminderTypes
 import com.zylinn.petdiary.domain.RecordFormat
 import com.zylinn.petdiary.domain.RecordFormat.label
@@ -68,6 +70,7 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun ReminderEditorScreen(vm: ReminderEditorViewModel, onDone: () -> Unit) {
     val state by vm.state.collectAsStateWithLifecycle()
+    val customTitles by vm.customTitles.collectAsStateWithLifecycle()
     val form = state.form
     val context = LocalContext.current
     var confirmDiscard by rememberSaveable { mutableStateOf(false) }
@@ -187,10 +190,17 @@ fun ReminderEditorScreen(vm: ReminderEditorViewModel, onDone: () -> Unit) {
                 OutlinedTextField(
                     value = form.title,
                     onValueChange = { v -> if (v.length <= REMINDER_TITLE_MAX) vm.edit { it.copy(title = v) } },
-                    label = { Text("名稱（選填，例如：點眼藥）") },
+                    label = { Text(if (form.type == RecordType.CUSTOM) "名稱 *（例如：剪指甲）" else "名稱（選填，例如：點眼藥）") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().testTag("rem_title"),
                 )
+                if (form.type == RecordType.CUSTOM && customTitles.isNotEmpty()) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        customTitles.forEach { name ->
+                            AssistChip(onClick = { vm.edit { it.copy(title = name) } }, label = { Text(name) }, modifier = Modifier.testTag("custom_name_$name"))
+                        }
+                    }
+                }
                 Text("時間", style = MaterialTheme.typography.titleSmall)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = { pickDate = true }, modifier = Modifier.weight(1f).testTag("rem_date")) {

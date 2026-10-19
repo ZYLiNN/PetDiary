@@ -54,6 +54,8 @@ import kotlinx.coroutines.withTimeoutOrNull
 fun RemindersScreen(vm: RemindersViewModel, onAdd: () -> Unit, onEdit: (String) -> Unit) {
     val state by vm.state.collectAsStateWithLifecycle()
     val justCompleted by vm.justCompleted.collectAsStateWithLifecycle()
+    val askLate by vm.askLate.collectAsStateWithLifecycle()
+    askLate?.let { ask -> LateCompleteDialog(ask, onChoose = { vm.completeLate(ask.id, it) }, onDismiss = vm::dismissLate) }
     val snackbar = remember { SnackbarHostState() }
     val context = LocalContext.current
 

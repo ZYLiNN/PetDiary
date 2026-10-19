@@ -18,6 +18,9 @@ interface ReminderDao {
     @Query(OPEN_ROWS + " AND r.petId = :petId AND r.dueEpochDay BETWEEN :from AND :to ORDER BY r.dueEpochDay, r.minuteOfDay")
     fun observeOpenForPet(petId: String, from: Long, to: Long): Flow<List<ReminderRow>>
 
+    @Query("SELECT title FROM reminders WHERE type = 'CUSTOM' AND deletedAt IS NULL AND title IS NOT NULL GROUP BY title ORDER BY MAX(updatedAt) DESC LIMIT 8")
+    fun observeCustomTitles(): Flow<List<String>>
+
     @Query("SELECT * FROM reminders WHERE id = :id")
     suspend fun getById(id: String): Reminder?
 

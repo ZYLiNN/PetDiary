@@ -10,7 +10,7 @@ import com.zylinn.petdiary.data.record.RecordType
 enum class ReminderRepeat { NONE, DAILY, EVERY_N_DAYS, MONTHLY, YEARLY }
 
 /** Record types a reminder can be made for; completing one creates a record of that type. */
-val ReminderTypes = listOf(RecordType.MEDICINE, RecordType.VACCINE, RecordType.DEWORMING, RecordType.VET, RecordType.GROOMING)
+val ReminderTypes = listOf(RecordType.MEDICINE, RecordType.VACCINE, RecordType.DEWORMING, RecordType.VET, RecordType.GROOMING, RecordType.CUSTOM)
 
 /**
  * One upcoming occurrence. A repeating reminder moves [dueEpochDay] forward when completed;

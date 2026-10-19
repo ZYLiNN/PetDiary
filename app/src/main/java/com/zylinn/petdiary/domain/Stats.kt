@@ -2,6 +2,7 @@ package com.zylinn.petdiary.domain
 
 import com.zylinn.petdiary.data.record.Record
 import com.zylinn.petdiary.data.record.RecordType
+import com.zylinn.petdiary.data.record.RecordableTypes
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -13,7 +14,7 @@ enum class StatMetric(val label: String, val types: List<RecordType>) {
     FEEDING("餵食", listOf(RecordType.FEEDING)),
     WALK("散步", listOf(RecordType.WALK)),
     WEIGHT("體重", listOf(RecordType.WEIGHT)),
-    COST("費用", RecordType.entries),
+    COST("費用", RecordableTypes),
     MEDICINE("藥物", listOf(RecordType.MEDICINE)),
     VACCINE("疫苗", listOf(RecordType.VACCINE)),
     DEWORMING("驅蟲", listOf(RecordType.DEWORMING)),

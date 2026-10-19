@@ -3,6 +3,7 @@ package com.zylinn.petdiary.ui.reminders
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zylinn.petdiary.data.reminder.Completion
+import com.zylinn.petdiary.data.reminder.LateChoice
 import com.zylinn.petdiary.data.reminder.ReminderRepository
 import com.zylinn.petdiary.data.reminder.ReminderRow
 import com.zylinn.petdiary.domain.ReminderSchedule
@@ -63,8 +64,23 @@ class RemindersViewModel(
     /** The last tick-off, for the 5-second "復原" snackbar (P4-12). */
     val justCompleted: StateFlow<Completion?> = _justCompleted
 
+    private val _askLate = MutableStateFlow<LateChoice?>(null)
+    val askLate: StateFlow<LateChoice?> = _askLate
+
     fun complete(id: String) {
-        viewModelScope.launch { _justCompleted.value = reminders.complete(id) }
+        viewModelScope.launch {
+            val late = reminders.lateChoice(id)
+            if (late != null) _askLate.value = late else _justCompleted.value = reminders.complete(id)
+        }
+    }
+
+    fun completeLate(id: String, rollFromToday: Boolean) {
+        _askLate.value = null
+        viewModelScope.launch { _justCompleted.value = reminders.complete(id, rollFromToday) }
+    }
+
+    fun dismissLate() {
+        _askLate.value = null
     }
 
     fun undo(c: Completion) {

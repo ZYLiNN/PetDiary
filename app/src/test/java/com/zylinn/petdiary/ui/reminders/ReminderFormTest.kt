@@ -15,6 +15,13 @@ class ReminderFormTest {
     // P4-01
     @Test fun validFormHasNoProblem() = assertNull(ok.problem(today, isEdit = false))
 
+    // D36
+    @Test fun customReminderNeedsAName() {
+        val f = ok.copy(type = RecordType.CUSTOM)
+        assertEquals("請填名稱（例如：剪指甲）", f.copy(title = " ").problem(today, false))
+        assertNull(f.copy(title = "剪指甲").problem(today, false))
+    }
+
     @Test fun petRequired() = assertEquals("請選擇寵物", ok.copy(petId = null).problem(today, false))
 
     @Test fun newReminderCannotBeInThePast() {

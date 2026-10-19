@@ -23,6 +23,7 @@ data class ReminderForm(
     fun problem(today: LocalDate, isEdit: Boolean): String? {
         if (petId == null) return "請選擇寵物"
         if (title.trim().length > REMINDER_TITLE_MAX) return "名稱最多 $REMINDER_TITLE_MAX 個字"
+        if (type == RecordType.CUSTOM && title.isBlank()) return "請填名稱（例如：剪指甲）"
         if (!isEdit && date.isBefore(today)) return "日期不能是過去"
         if (repeat == ReminderRepeat.EVERY_N_DAYS) {
             val n = repeatEvery.toIntOrNull()

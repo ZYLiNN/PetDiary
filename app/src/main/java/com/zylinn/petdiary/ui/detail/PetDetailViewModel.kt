@@ -10,6 +10,7 @@ import com.zylinn.petdiary.data.record.RecordInput
 import com.zylinn.petdiary.data.record.RecordRepository
 import com.zylinn.petdiary.data.record.RecordType
 import com.zylinn.petdiary.data.reminder.Completion
+import com.zylinn.petdiary.data.reminder.LateChoice
 import com.zylinn.petdiary.data.reminder.ReminderRepository
 import com.zylinn.petdiary.ui.reminders.ReminderUi
 import com.zylinn.petdiary.ui.reminders.withOverdue
@@ -133,9 +134,25 @@ class PetDetailViewModel(
     private val _reminderCompleted = MutableStateFlow<Completion?>(null)
     val reminderCompleted: StateFlow<Completion?> = _reminderCompleted
 
+    private val _askLate = MutableStateFlow<LateChoice?>(null)
+    val askLate: StateFlow<LateChoice?> = _askLate
+
     fun completeReminder(id: String) {
         val repo = reminders ?: return
-        viewModelScope.launch { _reminderCompleted.value = repo.complete(id) }
+        viewModelScope.launch {
+            val late = repo.lateChoice(id)
+            if (late != null) _askLate.value = late else _reminderCompleted.value = repo.complete(id)
+        }
+    }
+
+    fun completeReminderLate(id: String, rollFromToday: Boolean) {
+        val repo = reminders ?: return
+        _askLate.value = null
+        viewModelScope.launch { _reminderCompleted.value = repo.complete(id, rollFromToday) }
+    }
+
+    fun dismissLate() {
+        _askLate.value = null
     }
 
     fun undoReminder(c: Completion) {

@@ -5,7 +5,13 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-enum class RecordType { FEEDING, WALK, MEDICINE, VACCINE, DEWORMING, WEIGHT, VET, GROOMING, ABNORMAL }
+enum class RecordType { FEEDING, WALK, MEDICINE, VACCINE, DEWORMING, WEIGHT, VET, GROOMING, ABNORMAL,
+    /** Reminder-only (D36): a user-named reminder such as 剪指甲. Never stored as a record. */
+    CUSTOM,
+}
+
+/** The nine types a record can have (everything except reminder-only [RecordType.CUSTOM]). */
+val RecordableTypes: List<RecordType> = RecordType.entries.filter { it != RecordType.CUSTOM }
 
 /** Types sharing the medical form: name, dosage / diagnosis, hospital, cost, next date. */
 val RecordType.isMedical get() = this in setOf(RecordType.MEDICINE, RecordType.VACCINE, RecordType.DEWORMING, RecordType.VET)

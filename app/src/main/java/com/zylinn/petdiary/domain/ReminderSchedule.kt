@@ -29,6 +29,15 @@ object ReminderSchedule {
         }
     }
 
+    /** D37: next date counted from the day it was actually done (today + one interval). null = does not repeat. */
+    fun nextFromDone(repeat: ReminderRepeat, every: Int, today: LocalDate): LocalDate? = when (repeat) {
+        ReminderRepeat.NONE -> null
+        ReminderRepeat.DAILY -> today.plusDays(1)
+        ReminderRepeat.EVERY_N_DAYS -> today.plusDays(every.coerceIn(1, EVERY_N_MAX).toLong())
+        ReminderRepeat.MONTHLY -> today.plusMonths(1)
+        ReminderRepeat.YEARLY -> today.plusYears(1)
+    }
+
     fun repeatLabel(repeat: ReminderRepeat, every: Int): String = when (repeat) {
         ReminderRepeat.NONE -> "只提醒一次"
         ReminderRepeat.DAILY -> "每天"
