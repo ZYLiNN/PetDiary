@@ -2,6 +2,8 @@
 <paths>
     <!-- Temporary camera captures; imported photos are copied to filesDir/photos. -->
     <cache-path name="camera" path="camera/" />
+    <!-- CSV exports handed to the share sheet (P6-03). -->
+    <cache-path name="exports" path="exports/" />
     <!-- Record attachments, shared read-only with viewer apps (PDF readers, galleries). -->
     <files-path name="attachments" path="attachments/" />
 </paths>

@@ -10,6 +10,7 @@ import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
@@ -25,6 +26,7 @@ import androidx.navigation3.ui.NavDisplay
 import com.zylinn.petdiary.data.record.RecordType
 import com.zylinn.petdiary.ui.detail.PetDetailScreen
 import com.zylinn.petdiary.ui.detail.PetDetailViewModel
+import com.zylinn.petdiary.ui.navigation.About
 import com.zylinn.petdiary.ui.navigation.Main
 import com.zylinn.petdiary.ui.navigation.PetDetail
 import com.zylinn.petdiary.ui.navigation.PetEditor
@@ -32,6 +34,7 @@ import com.zylinn.petdiary.ui.navigation.RecordEditor
 import com.zylinn.petdiary.ui.navigation.ReminderEditor
 import com.zylinn.petdiary.ui.navigation.Search
 import com.zylinn.petdiary.ui.navigation.TopLevelDestination
+import com.zylinn.petdiary.ui.navigation.Supplements
 import com.zylinn.petdiary.ui.navigation.Trash
 import com.zylinn.petdiary.ui.pets.PetHomeRoute
 import com.zylinn.petdiary.ui.pets.editor.PetEditorScreen
@@ -44,7 +47,11 @@ import com.zylinn.petdiary.ui.reminders.RemindersScreen
 import com.zylinn.petdiary.ui.reminders.RemindersViewModel
 import com.zylinn.petdiary.ui.search.SearchScreen
 import com.zylinn.petdiary.ui.search.SearchViewModel
+import com.zylinn.petdiary.ui.settings.AboutScreen
 import com.zylinn.petdiary.ui.settings.SettingsScreen
+import com.zylinn.petdiary.ui.settings.SettingsViewModel
+import com.zylinn.petdiary.ui.settings.SupplementsScreen
+import com.zylinn.petdiary.ui.settings.SupplementsViewModel
 import com.zylinn.petdiary.ui.stats.StatsScreen
 import com.zylinn.petdiary.ui.stats.StatsViewModel
 import com.zylinn.petdiary.ui.trash.TrashScreen
@@ -126,6 +133,13 @@ fun PetDiaryApp() {
                     today = LocalDate.now(container.clock),
                 )
             }
+            entry<Supplements> {
+                val vm = containerViewModel { SupplementsViewModel(it.recordRepository) }
+                SupplementsScreen(vm = vm, onBack = back)
+            }
+            entry<About> {
+                AboutScreen(versionName = appVersionName(), onBack = back)
+            }
             entry<Trash> {
                 val vm = containerViewModel { TrashViewModel(it.petRepository, it.recordRepository, it.trashRepository, it.photoStore, it.clock) }
                 TrashScreen(vm = vm, onBack = back)
@@ -199,8 +213,26 @@ private fun MainScreen(navigate: (NavKey) -> Unit) {
                     val vm = containerViewModel { StatsViewModel(it.petRepository, it.recordRepository, it.clock) }
                     StatsScreen(vm = vm)
                 }
-                TopLevelDestination.Settings -> SettingsScreen(onOpenTrash = { navigate(Trash) })
+                TopLevelDestination.Settings -> {
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    val vm = containerViewModel {
+                        SettingsViewModel(it.settings, it.petRepository, it.recordRepository, java.io.File(context.cacheDir, "exports"), it.clock)
+                    }
+                    SettingsScreen(
+                        vm = vm,
+                        versionName = appVersionName(),
+                        onOpenTrash = { navigate(Trash) },
+                        onOpenSupplements = { navigate(Supplements) },
+                        onOpenAbout = { navigate(About) },
+                    )
+                }
             }
         }
     }
+}
+
+@Composable
+private fun appVersionName(): String {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    return remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "?" }
 }

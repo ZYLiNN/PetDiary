@@ -32,6 +32,10 @@ interface PetDao {
     @Query("SELECT * FROM pets WHERE deletedAt IS NOT NULL AND deletedAt <= :cutoff")
     suspend fun getTrashedBefore(cutoff: Long): List<Pet>
 
+    /** Avatar files still referenced, trashed pets included (they can be restored). */
+    @Query("SELECT photoFile FROM pets WHERE photoFile IS NOT NULL")
+    suspend fun allPhotoFiles(): List<String>
+
     @Query("DELETE FROM pets WHERE id = :id")
     suspend fun deletePermanently(id: String)
 }

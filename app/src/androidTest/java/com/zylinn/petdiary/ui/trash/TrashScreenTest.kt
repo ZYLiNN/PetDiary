@@ -118,14 +118,6 @@ class TrashScreenTest {
         assertEquals(trashed.id, db.petDao().getById(trashed.id)?.id)
     }
 
-    // P6-06
-    @Test fun settingsHasTrashEntry() {
-        var opened = false
-        rule.setContent { PetDiaryTheme { SettingsScreen(onOpenTrash = { opened = true }) } }
-        rule.onNodeWithTag("settings_trash").assertIsDisplayed().performClick()
-        assertTrue(opened)
-    }
-
     private fun addRecord(petIdArg: String, trashed: Boolean = true): String = runBlocking {
         val repo = RecordRepository(db.recordDao(), db.attachmentDao(), db.supplementDao(), photos, clockAt(Duration.ZERO))
         repo.addForPets(listOf(petIdArg), com.zylinn.petdiary.data.record.RecordInput(

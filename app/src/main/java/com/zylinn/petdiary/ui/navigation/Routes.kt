@@ -39,3 +39,11 @@ data class ReminderEditor(
     val petId: String? = null,
     val dayEpochDay: Long? = null,
 ) : NavKey
+
+/** Manage the supplement list used by the feeding form (P6-02). */
+@Serializable
+data object Supplements : NavKey
+
+/** Version, privacy and open-source licenses. */
+@Serializable
+data object About : NavKey

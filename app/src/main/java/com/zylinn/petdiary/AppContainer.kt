@@ -4,7 +4,9 @@ import android.app.Application
 import android.content.Context
 import com.zylinn.petdiary.data.PetDiaryDatabase
 import com.zylinn.petdiary.data.pet.PetRepository
+import com.zylinn.petdiary.data.photo.OrphanCleaner
 import com.zylinn.petdiary.data.photo.PhotoImporter
+import com.zylinn.petdiary.data.settings.AppSettings
 import com.zylinn.petdiary.data.photo.AttachmentImporter
 import com.zylinn.petdiary.data.photo.FileStore
 import com.zylinn.petdiary.data.record.RecordRepository
@@ -28,6 +30,10 @@ class AppContainer(context: Context) {
     val database: PetDiaryDatabase by lazy { PetDiaryDatabase.build(context) }
     val photoStore: FileStore by lazy { FileStore(File(context.filesDir, "photos").apply { mkdirs() }) }
     val attachmentStore: FileStore by lazy { FileStore(File(context.filesDir, "attachments").apply { mkdirs() }) }
+    val settings: AppSettings by lazy { AppSettings(context) }
+    val orphanCleaner: OrphanCleaner by lazy {
+        OrphanCleaner(database.petDao(), database.attachmentDao(), File(context.filesDir, "photos"), File(context.filesDir, "attachments"))
+    }
     val photoImporter: PhotoImporter by lazy { PhotoImporter(context.contentResolver, photoStore) }
     val attachmentImporter: AttachmentImporter by lazy { AttachmentImporter(context.contentResolver, attachmentStore) }
     val petRepository: PetRepository by lazy { PetRepository(database.petDao(), clock) }
@@ -55,7 +61,10 @@ class PetDiaryApplication : Application() {
         super.onCreate()
         container = AppContainer(this)
         // Purge on every launch (covers long gaps without opening the app) plus a daily job.
-        container.appScope.launch { container.trashRepository.purgeExpired() }
+        container.appScope.launch {
+            container.trashRepository.purgeExpired()
+            container.orphanCleaner.clean()
+        }
         PurgeTrashWorker.schedule(this)
         container.reminderSyncer.start()
     }

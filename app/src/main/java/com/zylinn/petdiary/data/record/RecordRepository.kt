@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import java.time.Clock
 import java.util.UUID
 
@@ -59,6 +60,9 @@ class RecordRepository(
     fun observeAttachments(recordId: String) = attachments.observeForRecord(recordId)
     fun observeAttachmentCounts(recordIds: List<String>) = attachments.observeCounts(recordIds)
     val supplementsList = supplements.observeActive()
+    /** id → name for every supplement ever created, deleted ones included, for showing old records. */
+    val supplementNames = supplements.observeAll().map { list -> list.associate { it.id to it.name } }
+    val supplementsAll = supplements.observeAll()
 
     /** P3 search. Blank queries return nothing so the screen can show a hint instead. */
     fun search(query: SearchQuery): Flow<List<Record>> {
@@ -166,6 +170,24 @@ class RecordRepository(
         supplements.findByName(trimmed)?.let { return it }
         return Supplement(newId(), trimmed, clock.millis()).also { supplements.insert(it) }
     }
+
+    /** P6-02: false when another supplement already has this name (or the name is blank). */
+    suspend fun renameSupplement(id: String, name: String): Boolean {
+        val trimmed = name.trim().take(50)
+        if (trimmed.isEmpty()) return false
+        val clash = supplements.findByName(trimmed)
+        if (clash != null && clash.id != id) return false
+        supplements.rename(id, trimmed)
+        return true
+    }
+
+    /** Soft delete: old records keep the name; the chip just stops being offered. */
+    suspend fun deleteSupplement(id: String) = supplements.softDelete(id, clock.millis())
+
+    suspend fun restoreSupplement(id: String) = supplements.restore(id)
+
+    /** Rows for the CSV export (P6-03). */
+    suspend fun allForExport(): List<Record> = records.allForExport()
 
     private fun RecordInput.toRecord(id: String, petId: String, createdAt: Long, updatedAt: Long) = Record(
         id = id,

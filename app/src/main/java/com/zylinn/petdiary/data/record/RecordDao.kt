@@ -62,6 +62,13 @@ interface RecordDao {
     )
     fun observeForStats(petIds: List<String>, types: List<RecordType>, from: Long, to: Long): Flow<List<Record>>
 
+    /** Everything the CSV export writes: records of living pets that are not in the trash. */
+    @Query(
+        "SELECT r.* FROM records r JOIN pets p ON p.id = r.petId WHERE r.deletedAt IS NULL AND p.deletedAt IS NULL " +
+            "ORDER BY r.dateEpochDay, r.minuteOfDay, r.createdAt",
+    )
+    suspend fun allForExport(): List<Record>
+
     /** Search query built by [RecordSearch]; re-runs whenever records or pets change. */
     @RawQuery(observedEntities = [Record::class, Pet::class])
     fun observeSearch(query: SupportSQLiteQuery): Flow<List<Record>>
@@ -87,6 +94,9 @@ interface AttachmentDao {
 
     @Query("DELETE FROM attachments WHERE recordId = :recordId")
     suspend fun deleteForRecord(recordId: String)
+
+    @Query("SELECT fileName FROM attachments")
+    suspend fun allFileNames(): List<String>
 }
 
 @Dao
@@ -103,4 +113,20 @@ interface SupplementDao {
 
     @Query("SELECT id FROM supplements WHERE name LIKE :like ESCAPE '\\'")
     suspend fun idsMatching(like: String): List<String>
+
+    /** Includes deleted ones, so old records keep showing the names they were saved with. */
+    @Query("SELECT * FROM supplements ORDER BY createdAt")
+    fun observeAll(): Flow<List<Supplement>>
+
+    @Query("SELECT * FROM supplements WHERE id = :id")
+    suspend fun getById(id: String): Supplement?
+
+    @Query("UPDATE supplements SET name = :name WHERE id = :id")
+    suspend fun rename(id: String, name: String)
+
+    @Query("UPDATE supplements SET deletedAt = :now WHERE id = :id")
+    suspend fun softDelete(id: String, now: Long)
+
+    @Query("UPDATE supplements SET deletedAt = NULL WHERE id = :id")
+    suspend fun restore(id: String)
 }

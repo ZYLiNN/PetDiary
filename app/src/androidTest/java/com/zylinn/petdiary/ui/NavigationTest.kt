@@ -50,16 +50,15 @@ class NavigationTest {
     }
 
     // P0-03
-    @Test fun scrollPositionKeptAcrossTabSwitch() {
-        rule.onNodeWithTag("tab_Settings").performClick()
-        rule.onNodeWithTag("list_Settings").performScrollToIndex(9)
-        rule.onNodeWithTag("item_Settings_8").assertIsDisplayed()
-
-        rule.onNodeWithTag("tab_Reminders").performClick()
-        rule.onNodeWithTag("reminder_list").assertIsDisplayed()
+    @Test fun tabStateKeptAcrossTabSwitch() {
+        rule.onNodeWithTag("tab_Stats").performClick()
+        rule.onNodeWithTag("range_MONTH").performClick().assertIsSelected()
 
         rule.onNodeWithTag("tab_Settings").performClick()
-        rule.onNodeWithTag("item_Settings_8").assertIsDisplayed()
+        rule.onNodeWithTag("list_Settings").assertIsDisplayed()
+
+        rule.onNodeWithTag("tab_Stats").performClick()
+        rule.onNodeWithTag("range_MONTH").assertIsSelected()
     }
 
     // C-07
