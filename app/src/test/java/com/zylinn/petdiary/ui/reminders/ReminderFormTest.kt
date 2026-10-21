@@ -60,7 +60,8 @@ class ReminderFormTest {
         assertEquals(listOf("p1", "p2"), f.petIds)
         assertEquals(listOf("p1", "p2"), f.toInputs().map { it.petId })
         assertEquals(listOf("p2"), f.togglePet("p1", isEdit = false).petIds)
-        assertEquals("請選擇寵物", f.togglePet("p1", false).togglePet("p2", false).problem(today, false))
+        // the last pet can't be unticked: a reminder is always for some pet
+        assertEquals(listOf("p2"), f.togglePet("p1", false).togglePet("p2", false).petIds)
     }
 
     @Test fun editingSwitchesTheSinglePet() = assertEquals(listOf("p2"), ok.togglePet("p2", isEdit = true).petIds)

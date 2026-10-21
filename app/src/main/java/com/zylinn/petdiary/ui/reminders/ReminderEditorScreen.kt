@@ -22,6 +22,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Delete
@@ -166,10 +167,16 @@ fun ReminderEditorScreen(vm: ReminderEditorViewModel, onDone: () -> Unit) {
                     Text(if (state.isEdit) "寵物 *" else "寵物 *（可多選，每隻各一則提醒）", style = MaterialTheme.typography.titleSmall)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         state.pets.forEach { pet ->
+                            val selected = pet.id in form.petIds
                             FilterChip(
-                                selected = pet.id in form.petIds,
+                                selected = selected,
                                 onClick = { vm.togglePet(pet.id) },
                                 label = { Text(pet.name) },
+                                leadingIcon = if (selected) {
+                                    { Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                                } else {
+                                    null
+                                },
                                 modifier = Modifier.testTag("rem_pet_${pet.id}"),
                             )
                         }

@@ -35,11 +35,14 @@ data class ReminderForm(
         return null
     }
 
-    /** Picking a pet: a new reminder toggles it in / out, an existing one (always a single pet) switches to it. */
+    /**
+     * Picking a pet: a new reminder toggles it in / out but always keeps at least one (same as the record panel);
+     * an existing one (always a single pet) switches to it.
+     */
     fun togglePet(id: String, isEdit: Boolean) = copy(
         petIds = when {
             isEdit -> listOf(id)
-            id in petIds -> petIds - id
+            id in petIds -> (petIds - id).ifEmpty { petIds }
             else -> petIds + id
         },
     )

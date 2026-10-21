@@ -157,7 +157,7 @@ fun FamilyScreen(vm: FamilyViewModel, onBack: () -> Unit, incoming: String? = nu
                             Icon(Icons.Outlined.PersonAdd, contentDescription = null, modifier = Modifier.size(18.dp))
                             Text("  產生邀請 QR Code")
                         }
-                        Text("對方用 PetDiary 掃描就能加入。邀請 24 小時內有效，而且只能用一次。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("對方用手機相機掃描，或點「分享連結」傳給對方，對方點一下就能加入。邀請 24 小時內有效，而且只能用一次。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                             QrCode(inv.link.asText(), 240.dp, Modifier.testTag("invite_qr"))
@@ -169,7 +169,7 @@ fun FamilyScreen(vm: FamilyViewModel, onBack: () -> Unit, incoming: String? = nu
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
                                 OutlinedButton(onClick = {
                                     val send = Intent(Intent.ACTION_SEND).setType("text/plain")
-                                        .putExtra(Intent.EXTRA_TEXT, "一起用 PetDiary 記錄毛孩！在 App 的「家庭群組」貼上這段連結加入（24 小時內有效，只能用一次）：\n${inv.link.asText()}")
+                                        .putExtra(Intent.EXTRA_TEXT, "一起用 PetDiary 記錄毛孩！點這個連結就能加入我們的家庭群組（24 小時內有效，只能用一次）：\n${inv.link.asText()}")
                                     runCatching { context.startActivity(Intent.createChooser(send, "分享邀請").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
                                 }, modifier = Modifier.testTag("share_invite")) {
                                     Icon(Icons.Outlined.Share, contentDescription = null, modifier = Modifier.size(18.dp)); Text("  分享連結")
@@ -208,7 +208,7 @@ fun FamilyScreen(vm: FamilyViewModel, onBack: () -> Unit, incoming: String? = nu
             onDismissRequest = { pasteOpen = false },
             title = { Text("貼上邀請連結") },
             text = {
-                OutlinedTextField(pasted, { pasted = it }, label = { Text("petdiary://join?…") }, minLines = 2, modifier = Modifier.fillMaxWidth().testTag("paste_field"))
+                OutlinedTextField(pasted, { pasted = it }, label = { Text("邀請連結") }, minLines = 2, modifier = Modifier.fillMaxWidth().testTag("paste_field"))
             },
             confirmButton = {
                 TextButton(onClick = { pendingInvite = pasted; nickname = myName; pasteOpen = false; pasted = "" }, enabled = pasted.isNotBlank(), modifier = Modifier.testTag("paste_ok")) { Text("下一步") }

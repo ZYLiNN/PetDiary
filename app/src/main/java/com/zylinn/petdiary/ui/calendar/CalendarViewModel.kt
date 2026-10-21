@@ -90,4 +90,6 @@ class CalendarViewModel(
     }
 
     fun togglePet(id: String) = hidden.update { if (id in it) it - id else it + id }
+
+    fun showAllPets() { hidden.value = emptySet() }
 }

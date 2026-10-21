@@ -22,6 +22,7 @@ import com.zylinn.petdiary.ui.theme.PetDiaryTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -82,6 +83,14 @@ class FamilyScreenTest {
             .addCategory(android.content.Intent.CATEGORY_BROWSABLE)
         val resolved = context.packageManager.resolveActivity(link, 0)
         assertEquals(context.packageName, resolved?.activityInfo?.packageName)
+    }
+
+    // P13 (D79): the https invitation link people click in LINE is one this app can open
+    @Test fun httpsInviteLinkIsHandledByThisApp() {
+        val link = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(InviteLink("abcdef123456", "abcdefghijklmnopqrstuvwxyz").asText()))
+            .addCategory(android.content.Intent.CATEGORY_BROWSABLE)
+        val handlers = context.packageManager.queryIntentActivities(link, 0).map { it.activityInfo.packageName }
+        assertTrue("handlers: $handlers", context.packageName in handlers)
     }
 
     @Test fun needsCloudFirst() {

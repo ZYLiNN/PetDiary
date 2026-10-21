@@ -168,7 +168,19 @@ class CloudSync(
             if (m.name.isNotBlank()) m else m.copy(name = if (m.isMe) mine.ifBlank { "我" } else if (m.isOwner) "擁有者" else "家人")
         })
         _family.value = named
+        announceNewcomers(named)
         _authorNames.value = if (named.isShared) named.members.associate { it.uid to if (it.isMe) "我" else it.name } else emptyMap()
+    }
+
+    private val joinNotifier by lazy { JoinNotifier(context) }
+
+    /** D79: tell the owner about people who joined since this phone last saw the member list. */
+    private fun announceNewcomers(state: FamilyState) {
+        val prefs = context.getSharedPreferences("petdiary_sync", Context.MODE_PRIVATE)
+        val key = "known_members_${state.groupId}"
+        val known = prefs.getStringSet(key, null)
+        JoinWatch.newcomers(known, state).forEach { joinNotifier.announce(it) }
+        prefs.edit().putStringSet(key, state.members.map { it.uid }.toSet()).apply()
     }
 
     /** Finds the user's group via users/{uid}; the very first time, creates a private one (the owner is the only member). */

@@ -21,3 +21,4 @@ google-services.json
 
 # Built APKs for testing
 dist/
+firebase/.firebase/

@@ -197,13 +197,7 @@ private fun shareItem(context: Context, item: AttachmentItem) {
 
 /** PDFs open in whatever viewer the phone has; access is granted read-only for this one file. */
 private fun openWithViewer(context: Context, item: AttachmentItem) {
-    val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", item.file)
-    val intent = Intent(Intent.ACTION_VIEW).setDataAndType(uri, item.mimeType).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    try {
-        context.startActivity(intent)
-    } catch (_: ActivityNotFoundException) {
-        Toast.makeText(context, "找不到可以開啟 PDF 的 App", Toast.LENGTH_SHORT).show()
-    }
+    if (!AttachmentExport.open(context, item.file, item.mimeType)) Toast.makeText(context, "找不到可以開啟 PDF 的 App", Toast.LENGTH_SHORT).show()
 }
 
 fun formatSize(bytes: Long): String = when {

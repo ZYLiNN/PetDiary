@@ -50,14 +50,14 @@ class NavigationTest {
         val titles = mapOf(
             TopLevelDestination.Pets to "我的毛孩",
             TopLevelDestination.Calendar to "行事曆",
-            TopLevelDestination.Reminders to "提醒",
+            TopLevelDestination.Album to "相簿",
             TopLevelDestination.Stats to "統計",
         )
         TopLevelDestination.entries.forEach { dest ->
             rule.onNodeWithTag("tab_${dest.name}").performClick().assertIsSelected()
             val content = when (dest) {
                 TopLevelDestination.Pets -> "pet_grid"
-                TopLevelDestination.Reminders -> "reminder_list"
+                TopLevelDestination.Album -> "album_tab_PHOTOS"
                 TopLevelDestination.Stats -> "stats_scroll"
                 TopLevelDestination.Calendar -> "cal_month_title"
             }
@@ -110,6 +110,17 @@ class NavigationTest {
         assertTrue("48dp pitch: $search / $gear", (gear.left - search.left).value >= 47.5f)
         rule.onNodeWithTag("home_search").performClick()
         rule.onNodeWithTag("search_field").assertIsDisplayed()
+    }
+
+    // P13 (D80): 提醒 is no longer a tab; the full list opens from the calendar and ← comes back
+    @Test fun reminderListOpensFromTheCalendar() {
+        rule.onNodeWithTag("tab_Reminders").assertDoesNotExist()
+        rule.onNodeWithTag("tab_Calendar").performClick()
+        rule.onNodeWithTag("cal_open_reminders").assertIsDisplayed().performClick()
+        rule.onNodeWithTag("reminder_list").assertIsDisplayed()
+        rule.onNodeWithTag("fab_add_reminder").assertIsDisplayed()
+        rule.onNodeWithTag("back_button").performClick()
+        rule.onNodeWithTag("tab_Calendar").assertIsSelected()
     }
 
     // P10: from the all-pets calendar into one pet shows only that pet's data for that day

@@ -4,6 +4,8 @@
     <string name="tab_reminders">提醒</string>
     <string name="tab_stats">統計</string>
     <string name="tab_calendar">行事曆</string>
+    <string name="tab_album">相簿</string>
+    <string name="title_album">相簿</string>
     <string name="title_pets">我的毛孩</string>
     <string name="title_reminders">提醒</string>
     <string name="title_stats">統計</string>

@@ -249,11 +249,11 @@ class ReminderScreensTest {
         assertTrue(made.all { it.type == RecordType.DEWORMING && it.dueEpochDay == made[0].dueEpochDay && it.minuteOfDay == made[0].minuteOfDay })
     }
 
-    @Test fun noPetSelectedCannotSave() {
+    @Test fun theLastPetCannotBeUnticked() {
         showEditor(petId = cat)
         rule.onNodeWithTag("rem_pet_$cat").performClick()
-        rule.onNodeWithTag("save_button").assertIsNotEnabled()
-        rule.onNodeWithTag("rem_problem").assertTextContains("請選擇寵物")
+        rule.onNodeWithTag("rem_pet_$cat").assertIsSelected()
+        rule.onNodeWithTag("save_button").assertIsEnabled()
     }
 
     @Test fun editingKeepsASinglePet() {

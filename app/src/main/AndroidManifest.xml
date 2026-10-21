@@ -28,6 +28,13 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="petdiary" android:host="join" />
             </intent-filter>
+            <!-- P13 (D79): the shared https invitation link opens the app directly (verified via assetlinks.json). -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="petdiary-878a6.web.app" android:path="/join" />
+            </intent-filter>
         </activity>
 
         <receiver android:name=".reminder.ReminderAlarmReceiver" android:exported="false" />

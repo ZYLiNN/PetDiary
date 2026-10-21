@@ -77,6 +77,7 @@ class RecordRepository(
         if (petIds.isEmpty()) flowOf(emptyList()) else records.observeForStats(petIds, types, from, to)
     fun observeAttachments(recordId: String) = attachments.observeForRecord(recordId)
     fun observeAttachmentCounts(recordIds: List<String>) = attachments.observeCounts(recordIds)
+    fun observeAlbum() = attachments.observeAlbum()
     val supplementsList = supplements.observeActive()
     /** id → name for every supplement ever created, deleted ones included, for showing old records. */
     val supplementNames = supplements.observeAll().map { list -> list.associate { it.id to it.name } }

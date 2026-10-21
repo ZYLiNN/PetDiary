@@ -172,11 +172,20 @@ class CalendarScreenTest {
         val b = record(lily, RecordType.VACCINE, "2026-10-03")
         show()
         waitFor("cal_item_$a"); waitFor("cal_item_$b")
+        // P13: the pet filter is a menu behind the filter button in the top bar
+        rule.onNodeWithTag("cal_filter").performClick()
         rule.onNodeWithTag("cal_pet_$lily").performClick()
         gone("cal_item_$b")
         rule.onNodeWithTag("cal_item_$a", useUnmergedTree = true).assertExists()
-        rule.onNodeWithTag("cal_pet_$lily").performClick()
+        rule.onNodeWithTag("cal_pet_all").performClick() // 全部顯示
         waitFor("cal_item_$b")
+    }
+
+    @Test fun noPetChipRowAboveTheMonth() {
+        show()
+        // the filter moved to the top bar; the month starts right under its title row
+        rule.onNodeWithTag("cal_filter").assertExists()
+        rule.onNodeWithTag("cal_pet_$lily").assertDoesNotExist() // only inside the closed menu
     }
 
     @Test fun monthNavigationAndGreyedOutDays() {

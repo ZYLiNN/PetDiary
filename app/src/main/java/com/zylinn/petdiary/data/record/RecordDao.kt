@@ -101,6 +101,31 @@ interface AttachmentDao {
 
     @Query("SELECT fileName FROM attachments")
     suspend fun allFileNames(): List<String>
+
+    /** The album (P13): every attachment of a record that is not in the trash, newest record first. */
+    @Query(
+        "SELECT a.id, a.recordId, a.fileName, a.mimeType, a.displayName, a.sizeBytes, r.petId, r.type, r.dateEpochDay, r.minuteOfDay " +
+            "FROM attachments a JOIN records r ON r.id = a.recordId JOIN pets p ON p.id = r.petId " +
+            "WHERE r.deletedAt IS NULL AND p.deletedAt IS NULL " +
+            "ORDER BY r.dateEpochDay DESC, r.minuteOfDay DESC, a.createdAt",
+    )
+    fun observeAlbum(): Flow<List<AlbumEntry>>
+}
+
+/** One photo / PDF in the album, with the record it belongs to. */
+data class AlbumEntry(
+    val id: String,
+    val recordId: String,
+    val fileName: String,
+    val mimeType: String,
+    val displayName: String,
+    val sizeBytes: Long,
+    val petId: String,
+    val type: RecordType,
+    val dateEpochDay: Long,
+    val minuteOfDay: Int,
+) {
+    val isImage get() = mimeType.startsWith("image/")
 }
 
 @Dao

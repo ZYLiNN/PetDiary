@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -52,7 +54,15 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RemindersScreen(vm: RemindersViewModel, onAdd: () -> Unit, onEdit: (String) -> Unit, onOpenSettings: () -> Unit = {}) {
+fun RemindersScreen(
+    vm: RemindersViewModel,
+    onAdd: () -> Unit,
+    onEdit: (String) -> Unit,
+    onOpenSettings: () -> Unit = {},
+    /** Set when opened as a page from the calendar (P13): shows ← instead of the gear. */
+    onBack: (() -> Unit)? = null,
+) {
+    onBack?.let { androidx.activity.compose.BackHandler(onBack = it) }
     val state by vm.state.collectAsStateWithLifecycle()
     val justCompleted by vm.justCompleted.collectAsStateWithLifecycle()
     val askLate by vm.askLate.collectAsStateWithLifecycle()
@@ -79,8 +89,15 @@ fun RemindersScreen(vm: RemindersViewModel, onAdd: () -> Unit, onEdit: (String) 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("提醒") },
-                actions = { SettingsAction(onOpenSettings) },
+                title = { Text(if (onBack != null) "提醒清單" else "提醒") },
+                navigationIcon = {
+                    onBack?.let { back ->
+                        IconButton(onClick = back, modifier = Modifier.testTag("back_button")) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        }
+                    }
+                },
+                actions = { if (onBack == null) SettingsAction(onOpenSettings) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
         },

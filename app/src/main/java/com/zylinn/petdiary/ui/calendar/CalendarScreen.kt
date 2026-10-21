@@ -27,8 +27,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.FilterAlt
+import androidx.compose.material.icons.outlined.FilterAlt
+import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,6 +47,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -91,6 +98,8 @@ fun CalendarScreen(
     onAddReminder: (LocalDate) -> Unit,
     onOpenSettings: () -> Unit,
     onAddRecord: (type: RecordType, petIds: List<String>, day: LocalDate) -> Unit = { _, _, _ -> },
+    /** The full reminder list (P13: the 提醒 tab moved here). */
+    onOpenReminders: (() -> Unit)? = null,
 ) {
     val ui by vm.ui.collectAsStateWithLifecycle()
     var addingRecord by rememberSaveable { mutableStateOf(false) }
@@ -103,7 +112,16 @@ fun CalendarScreen(
         topBar = {
             TopAppBar(
                 title = { Text("行事曆") },
-                actions = { SettingsAction(onOpenSettings) },
+                actions = {
+                    // Pet filter lives here instead of a chip row, so the month and the day list get the room (P13).
+                    if (ui.pets.size > 1) PetFilterAction(ui.pets, colors, vm::togglePet, vm::showAllPets)
+                    onOpenReminders?.let { open ->
+                        IconButton(onClick = open, modifier = Modifier.testTag("cal_open_reminders")) {
+                            Icon(Icons.Outlined.NotificationsNone, contentDescription = "提醒清單")
+                        }
+                    }
+                    SettingsAction(onOpenSettings)
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
         },
@@ -176,20 +194,6 @@ private fun MonthColumn(
             IconButton(onClick = vm::previousMonth, modifier = Modifier.testTag("cal_prev")) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "上個月") }
             IconButton(onClick = vm::nextMonth, modifier = Modifier.testTag("cal_next")) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "下個月") }
         }
-        if (ui.pets.size > 1) {
-            FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ui.pets.forEach { p ->
-                    val sw = colors.getValue(p.id)
-                    FilterChip(
-                        selected = p.visible,
-                        onClick = { vm.togglePet(p.id) },
-                        label = { Text(p.name) },
-                        leadingIcon = { Box(Modifier.size(12.dp).background(sw.fill, CircleShape).border(1.dp, sw.line, CircleShape)) },
-                        modifier = Modifier.testTag("cal_pet_${p.id}"),
-                    )
-                }
-            }
-        }
         Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp)) {
             for (i in 0 until 7) {
                 val dow = DayOfWeek.SUNDAY.plus(i.toLong())
@@ -227,7 +231,48 @@ private fun MonthColumn(
     }
 }
 
-private val CompactCellHeight = 66.dp
+private val CompactCellHeight = 60.dp
+
+/** Filter button: a menu with a checkbox per pet; the icon fills in while some pet is hidden. */
+@Composable
+private fun PetFilterAction(
+    pets: List<CalendarPet>,
+    colors: Map<String, com.zylinn.petdiary.ui.theme.PetSwatch>,
+    onToggle: (String) -> Unit,
+    onShowAll: () -> Unit,
+) {
+    var open by remember { mutableStateOf(false) }
+    val filtering = pets.any { !it.visible }
+    Box {
+        IconButton(onClick = { open = true }, modifier = Modifier.testTag("cal_filter")) {
+            Icon(
+                if (filtering) Icons.Filled.FilterAlt else Icons.Outlined.FilterAlt,
+                contentDescription = if (filtering) "選擇寵物（已篩選）" else "選擇寵物",
+                tint = if (filtering) MaterialTheme.colorScheme.primary else LocalContentColor.current,
+            )
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            pets.forEach { p ->
+                val sw = colors.getValue(p.id)
+                DropdownMenuItem(
+                    text = { Text(p.name) },
+                    leadingIcon = {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Checkbox(checked = p.visible, onCheckedChange = null)
+                            Box(Modifier.size(12.dp).background(sw.fill, CircleShape).border(1.dp, sw.line, CircleShape))
+                        }
+                    },
+                    onClick = { onToggle(p.id) }, // menu stays open so several pets can be switched at once
+                    modifier = Modifier.testTag("cal_pet_${p.id}"),
+                )
+            }
+            if (filtering) {
+                HorizontalDivider()
+                DropdownMenuItem(text = { Text("全部顯示") }, onClick = { onShowAll(); open = false }, modifier = Modifier.testTag("cal_pet_all"))
+            }
+        }
+    }
+}
 
 @Composable
 private fun DayCell(

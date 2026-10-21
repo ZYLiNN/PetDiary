@@ -63,6 +63,9 @@ import com.zylinn.petdiary.ui.settings.SettingsViewModel
 import com.zylinn.petdiary.ui.settings.SupplementsScreen
 import com.zylinn.petdiary.ui.settings.ToyTexts
 import com.zylinn.petdiary.ui.navigation.Toys
+import com.zylinn.petdiary.ui.navigation.ReminderList
+import com.zylinn.petdiary.ui.album.AlbumScreen
+import com.zylinn.petdiary.ui.album.AlbumViewModel
 import com.zylinn.petdiary.ui.settings.SupplementsViewModel
 import com.zylinn.petdiary.ui.stats.StatsScreen
 import com.zylinn.petdiary.ui.stats.StatsViewModel
@@ -154,6 +157,15 @@ fun PetDiaryApp() {
             entry<Supplements> {
                 val vm = containerViewModel { SupplementsViewModel(it.recordRepository) }
                 SupplementsScreen(vm = vm, onBack = back)
+            }
+            entry<ReminderList> {
+                val vm = containerViewModel { RemindersViewModel(it.reminderRepository, it.clock) }
+                RemindersScreen(
+                    vm = vm,
+                    onAdd = { navigate(ReminderEditor()) },
+                    onEdit = { id -> navigate(ReminderEditor(reminderId = id)) },
+                    onBack = back,
+                )
             }
             entry<Toys> {
                 val vm = containerViewModel { SupplementsViewModel(it.recordRepository.toyOps) }
@@ -253,14 +265,14 @@ private fun MainScreen(navigate: (NavKey) -> Unit) {
                         onAddReminder = { day -> navigate(ReminderEditor(dayEpochDay = day.toEpochDay())) },
                         onOpenSettings = { navigate(Settings) },
                         onAddRecord = { type, petIds, day -> navigate(RecordEditor(petIds, type.name, day.toEpochDay())) },
+                        onOpenReminders = { navigate(ReminderList) },
                     )
                 }
-                TopLevelDestination.Reminders -> {
-                    val vm = containerViewModel { RemindersViewModel(it.reminderRepository, it.clock) }
-                    RemindersScreen(
+                TopLevelDestination.Album -> {
+                    val vm = containerViewModel { AlbumViewModel(it.petRepository, it.recordRepository, it.attachmentStore) }
+                    AlbumScreen(
                         vm = vm,
-                        onAdd = { navigate(ReminderEditor()) },
-                        onEdit = { id -> navigate(ReminderEditor(reminderId = id)) },
+                        onOpenRecordDay = { petId, day -> navigate(PetDetail(petId, day.toEpochDay())) },
                         onOpenSettings = { navigate(Settings) },
                     )
                 }

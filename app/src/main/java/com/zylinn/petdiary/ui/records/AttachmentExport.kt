@@ -43,6 +43,18 @@ object AttachmentExport {
         }
     }
 
+    /** Opens a PDF (or any file) in whatever viewer the phone has, read-only for this one file. */
+    fun open(context: Context, file: File, mimeType: String): Boolean {
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        val view = Intent(Intent.ACTION_VIEW).setDataAndType(uri, mimeType).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        return try {
+            context.startActivity(view)
+            true
+        } catch (_: ActivityNotFoundException) {
+            false
+        }
+    }
+
     /** The system share sheet, with read access to just this file. */
     fun share(context: Context, file: File, mimeType: String): Boolean {
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)

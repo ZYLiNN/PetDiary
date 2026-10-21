@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>加入 PetDiary 家庭群組</title>
+<style>
+  :root { --bg: #FBF7F2; --card: #FFFFFF; --ink: #3D2E24; --muted: #7A6A5E; --brand: #8B5E3C; --on-brand: #FFFFFF; --line: #E8DDD2; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #1E1814; --card: #2A221D; --ink: #F3EAE2; --muted: #BFAE9F; --brand: #D9A47A; --on-brand: #2A1A0E; --line: #43372E; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 -apple-system, "Noto Sans TC", "PingFang TC", sans-serif; }
+  main { max-width: 480px; margin: 0 auto; padding: 32px 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 24px; }
+  h1 { font-size: 22px; margin: 0 0 8px; }
+  p { margin: 8px 0; color: var(--muted); }
+  .open { display: block; width: 100%; margin: 20px 0 8px; padding: 14px; border: 0; border-radius: 12px; background: var(--brand); color: var(--on-brand); font-size: 17px; font-weight: 600; text-align: center; text-decoration: none; }
+  .copy { display: block; width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: transparent; color: var(--ink); font-size: 15px; }
+  .bad { color: #B42318; }
+  small { display: block; margin-top: 16px; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div class="card">
+    <h1>🐾 加入家庭群組</h1>
+    <p id="intro">家人邀請你一起用 PetDiary 記錄毛孩的日常。</p>
+    <a id="open" class="open" href="#">用 PetDiary 開啟</a>
+    <button id="copy" class="copy" type="button">複製邀請連結（在 App 的「家庭群組」貼上）</button>
+    <p id="msg"></p>
+    <small>還沒安裝 PetDiary？請向邀請你的家人索取安裝檔，安裝後再點一次這個連結。<br>邀請 24 小時內有效，而且只能使用一次。這個頁面不會收集任何資料。</small>
+  </div>
+</main>
+<script src="/join.js"></script>
+</body>
+</html>

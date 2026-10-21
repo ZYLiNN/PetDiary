@@ -44,6 +44,10 @@ data class ReminderEditor(
 @Serializable
 data object Supplements : NavKey
 
+/** The full reminder list, opened from the calendar (P13: no longer a tab). */
+@Serializable
+data object ReminderList : NavKey
+
 /** Manage the toy list used by the play form (D77). */
 @Serializable
 data object Toys : NavKey
