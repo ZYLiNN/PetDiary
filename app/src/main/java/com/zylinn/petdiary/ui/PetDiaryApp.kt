@@ -245,6 +245,7 @@ private fun MainScreen(navigate: (NavKey) -> Unit) {
                         onOpenDay = { petId, day -> navigate(PetDetail(petId, day.toEpochDay())) },
                         onAddReminder = { day -> navigate(ReminderEditor(dayEpochDay = day.toEpochDay())) },
                         onOpenSettings = { navigate(Settings) },
+                        onAddRecord = { type, petIds, day -> navigate(RecordEditor(petIds, type.name, day.toEpochDay())) },
                     )
                 }
                 TopLevelDestination.Reminders -> {

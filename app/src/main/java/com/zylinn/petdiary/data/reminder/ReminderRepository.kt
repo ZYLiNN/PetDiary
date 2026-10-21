@@ -81,6 +81,19 @@ class ReminderRepository(
 
     suspend fun row(id: String) = reminders.getRow(id)
 
+    /**
+     * The reminders announced together with [row]: still open, same moment, same type and name, not yet notified
+     * for that moment — e.g. 驅蟲 for 雷米 and 雷麗 created at once become one notification (P11-03). [row] comes first.
+     */
+    suspend fun announceTogether(row: ReminderRow, dueMillis: Long): List<ReminderRow> {
+        val r = row.reminder
+        val others = reminders.getOpenAt(r.dueEpochDay, r.minuteOfDay).filter {
+            val o = it.reminder
+            o.id != r.id && o.type == r.type && o.title == r.title && o.notifiedFor != dueMillis
+        }
+        return listOf(row) + others
+    }
+
     /** Non-null only when finishing [id] now is late AND the two ways of picking the next date disagree. */
     suspend fun lateChoice(id: String): LateChoice? {
         val r = reminders.getById(id) ?: return null

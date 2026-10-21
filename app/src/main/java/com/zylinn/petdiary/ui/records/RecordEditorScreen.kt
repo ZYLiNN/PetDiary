@@ -368,16 +368,21 @@ private fun GroomingFields(form: RecordForm, onEdit: ((RecordForm) -> RecordForm
 @Composable
 private fun MedicalFields(form: RecordForm, onEdit: ((RecordForm) -> RecordForm) -> Unit) {
     val labels = medicalLabels(form.type)
-    if (form.type == RecordType.DEWORMING) {
-        val kinds = listOf<DewormKind?>(null, DewormKind.INTERNAL, DewormKind.EXTERNAL)
+    if (form.type == RecordType.VACCINE || form.type == RecordType.DEWORMING) {
+        // 疫苗 and 驅蟲 share one tile in the panel; this row picks which one (P11-05).
+        val choices = listOf(
+            Triple("疫苗", RecordType.VACCINE, null),
+            Triple("體內驅蟲", RecordType.DEWORMING, DewormKind.INTERNAL),
+            Triple("體外驅蟲", RecordType.DEWORMING, DewormKind.EXTERNAL),
+        )
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-            kinds.forEachIndexed { i, k ->
+            choices.forEachIndexed { i, (text, type, kind) ->
                 SegmentedButton(
-                    selected = form.dewormKind == k,
-                    onClick = { onEdit { it.copy(dewormKind = k) } },
-                    shape = SegmentedButtonDefaults.itemShape(i, kinds.size),
-                    modifier = Modifier.testTag("deworm_$i"),
-                ) { Text(k?.let { with(RecordFormat) { it.label } } ?: "未指定") }
+                    selected = form.type == type && form.dewormKind == kind,
+                    onClick = { onEdit { it.copy(type = type, dewormKind = kind) } },
+                    shape = SegmentedButtonDefaults.itemShape(i, choices.size),
+                    modifier = Modifier.testTag("vd_${kind?.name ?: "VACCINE"}"),
+                ) { Text(text) }
             }
         }
     }

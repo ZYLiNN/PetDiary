@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
@@ -232,5 +233,36 @@ class ReminderScreensTest {
         rule.onNodeWithTag("rem_pet_$dog").assertIsDisplayed()
         rule.onNodeWithTag("rem_pet_$dog").performClick()
         rule.onNodeWithTag("rem_pet_$dog").assertIsSelected()
+    }
+
+    // P11-03: a new reminder can cover several pets → one reminder each
+    @Test fun newReminderForTwoPetsCreatesOneEach() {
+        showEditor(petId = cat)
+        rule.onNodeWithTag("rem_pet_$dog").performClick()
+        rule.onNodeWithTag("rem_pet_$cat").assertIsSelected()
+        rule.onNodeWithTag("rem_pet_$dog").assertIsSelected()
+        rule.onNodeWithTag("rem_type_DEWORMING").performClick()
+        rule.onNodeWithTag("save_button").performClick()
+        rule.waitUntil(5_000) { done == 1 }
+        val made = open().map { it.reminder }
+        assertEquals(setOf(cat, dog), made.map { it.petId }.toSet())
+        assertTrue(made.all { it.type == RecordType.DEWORMING && it.dueEpochDay == made[0].dueEpochDay && it.minuteOfDay == made[0].minuteOfDay })
+    }
+
+    @Test fun noPetSelectedCannotSave() {
+        showEditor(petId = cat)
+        rule.onNodeWithTag("rem_pet_$cat").performClick()
+        rule.onNodeWithTag("save_button").assertIsNotEnabled()
+        rule.onNodeWithTag("rem_problem").assertTextContains("請選擇寵物")
+    }
+
+    @Test fun editingKeepsASinglePet() {
+        val id = add(today.plusDays(2), pet = cat)
+        showEditor(reminderId = id)
+        rule.onNodeWithTag("rem_pet_$dog").performClick()
+        rule.onNodeWithTag("rem_pet_$cat").assertIsNotSelected()
+        rule.onNodeWithTag("save_button").performClick()
+        rule.waitUntil(5_000) { done == 1 }
+        assertEquals(listOf(dog), open().map { it.reminder.petId })
     }
 }

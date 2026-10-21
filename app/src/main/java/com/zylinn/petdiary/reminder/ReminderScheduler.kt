@@ -39,5 +39,7 @@ class ReminderScheduler(private val context: Context) {
     companion object {
         const val EXTRA_ID = "reminder_id"
         const val EXTRA_DUE = "reminder_due"
+        /** Every reminder covered by one (merged) notification. */
+        const val EXTRA_IDS = "reminder_ids"
     }
 }

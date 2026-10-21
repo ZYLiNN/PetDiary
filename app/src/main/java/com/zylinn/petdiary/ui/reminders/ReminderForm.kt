@@ -9,9 +9,12 @@ import java.time.LocalDate
 
 const val REMINDER_TITLE_MAX = 50
 
-/** Everything the reminder editor holds; pure data so the rules are unit-tested. */
+/**
+ * Everything the reminder editor holds; pure data so the rules are unit-tested.
+ * A new reminder may cover several pets: one independent reminder is created per pet (decision P11-3A).
+ */
 data class ReminderForm(
-    val petId: String?,
+    val petIds: List<String>,
     val type: RecordType = RecordType.MEDICINE,
     val title: String = "",
     val date: LocalDate,
@@ -21,7 +24,7 @@ data class ReminderForm(
 ) {
     /** First problem to fix, or null when the form can be saved. A new reminder can't be in the past. */
     fun problem(today: LocalDate, isEdit: Boolean): String? {
-        if (petId == null) return "請選擇寵物"
+        if (petIds.isEmpty()) return "請選擇寵物"
         if (title.trim().length > REMINDER_TITLE_MAX) return "名稱最多 $REMINDER_TITLE_MAX 個字"
         if (type == RecordType.CUSTOM && title.isBlank()) return "請填名稱（例如：剪指甲）"
         if (!isEdit && date.isBefore(today)) return "日期不能是過去"
@@ -32,8 +35,19 @@ data class ReminderForm(
         return null
     }
 
-    fun toInput() = ReminderInput(
-        petId = petId!!,
+    /** Picking a pet: a new reminder toggles it in / out, an existing one (always a single pet) switches to it. */
+    fun togglePet(id: String, isEdit: Boolean) = copy(
+        petIds = when {
+            isEdit -> listOf(id)
+            id in petIds -> petIds - id
+            else -> petIds + id
+        },
+    )
+
+    fun toInputs(): List<ReminderInput> = petIds.map { toInput(it) }
+
+    fun toInput(petId: String = petIds.first()) = ReminderInput(
+        petId = petId,
         type = type,
         title = title,
         dueEpochDay = date.toEpochDay(),
@@ -44,7 +58,7 @@ data class ReminderForm(
 
     companion object {
         fun from(r: Reminder) = ReminderForm(
-            petId = r.petId, type = r.type, title = r.title.orEmpty(), date = LocalDate.ofEpochDay(r.dueEpochDay),
+            petIds = listOf(r.petId), type = r.type, title = r.title.orEmpty(), date = LocalDate.ofEpochDay(r.dueEpochDay),
             minuteOfDay = r.minuteOfDay, repeat = r.repeat, repeatEvery = r.repeatEvery.toString(),
         )
     }

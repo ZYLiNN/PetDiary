@@ -22,18 +22,23 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.PictureAsPdf
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -104,25 +109,37 @@ fun AttachmentsSection(
                 item = item,
                 onOpen = { if (item.isImage) preview = item.key else openWithViewer(context, item) },
                 onRemove = { onRemove(item.key) },
+                onSave = { saveToPhone(context, item) },
+                onShare = { shareItem(context, item) },
             )
         }
     }
 
     items.firstOrNull { it.key == preview }?.let { item ->
         Dialog(onDismissRequest = { preview = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.inverseSurface).clickable { preview = null }
-                    .testTag("attach_preview"),
-            ) {
-                AsyncImage(model = item.file, contentDescription = item.displayName, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxWidth())
+            Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.inverseSurface)) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.fillMaxWidth().clickable { preview = null }.testTag("attach_preview"),
+                ) {
+                    AsyncImage(model = item.file, contentDescription = item.displayName, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxWidth())
+                }
+                Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.End) {
+                    val ink = MaterialTheme.colorScheme.inverseOnSurface
+                    if (AttachmentExport.canSave) {
+                        TextButton(onClick = { saveToPhone(context, item) }, modifier = Modifier.testTag("preview_save")) { Text("下載", color = ink) }
+                    }
+                    TextButton(onClick = { shareItem(context, item) }, modifier = Modifier.testTag("preview_share")) { Text("分享", color = ink) }
+                    TextButton(onClick = { preview = null }) { Text("關閉", color = ink) }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun AttachmentRow(item: AttachmentItem, onOpen: () -> Unit, onRemove: () -> Unit) {
+private fun AttachmentRow(item: AttachmentItem, onOpen: () -> Unit, onRemove: () -> Unit, onSave: () -> Unit, onShare: () -> Unit) {
+    var menu by remember { mutableStateOf(false) }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -151,10 +168,30 @@ private fun AttachmentRow(item: AttachmentItem, onOpen: () -> Unit, onRemove: ()
             Text(item.displayName, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(formatSize(item.sizeBytes), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        Box {
+            IconButton(onClick = { menu = true }, modifier = Modifier.testTag("more_${item.displayName}")) {
+                Icon(Icons.Filled.MoreVert, contentDescription = "更多：${item.displayName}")
+            }
+            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                if (AttachmentExport.canSave) {
+                    DropdownMenuItem(text = { Text("下載到手機") }, onClick = { menu = false; onSave() }, modifier = Modifier.testTag("save_${item.displayName}"))
+                }
+                DropdownMenuItem(text = { Text("分享") }, onClick = { menu = false; onShare() }, modifier = Modifier.testTag("share_${item.displayName}"))
+            }
+        }
         IconButton(onClick = onRemove, modifier = Modifier.testTag("remove_${item.displayName}")) {
             Icon(Icons.Filled.Close, contentDescription = "移除 ${item.displayName}")
         }
     }
+}
+
+private fun saveToPhone(context: Context, item: AttachmentItem) {
+    val where = AttachmentExport.save(context, item.file, item.mimeType, item.displayName)
+    Toast.makeText(context, where?.let { "已存到$it" } ?: "儲存失敗，請改用「分享」", Toast.LENGTH_SHORT).show()
+}
+
+private fun shareItem(context: Context, item: AttachmentItem) {
+    if (!AttachmentExport.share(context, item.file, item.mimeType)) Toast.makeText(context, "找不到可以分享的 App", Toast.LENGTH_SHORT).show()
 }
 
 /** PDFs open in whatever viewer the phone has; access is granted read-only for this one file. */

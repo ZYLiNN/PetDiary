@@ -24,6 +24,9 @@ interface ReminderDao {
     @Query(OPEN_ROWS + " AND r.dueEpochDay BETWEEN :from AND :to ORDER BY r.dueEpochDay, r.minuteOfDay")
     fun observeOpenInRange(from: Long, to: Long): Flow<List<ReminderRow>>
 
+    @Query(OPEN_ROWS + " AND r.dueEpochDay = :day AND r.minuteOfDay = :minute ORDER BY p.createdAt")
+    suspend fun getOpenAt(day: Long, minute: Int): List<ReminderRow>
+
     @Query("SELECT * FROM reminders WHERE id = :id")
     suspend fun getById(id: String): Reminder?
 

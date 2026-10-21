@@ -20,7 +20,7 @@ import com.zylinn.petdiary.data.photo.FileStore
 import com.zylinn.petdiary.data.record.RecordInput
 import com.zylinn.petdiary.data.record.RecordRepository
 import com.zylinn.petdiary.data.record.RecordType
-import com.zylinn.petdiary.data.record.RecordableTypes
+import com.zylinn.petdiary.data.record.PanelTypes
 import com.zylinn.petdiary.testutil.FitToScreen
 import com.zylinn.petdiary.ui.theme.PetDiaryTheme
 import kotlinx.coroutines.flow.first
@@ -83,7 +83,9 @@ class AddRecordPanelTest {
     @Test fun fabOpensPanelAndTypeTapGoesStraightToForm() {
         show()
         openPanel()
-        RecordableTypes.forEach { rule.onNodeWithTag("type_${it.name}").assertExists() }
+        PanelTypes.forEach { rule.onNodeWithTag("type_${it.name}").assertExists() }
+        rule.onNodeWithTag("type_DEWORMING").assertDoesNotExist() // shares the 疫苗／驅蟲 tile (P11-05)
+        rule.onNodeWithText("疫苗／驅蟲").assertExists()
         rule.onNodeWithTag("type_WEIGHT").performClick()
         assertEquals(Triple(RecordType.WEIGHT, listOf(cat), today), picked)
     }
@@ -97,7 +99,7 @@ class AddRecordPanelTest {
         rule.onNodeWithTag("pick_pet_$cat").performClick()
         rule.onNodeWithTag("pick_pet_$dog").performClick() // can't deselect the last one
         rule.onNodeWithTag("pick_pet_$dog").assertIsSelected()
-        rule.onNodeWithTag("type_DEWORMING").performClick()
+        rule.onNodeWithTag("type_VACCINE").performClick()
         assertEquals(listOf(dog), picked!!.second)
     }
 

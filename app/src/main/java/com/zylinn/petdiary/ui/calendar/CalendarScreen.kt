@@ -41,6 +41,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,6 +64,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zylinn.petdiary.data.pet.PetColor
+import com.zylinn.petdiary.data.record.RecordType
+import com.zylinn.petdiary.ui.detail.AddRecordPanel
+import com.zylinn.petdiary.ui.detail.PetChoice
 import com.zylinn.petdiary.domain.CalendarItem
 import com.zylinn.petdiary.domain.RecordFormat
 import com.zylinn.petdiary.ui.common.SettingsAction
@@ -84,8 +90,10 @@ fun CalendarScreen(
     onOpenDay: (petId: String, day: LocalDate) -> Unit,
     onAddReminder: (LocalDate) -> Unit,
     onOpenSettings: () -> Unit,
+    onAddRecord: (type: RecordType, petIds: List<String>, day: LocalDate) -> Unit = { _, _, _ -> },
 ) {
     val ui by vm.ui.collectAsStateWithLifecycle()
+    var addingRecord by rememberSaveable { mutableStateOf(false) }
     val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val colors = ui.pets.associate { it.id to PetPalette.swatch(it.color, dark) }
     val shorts = ui.pets.associate { it.id to it.short }
@@ -107,7 +115,27 @@ fun CalendarScreen(
                 MonthColumn(ui, vm, colors, shorts, wide, m)
             }
             val panel: @Composable (Modifier) -> Unit = { m ->
-                DayPanel(ui.selected, ui.today, ui.selectedItems, ui.pets, colors, names, onOpenDay, onAddReminder, m)
+                DayPanel(
+                    ui.selected, ui.today, ui.selectedItems, ui.pets, colors, names, onOpenDay, onAddReminder,
+                    onAddRecord = { addingRecord = true }, modifier = m,
+                )
+            }
+            if (addingRecord && ui.pets.isNotEmpty()) {
+                // Same panel as on a pet's page: pick one or more pets, then a type (P11-02).
+                AddRecordPanel(
+                    wide = wide,
+                    currentPetId = (ui.pets.firstOrNull { it.visible } ?: ui.pets.first()).id,
+                    pets = ui.pets.map { PetChoice(it.id, it.name) },
+                    quickFeeding = null,
+                    quickWalk = null,
+                    onDismiss = { addingRecord = false },
+                    onPickType = { type, petIds ->
+                        addingRecord = false
+                        onAddRecord(type, petIds, ui.selected)
+                    },
+                    onQuickFeed = {},
+                    onQuickWalk = {},
+                )
             }
             if (wide) {
                 Row(Modifier.fillMaxSize()) {
@@ -291,6 +319,7 @@ private fun DayPanel(
     names: Map<String, String>,
     onOpenDay: (String, LocalDate) -> Unit,
     onAddReminder: (LocalDate) -> Unit,
+    onAddRecord: () -> Unit,
     modifier: Modifier,
 ) {
     val weekday = day.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.TRADITIONAL_CHINESE)
@@ -315,7 +344,13 @@ private fun DayPanel(
                 PanelRow(item, sw) { onOpenDay(item.petId, day) }
             }
         }
-        OutlinedButton(onClick = { onAddReminder(day) }, modifier = Modifier.padding(top = 8.dp).testTag("cal_add_reminder")) { Text("＋ 新增提醒") }
+        Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Records can't be in the future, so a day still to come only offers a reminder.
+            if (pets.isNotEmpty() && !day.isAfter(today)) {
+                OutlinedButton(onClick = onAddRecord, modifier = Modifier.testTag("cal_add_record")) { Text("＋ 新增紀錄") }
+            }
+            OutlinedButton(onClick = { onAddReminder(day) }, modifier = Modifier.testTag("cal_add_reminder")) { Text("＋ 新增提醒") }
+        }
     }
 }
 

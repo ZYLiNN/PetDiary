@@ -40,6 +40,15 @@ class ReminderNotifierTest {
 
     @After fun cleanUp() = notifier.cancel(row.reminder.id)
 
+    // P11-03: several pets due together → one notification naming all of them
+    @Test fun mergedNotificationNamesEveryPet() {
+        val other = ReminderRow(row.reminder.copy(id = "rem-test-2", petId = "p2"), "雷利")
+        notifier.show(listOf(row, other))
+        waitUntilListed(true)
+        val n = manager.activeNotifications.single { it.id == notifier.notificationId(row.reminder.id) }.notification
+        assertEquals("雷米、雷利：點眼藥", n.extras.getString("android.title"))
+    }
+
     // P4-02: the notification carries the pet, what to do, the time and a 完成 button (P4-03)
     @Test fun showsNotificationWithCompleteAction() {
         notifier.show(row)

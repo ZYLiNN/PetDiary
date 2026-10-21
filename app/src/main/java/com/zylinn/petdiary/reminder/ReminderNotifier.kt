@@ -37,10 +37,13 @@ class ReminderNotifier(private val context: Context) {
 
     fun notificationId(reminderId: String) = reminderId.hashCode()
 
-    fun show(row: ReminderRow) {
-        if (!hasPermission()) return
+    fun show(row: ReminderRow) = show(listOf(row))
+
+    /** One notification for reminders due together (same moment, type and name); 完成 finishes all of them. */
+    fun show(rows: List<ReminderRow>) {
+        if (!hasPermission() || rows.isEmpty()) return
         ensureChannel()
-        val r = row.reminder
+        val r = rows.first().reminder
         val open = PendingIntent.getActivity(
             context, notificationId(r.id),
             Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
@@ -50,14 +53,15 @@ class ReminderNotifier(private val context: Context) {
             context, notificationId(r.id),
             Intent(context, ReminderActionReceiver::class.java)
                 .setAction(ReminderActionReceiver.ACTION_COMPLETE)
-                .putExtra(ReminderScheduler.EXTRA_ID, r.id),
+                .putExtra(ReminderScheduler.EXTRA_ID, r.id)
+                .putExtra(ReminderScheduler.EXTRA_IDS, rows.map { it.reminder.id }.toTypedArray()),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val what = r.title ?: r.type.label
         val text = RecordFormat.time(r.minuteOfDay) + "・" + ReminderSchedule.repeatLabel(r.repeat, r.repeatEvery)
         val notification = NotificationCompat.Builder(context, CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("${row.petName}：$what")
+            .setContentTitle(rows.joinToString("、") { it.petName } + "：$what")
             .setContentText(text)
             .setContentIntent(open)
             .setAutoCancel(true)

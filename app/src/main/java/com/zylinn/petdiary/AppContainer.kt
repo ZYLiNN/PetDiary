@@ -22,6 +22,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import com.zylinn.petdiary.sync.CloudDeleteQueue
 import java.io.File
 import java.time.Clock
 
@@ -32,8 +33,10 @@ class AppContainer(context: Context) {
     val incomingInvite = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val database: PetDiaryDatabase by lazy { PetDiaryDatabase.build(context) }
-    val photoStore: FileStore by lazy { FileStore(File(context.filesDir, "photos").apply { mkdirs() }) }
-    val attachmentStore: FileStore by lazy { FileStore(File(context.filesDir, "attachments").apply { mkdirs() }) }
+    /** Files deleted here are also removed from the cloud on the next sync pass (D63). */
+    val cloudDeletes: CloudDeleteQueue by lazy { CloudDeleteQueue(context.getSharedPreferences("petdiary_sync", Context.MODE_PRIVATE)) }
+    val photoStore: FileStore by lazy { FileStore(File(context.filesDir, "photos").apply { mkdirs() }, cloudDeletes::add) }
+    val attachmentStore: FileStore by lazy { FileStore(File(context.filesDir, "attachments").apply { mkdirs() }, cloudDeletes::add) }
     val settings: AppSettings by lazy { AppSettings(context) }
     val orphanCleaner: OrphanCleaner by lazy {
         OrphanCleaner(database.petDao(), database.attachmentDao(), File(context.filesDir, "photos"), File(context.filesDir, "attachments"))
@@ -51,7 +54,7 @@ class AppContainer(context: Context) {
     val trashRepository: TrashRepository by lazy {
         TrashRepository(database.petDao(), database.recordDao(), database.attachmentDao(), photoStore, attachmentStore, clock, database.reminderDao())
     }
-    val cloudSync: CloudSync by lazy { CloudSync(context, appScope, settings, database, photoStore, attachmentStore, clock) }
+    val cloudSync: CloudSync by lazy { CloudSync(context, appScope, settings, database, photoStore, attachmentStore, clock, cloudDeletes) }
     val accountService: AccountService by lazy { AccountService(context, cloudSync) }
     val notifier: ReminderNotifier by lazy { ReminderNotifier(context) }
     val reminderSyncer: ReminderSyncer by lazy {

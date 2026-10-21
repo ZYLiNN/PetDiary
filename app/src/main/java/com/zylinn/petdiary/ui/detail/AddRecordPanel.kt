@@ -42,7 +42,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.zylinn.petdiary.data.record.RecordType
-import com.zylinn.petdiary.data.record.RecordableTypes
+import com.zylinn.petdiary.data.record.PanelTypes
 import com.zylinn.petdiary.domain.RecordFormat.label
 import com.zylinn.petdiary.ui.records.color
 import com.zylinn.petdiary.ui.records.icon
@@ -150,7 +150,7 @@ private fun PanelContent(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            RecordableTypes.forEach { type -> TypeTile(type, onClick = { onPickType(type) }, modifier = Modifier.weight(1f)) }
+            PanelTypes.forEach { type -> TypeTile(type, onClick = { onPickType(type) }, modifier = Modifier.weight(1f)) }
         }
         if (quickFeeding != null || quickWalk != null) {
             HorizontalDivider(color = MaterialTheme.colorScheme.outline)
@@ -202,6 +202,6 @@ private fun TypeTile(type: RecordType, onClick: () -> Unit, modifier: Modifier) 
                 .background(type.color.copy(alpha = 0.14f)),
         ) { Icon(type.icon, contentDescription = null, tint = type.color) }
         Spacer(Modifier.height(4.dp))
-        Text(type.label, style = MaterialTheme.typography.labelMedium)
+        Text(if (type == RecordType.VACCINE) "疫苗／驅蟲" else type.label, style = MaterialTheme.typography.labelMedium)
     }
 }

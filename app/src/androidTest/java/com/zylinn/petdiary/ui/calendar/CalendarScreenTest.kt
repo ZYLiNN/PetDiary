@@ -27,6 +27,7 @@ import com.zylinn.petdiary.testutil.FitToScreen
 import com.zylinn.petdiary.ui.theme.PetDiaryTheme
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import androidx.compose.ui.test.performScrollTo
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -56,6 +57,7 @@ class CalendarScreenTest {
     private lateinit var lily: String
     private var opened: Pair<String, LocalDate>? = null
     private var addReminderOn: LocalDate? = null
+    private var addedRecord: Triple<RecordType, List<String>, LocalDate>? = null
 
     @Before fun setUp() = runBlocking {
         db = Room.inMemoryDatabaseBuilder(context, PetDiaryDatabase::class.java).build()
@@ -88,7 +90,8 @@ class CalendarScreenTest {
         rule.setContent {
             PetDiaryTheme {
                 val screen = @androidx.compose.runtime.Composable {
-                    CalendarScreen(vm, onOpenDay = { p, d -> opened = p to d }, onAddReminder = { addReminderOn = it }, onOpenSettings = {})
+                    CalendarScreen(vm, onOpenDay = { p, d -> opened = p to d }, onAddReminder = { addReminderOn = it }, onOpenSettings = {},
+                        onAddRecord = { t, ids, d -> addedRecord = Triple(t, ids, d) })
                 }
                 if (wide) FitToScreen(900.dp, 600.dp) { screen() } else FitToScreen(400.dp, 800.dp) { screen() }
             }
@@ -101,6 +104,24 @@ class CalendarScreenTest {
 
     private fun gone(tag: String) =
         rule.waitUntil(5_000) { runCatching { rule.onNodeWithTag(tag, useUnmergedTree = true).assertDoesNotExist() }.isSuccess }
+
+    // P11-02: add records for several pets straight from the calendar, on the selected day
+    @Test fun addRecordFromTheDayListForSeveralPets() {
+        show()
+        rule.onNodeWithTag(cell("2026-10-12")).performClick()
+        rule.onNodeWithTag("cal_add_record").performScrollTo().performClick()
+        waitFor("type_FEEDING")
+        rule.onNodeWithTag("pick_pet_$lily").performClick()
+        rule.onNodeWithTag("type_FEEDING").performClick()
+        assertEquals(Triple(RecordType.FEEDING, listOf(remi, lily), day("2026-10-12")), addedRecord)
+    }
+
+    @Test fun aFutureDayOnlyOffersAReminder() {
+        show()
+        rule.onNodeWithTag(cell("2026-10-25")).performClick()
+        waitFor("cal_add_reminder")
+        rule.onNodeWithTag("cal_add_record").assertDoesNotExist()
+    }
 
     @Test fun opensOnTheCurrentMonthWithTodaySelected() {
         show()

@@ -163,12 +163,12 @@ fun ReminderEditorScreen(vm: ReminderEditorViewModel, onDone: () -> Unit) {
                 modifier = Modifier.widthIn(max = 640.dp).fillMaxWidth().verticalScroll(rememberScrollState()).imePadding().padding(16.dp),
             ) {
                 if (state.pets.size > 1) {
-                    Text("寵物 *", style = MaterialTheme.typography.titleSmall)
+                    Text(if (state.isEdit) "寵物 *" else "寵物 *（可多選，每隻各一則提醒）", style = MaterialTheme.typography.titleSmall)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         state.pets.forEach { pet ->
                             FilterChip(
-                                selected = form.petId == pet.id,
-                                onClick = { vm.edit { it.copy(petId = pet.id) } },
+                                selected = pet.id in form.petIds,
+                                onClick = { vm.togglePet(pet.id) },
                                 label = { Text(pet.name) },
                                 modifier = Modifier.testTag("rem_pet_${pet.id}"),
                             )
@@ -236,7 +236,7 @@ fun ReminderEditorScreen(vm: ReminderEditorViewModel, onDone: () -> Unit) {
                         modifier = Modifier.fillMaxWidth().testTag("rem_every"),
                     )
                 }
-                if (problem != null && (form.petId != null)) {
+                if (problem != null) {
                     Text(problem, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("rem_problem"))
                 }
             }

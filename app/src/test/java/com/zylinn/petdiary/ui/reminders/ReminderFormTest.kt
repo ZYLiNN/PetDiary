@@ -10,7 +10,7 @@ import java.time.LocalDate
 class ReminderFormTest {
 
     private val today = LocalDate.parse("2026-10-19")
-    private val ok = ReminderForm(petId = "p1", type = RecordType.DEWORMING, date = today.plusDays(3))
+    private val ok = ReminderForm(petIds = listOf("p1"), type = RecordType.DEWORMING, date = today.plusDays(3))
 
     // P4-01
     @Test fun validFormHasNoProblem() = assertNull(ok.problem(today, isEdit = false))
@@ -22,7 +22,7 @@ class ReminderFormTest {
         assertNull(f.copy(title = "剪指甲").problem(today, false))
     }
 
-    @Test fun petRequired() = assertEquals("請選擇寵物", ok.copy(petId = null).problem(today, false))
+    @Test fun petRequired() = assertEquals("請選擇寵物", ok.copy(petIds = emptyList()).problem(today, false))
 
     @Test fun newReminderCannotBeInThePast() {
         assertEquals("日期不能是過去", ok.copy(date = today.minusDays(1)).problem(today, false))
@@ -53,4 +53,15 @@ class ReminderFormTest {
         assertEquals(12, i.repeatEvery)
         assertEquals(today.plusDays(3).toEpochDay(), i.dueEpochDay)
     }
+
+    // P11-03
+    @Test fun newReminderTogglesSeveralPetsAndMakesOneInputEach() {
+        val f = ok.togglePet("p2", isEdit = false)
+        assertEquals(listOf("p1", "p2"), f.petIds)
+        assertEquals(listOf("p1", "p2"), f.toInputs().map { it.petId })
+        assertEquals(listOf("p2"), f.togglePet("p1", isEdit = false).petIds)
+        assertEquals("請選擇寵物", f.togglePet("p1", false).togglePet("p2", false).problem(today, false))
+    }
+
+    @Test fun editingSwitchesTheSinglePet() = assertEquals(listOf("p2"), ok.togglePet("p2", isEdit = true).petIds)
 }

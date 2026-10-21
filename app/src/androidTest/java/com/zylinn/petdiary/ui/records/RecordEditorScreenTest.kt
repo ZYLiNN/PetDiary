@@ -154,7 +154,7 @@ class RecordEditorScreenTest {
     @Test fun dewormingForTwoPetsSavesSameContent() {
         open(RecordType.DEWORMING, petIds = listOf(cat, dog))
         rule.onNodeWithText("雷米、雷利").assertIsDisplayed()
-        rule.onNodeWithTag("deworm_2").performClick()
+        rule.onNodeWithTag("vd_EXTERNAL").performClick()
         rule.onNodeWithTag("field_title").performTextInput("蚤不到")
         rule.onNodeWithTag("field_cost").performScrollTo().performTextInput("1,200")
         saveAndWait()
@@ -166,6 +166,19 @@ class RecordEditorScreenTest {
             assertEquals(DewormKind.EXTERNAL, r.dewormKind)
             assertEquals(8 * 60 + 45, r.minuteOfDay)
         }
+    }
+
+    // P11-05: the shared 疫苗／驅蟲 form switches between vaccine and the two deworming kinds
+    @Test fun vaccineTileCanBecomeInternalDeworming() {
+        open(RecordType.VACCINE)
+        rule.onNodeWithTag("vd_VACCINE").assertIsSelected()
+        rule.onNodeWithTag("vd_INTERNAL").performClick()
+        rule.onNodeWithTag("editor_title").assertTextContains("驅蟲", substring = true)
+        rule.onNodeWithTag("field_title").performTextInput("寵愛")
+        saveAndWait()
+        val r = day(cat).single()
+        assertEquals(RecordType.DEWORMING, r.type)
+        assertEquals(DewormKind.INTERNAL, r.dewormKind)
     }
 
     @Test fun weightSaves() {

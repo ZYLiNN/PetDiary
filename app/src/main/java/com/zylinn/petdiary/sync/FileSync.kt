@@ -13,10 +13,17 @@ interface UploadLog {
     fun add(name: String)
 }
 
+/** File names deleted on this phone whose cloud copy must go too (D63); survives restarts. */
+interface DeleteQueue {
+    fun pending(): Set<String>
+    fun done(name: String)
+}
+
 /**
  * Photos and attachments live in Cloud Storage at groups/{groupId}/files/{fileName}. Whatever the database refers
  * to is uploaded when we have it and downloaded when we don't. Names are random UUIDs, so one name = one file forever.
- * Deleting files from the cloud is not done here (account / data deletion is P9).
+ * A file deleted on this phone (attachment removed, record or pet purged from the trash, avatar replaced) is
+ * deleted from the cloud on the next pass (D63); the other phones drop their copy once the change reaches them.
  */
 class FileSync(
     storage: FirebaseStorage,
@@ -25,12 +32,26 @@ class FileSync(
     private val photos: FileStore,
     private val attachments: FileStore,
     private val log: UploadLog,
+    private val deletes: DeleteQueue? = null,
 ) {
     private val root = storage.reference.child("groups").child(groupId).child("files")
 
     /** One pass. Returns the first problem met (after trying every file), or null. */
     suspend fun syncOnce(): Throwable? {
         var problem: Throwable? = null
+        val stillUsed = (dao.petPhotoFiles() + dao.attachmentFiles()).toSet()
+        deletes?.pending()?.forEach { name ->
+            try {
+                // A name still referenced (e.g. restored from the trash elsewhere) must stay.
+                if (name !in stillUsed) root.child(name).delete().await()
+                deletes.done(name)
+            } catch (e: StorageException) {
+                if (e.errorCode == StorageException.ERROR_OBJECT_NOT_FOUND) deletes.done(name) else problem = problem ?: e
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                problem = problem ?: e
+            }
+        }
         val wanted = dao.petPhotoFiles().map { photos to it } + dao.attachmentFiles().map { attachments to it }
         for ((store, name) in wanted.distinct()) {
             try {

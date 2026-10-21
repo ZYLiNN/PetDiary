@@ -60,6 +60,21 @@ class ReminderRepositoryTest {
     private fun open() = runBlocking { reminders.observeOpen().first() }
     private fun recordsOn(day: LocalDate) = runBlocking { records.observeDay(cat, day.toEpochDay()).first() }
 
+    // P11-03: reminders due at the same moment with the same type / name are announced in one notification
+    @Test fun sameMomentRemindersAreAnnouncedTogether() = runBlocking {
+        val lily = pets.add(PetInput(name = "雷利", species = Species.CAT, birthEpochDay = 1)).id
+        val a = reminders.add(input())
+        val b = reminders.add(input().copy(petId = lily))
+        reminders.add(input().copy(type = RecordType.MEDICINE)) // different type: separate
+        reminders.add(input().copy(minuteOfDay = 10 * 60)) // different time: separate
+        val due = 123L
+        val together = reminders.announceTogether(reminders.row(a.id)!!, due)
+        assertEquals(listOf(a.id, b.id), together.map { it.reminder.id })
+        assertEquals(listOf("雷米", "雷利"), together.map { it.petName })
+        reminders.markNotified(b.id, due)
+        assertEquals(listOf(a.id), reminders.announceTogether(reminders.row(a.id)!!, due).map { it.reminder.id })
+    }
+
     // P4-01
     @Test fun addedReminderIsListedWithPetName() = runBlocking {
         reminders.add(input(today.plusDays(2), title = " 蚤不到 "))

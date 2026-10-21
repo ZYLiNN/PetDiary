@@ -54,6 +54,7 @@ class CloudSync(
     private val photos: FileStore,
     private val attachments: FileStore,
     private val clock: Clock,
+    private val deletes: DeleteQueue? = null,
 ) : FamilyController, CloudSwitch {
     private val _status = MutableStateFlow<SyncStatus>(if (settings.cloudSyncEnabled.value) SyncStatus.Connecting else SyncStatus.Off)
     override val status: StateFlow<SyncStatus> = _status.asStateFlow()
@@ -139,7 +140,7 @@ class CloudSync(
                 sharedPrefs.edit().putStringSet(key, sharedPrefs.getStringSet(key, emptySet())!! + name).apply()
             }
         }
-        val files = FileSync(FirebaseStorage.getInstance(), groupId, database.syncDao(), photos, attachments, log)
+        val files = FileSync(FirebaseStorage.getInstance(), groupId, database.syncDao(), photos, attachments, log, deletes)
 
         val observer = familyService.observe(groupId, uid, onState = ::publishFamily, onDenied = { scope.launch { dropGroup(uid) } })
         try {

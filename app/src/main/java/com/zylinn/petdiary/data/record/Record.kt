@@ -13,6 +13,12 @@ enum class RecordType { FEEDING, WALK, MEDICINE, VACCINE, DEWORMING, WEIGHT, VET
 /** The nine types a record can have (everything except reminder-only [RecordType.CUSTOM]). */
 val RecordableTypes: List<RecordType> = RecordType.entries.filter { it != RecordType.CUSTOM }
 
+/**
+ * The tiles of the "新增紀錄" panel: 疫苗 and 驅蟲 share one tile (shown as 疫苗／驅蟲, opened as [RecordType.VACCINE])
+ * whose form then picks 疫苗 / 體內驅蟲 / 體外驅蟲 (P11-05). Both types still exist for stats, search and old records.
+ */
+val PanelTypes: List<RecordType> = RecordableTypes.filter { it != RecordType.DEWORMING }
+
 /** Types sharing the medical form: name, dosage / diagnosis, hospital, cost, next date. */
 val RecordType.isMedical get() = this in setOf(RecordType.MEDICINE, RecordType.VACCINE, RecordType.DEWORMING, RecordType.VET)
 

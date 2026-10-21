@@ -29,8 +29,10 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
             if (r.deletedAt != null || r.completedAt != null) return@async
             val due = ReminderSchedule.dueMillis(r.dueEpochDay, r.minuteOfDay, container.clock.zone)
             if (due > container.clock.millis() + STALE_SLACK_MS) return@async // the reminder was moved later
-            container.notifier.show(row)
-            container.reminderRepository.markNotified(id, due)
+            if (r.notifiedFor == due) return@async // already announced together with another pet's reminder
+            val together = container.reminderRepository.announceTogether(row, due)
+            container.notifier.show(together)
+            together.forEach { container.reminderRepository.markNotified(it.reminder.id, due) }
         }
     }
 
@@ -45,11 +47,12 @@ class ReminderActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != ACTION_COMPLETE) return
         val id = intent.getStringExtra(ReminderScheduler.EXTRA_ID) ?: return
+        val ids = intent.getStringArrayExtra(ReminderScheduler.EXTRA_IDS)?.toList() ?: listOf(id)
         val container = (context.applicationContext as PetDiaryApplication).container
         container.notifier.cancel(id)
         async {
-            val done = container.reminderRepository.complete(id)
-            if (done != null) {
+            val done = ids.mapNotNull { container.reminderRepository.complete(it) }
+            if (done.isNotEmpty()) {
                 CoroutineScope(Dispatchers.Main).launch { Toast.makeText(context, "已記錄完成", Toast.LENGTH_SHORT).show() }
             }
         }

@@ -52,7 +52,7 @@ class ReminderEditorViewModel(
             nextHour <= 22 -> now.toLocalDate() to nextHour * 60
             else -> now.toLocalDate().plusDays(1) to 9 * 60
         }
-        return ReminderForm(petId = petId, date = date, minuteOfDay = minute)
+        return ReminderForm(petIds = listOfNotNull(petId), date = date, minuteOfDay = minute)
     }
 
     init {
@@ -60,11 +60,13 @@ class ReminderEditorViewModel(
             val choices = pets.activePets.first().map { PetChoice(it.id, it.name) }
             val existing = reminderId?.let { reminders.get(it) }
             _state.update { s ->
-                val form = existing?.let(ReminderForm::from) ?: s.form.copy(petId = s.form.petId ?: choices.firstOrNull()?.id)
+                val form = existing?.let(ReminderForm::from) ?: s.form.copy(petIds = s.form.petIds.ifEmpty { listOfNotNull(choices.firstOrNull()?.id) })
                 s.copy(form = form, pets = choices, loading = false)
             }
         }
     }
+
+    fun togglePet(id: String) = edit { it.togglePet(id, _state.value.isEdit) }
 
     fun edit(transform: (ReminderForm) -> ReminderForm) = _state.update { it.copy(form = transform(it.form), dirty = true) }
 
@@ -73,7 +75,7 @@ class ReminderEditorViewModel(
         if (s.saving || s.form.problem(today(), s.isEdit) != null) return
         _state.update { it.copy(saving = true) }
         viewModelScope.launch {
-            if (reminderId == null) reminders.add(s.form.toInput()) else reminders.update(reminderId, s.form.toInput())
+            if (reminderId == null) s.form.toInputs().forEach { reminders.add(it) } else reminders.update(reminderId, s.form.toInput())
             _state.update { it.copy(saving = false) }
             onSaved()
         }
