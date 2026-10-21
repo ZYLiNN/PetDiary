@@ -3,6 +3,7 @@ package com.zylinn.petdiary.ui.stats
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zylinn.petdiary.data.pet.PetRepository
+import com.zylinn.petdiary.data.record.FoodKind
 import com.zylinn.petdiary.data.record.RecordRepository
 import com.zylinn.petdiary.domain.RangeKind
 import com.zylinn.petdiary.domain.StatMetric
@@ -31,6 +32,8 @@ data class StatsFilters(
     val customFrom: LocalDate? = null,
     val customTo: LocalDate? = null,
     val metric: StatMetric = StatMetric.FEEDING,
+    /** Feeding: one kind only, or null for all (D76). */
+    val foodKind: FoodKind? = null,
 )
 
 /** A pet shown in the chart; [colorIndex] is its position among all pets so its color never changes when filtering. */
@@ -64,7 +67,7 @@ class StatsViewModel(
             val span = StatsRanges.span(f.kind, f.offset, today, f.customFrom, f.customTo)
             records.observeForStats(shown.map { it.id }, f.metric.types, span.from.toEpochDay(), span.to.toEpochDay()).map { recs ->
                 StatsUi(
-                    StatsCalculator.compute(f.metric, span, shown.map { it.id to it.name }, recs, today),
+                    StatsCalculator.compute(f.metric, span, shown.map { it.id to it.name }, recs, today, f.foodKind),
                     shown,
                     StatsRanges.title(f.kind, span, today),
                 )
@@ -86,6 +89,8 @@ class StatsViewModel(
     fun shift(delta: Int) = _filters.update { it.copy(offset = it.offset + delta) }
 
     fun setMetric(metric: StatMetric) = _filters.update { it.copy(metric = metric) }
+
+    fun setFoodKind(kind: FoodKind?) = _filters.update { it.copy(foodKind = kind) }
 
     /** P5-08: the start can never be after the end; picking a start past the end moves the end along. */
     fun setCustomRange(from: LocalDate, to: LocalDate) = _filters.update {

@@ -61,6 +61,8 @@ import com.zylinn.petdiary.ui.settings.FamilyViewModel
 import com.zylinn.petdiary.ui.settings.SettingsScreen
 import com.zylinn.petdiary.ui.settings.SettingsViewModel
 import com.zylinn.petdiary.ui.settings.SupplementsScreen
+import com.zylinn.petdiary.ui.settings.ToyTexts
+import com.zylinn.petdiary.ui.navigation.Toys
 import com.zylinn.petdiary.ui.settings.SupplementsViewModel
 import com.zylinn.petdiary.ui.stats.StatsScreen
 import com.zylinn.petdiary.ui.stats.StatsViewModel
@@ -153,6 +155,10 @@ fun PetDiaryApp() {
                 val vm = containerViewModel { SupplementsViewModel(it.recordRepository) }
                 SupplementsScreen(vm = vm, onBack = back)
             }
+            entry<Toys> {
+                val vm = containerViewModel { SupplementsViewModel(it.recordRepository.toyOps) }
+                SupplementsScreen(vm = vm, onBack = back, texts = ToyTexts)
+            }
             entry<Settings> {
                 val context = androidx.compose.ui.platform.LocalContext.current
                 val vm = containerViewModel {
@@ -163,6 +169,7 @@ fun PetDiaryApp() {
                     versionName = appVersionName(),
                     onOpenTrash = { navigate(Trash) },
                     onOpenSupplements = { navigate(Supplements) },
+                    onOpenToys = { navigate(Toys) },
                     onOpenAbout = { navigate(About) },
                     onOpenFamily = { navigate(Family) },
                     onBack = back,

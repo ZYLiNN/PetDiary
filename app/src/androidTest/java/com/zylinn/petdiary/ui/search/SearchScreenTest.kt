@@ -7,6 +7,8 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -119,6 +121,7 @@ class SearchScreenTest {
         val worm = add(cat, RecordType.DEWORMING, today, "蚤不到")
         add(cat, RecordType.VACCINE, today, "三合一")
         show()
+        rule.onNodeWithTag("type_filter_row").performScrollToNode(hasTestTag("filter_type_DEWORMING"))
         rule.onNodeWithTag("filter_type_DEWORMING").performClick()
         waitFor("record_$worm")
         rule.onNodeWithTag("search_count").assertTextContains("共 1 筆")

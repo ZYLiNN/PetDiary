@@ -44,6 +44,10 @@ data class ReminderEditor(
 @Serializable
 data object Supplements : NavKey
 
+/** Manage the toy list used by the play form (D77). */
+@Serializable
+data object Toys : NavKey
+
 /** Family group: members, invitations (QR), joining and leaving (P8). */
 @Serializable
 data object Family : NavKey

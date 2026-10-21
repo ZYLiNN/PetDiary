@@ -16,7 +16,7 @@ object CsvExport {
 
     val header = listOf(
         "日期", "時間", "寵物", "類型", "名稱／狀況／項目", "劑量／診斷", "醫院／地點", "費用", "下次日期",
-        "主食份數", "有喝水", "保健食品", "體重(kg)", "散步(分鐘)", "有小便", "有大便", "驅蟲種類", "備註",
+        "食物種類", "份數", "有喝水", "保健食品", "體重(kg)", "散步／玩耍(分鐘)", "玩具", "有小便", "有大便", "驅蟲種類", "備註",
     )
 
     fun cell(value: String): String {
@@ -28,7 +28,8 @@ object CsvExport {
 
     private fun yes(b: Boolean?) = if (b == true) "是" else ""
 
-    fun row(r: Record, petName: String, supplementNames: Map<String, String>): List<String> = listOf(
+    /** [names]: supplement and toy ids → names. */
+    fun row(r: Record, petName: String, names: Map<String, String>): List<String> = listOf(
         LocalDate.ofEpochDay(r.dateEpochDay).toString(),
         RecordFormat.time(r.minuteOfDay),
         petName,
@@ -38,11 +39,13 @@ object CsvExport {
         r.hospital.orEmpty(),
         r.cost?.toString().orEmpty(),
         r.nextEpochDay?.let { LocalDate.ofEpochDay(it).toString() }.orEmpty(),
+        r.effectiveFoodKind?.let { with(RecordFormat) { it.label } }.orEmpty(),
         r.portions?.let(RecordFormat::number).orEmpty(),
         yes(r.drankWater),
-        r.supplementIdList.mapNotNull(supplementNames::get).joinToString("、"),
+        r.supplementIdList.mapNotNull(names::get).joinToString("、"),
         r.weightKg?.let(RecordFormat::number).orEmpty(),
         r.durationMin?.toString().orEmpty(),
+        r.toyIdList.mapNotNull(names::get).joinToString("、"),
         yes(r.peed),
         yes(r.pooped),
         when (r.dewormKind) { DewormKind.INTERNAL -> "內驅"; DewormKind.EXTERNAL -> "外驅"; null -> "" },
@@ -50,8 +53,8 @@ object CsvExport {
     )
 
     /** Oldest first, one line per record; CRLF line endings like Excel writes. */
-    fun build(records: List<Record>, petNames: Map<String, String>, supplementNames: Map<String, String>): String {
+    fun build(records: List<Record>, petNames: Map<String, String>, names: Map<String, String>): String {
         val sorted = records.sortedWith(compareBy({ it.dateEpochDay }, { it.minuteOfDay }, { it.createdAt }))
-        return BOM + (listOf(line(header)) + sorted.map { line(row(it, petNames[it.petId].orEmpty(), supplementNames)) }).joinToString("\r\n") + "\r\n"
+        return BOM + (listOf(line(header)) + sorted.map { line(row(it, petNames[it.petId].orEmpty(), names)) }).joinToString("\r\n") + "\r\n"
     }
 }

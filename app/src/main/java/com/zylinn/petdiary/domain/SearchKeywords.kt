@@ -9,7 +9,8 @@ import com.zylinn.petdiary.data.record.RecordType
 object SearchKeywords {
 
     private val words: Map<RecordType, List<String>> = mapOf(
-        RecordType.FEEDING to listOf("餵食", "吃飯", "飼料", "主食", "罐頭", "喝水", "保健"),
+        RecordType.FEEDING to listOf("餵食", "吃飯", "飼料", "主食", "罐頭", "喝水", "保健", "乾食", "濕食", "乾乾", "零食", "點心", "肉泥"),
+        RecordType.PLAY to listOf("玩耍", "玩具", "陪玩", "逗貓", "玩"),
         RecordType.WALK to listOf("散步", "遛狗", "遛", "運動", "出門"),
         RecordType.MEDICINE to listOf("藥物", "吃藥", "餵藥", "用藥", "點藥", "藥"),
         RecordType.VACCINE to listOf("疫苗", "打針", "預防針"),

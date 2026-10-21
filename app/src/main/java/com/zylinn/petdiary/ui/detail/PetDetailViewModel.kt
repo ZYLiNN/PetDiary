@@ -174,7 +174,7 @@ class PetDetailViewModel(
         .flatMapLatest { day -> records.observeDay(petId, day.toEpochDay()) }
         .flatMapLatest { list ->
             val counts = if (list.isEmpty()) flowOf(emptyList()) else records.observeAttachmentCounts(list.map { it.id })
-            combine(counts, records.supplementNames, authorNames) { c, supps, authors ->
+            combine(counts, records.itemNames, authorNames) { c, supps, authors ->
                 val countMap = c.associate { it.recordId to it.count }
                 val names = supps
                 list.map { r ->
@@ -206,7 +206,7 @@ class PetDetailViewModel(
 
     val quickFeeding: StateFlow<QuickFeeding?> = combine(
         records.observeLatest(petId, RecordType.FEEDING),
-        records.supplementNames,
+        records.itemNames,
     ) { latest, supps ->
         latest?.let { QuickFeeding(it, RecordFormat.summary(it, supps, today())) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -258,6 +258,7 @@ class PetDetailViewModel(
                 portions = source.portions,
                 drankWater = source.drankWater,
                 supplementIds = source.supplementIdList,
+                foodKind = source.effectiveFoodKind,
             )
             justAddedType = input.type
             _justAdded.value = records.addForPets(petIds, input)

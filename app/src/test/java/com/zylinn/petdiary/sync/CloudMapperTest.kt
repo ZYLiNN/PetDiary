@@ -1,5 +1,7 @@
 package com.zylinn.petdiary.sync
 
+import com.zylinn.petdiary.data.record.Toy
+import com.zylinn.petdiary.data.record.FoodKind
 import com.zylinn.petdiary.data.pet.Pet
 import com.zylinn.petdiary.data.pet.Sex
 import com.zylinn.petdiary.data.pet.Species
@@ -46,7 +48,7 @@ class CloudMapperTest {
             id = "r1", petId = "p1", type = RecordType.WALK, dateEpochDay = 20000, minuteOfDay = 480, note = "n", cost = 500,
             portions = 1.5, drankWater = true, supplementIds = "a,b", title = "t", detail = "d", hospital = "h",
             nextEpochDay = 20030, remindNext = true, dewormKind = DewormKind.EXTERNAL, weightKg = 4.25, durationMin = 30,
-            peed = true, pooped = false, createdAt = 1, updatedAt = 2, deletedAt = 3,
+            peed = true, pooped = false, foodKind = FoodKind.MIXED, toyIds = "t1,t2", createdAt = 1, updatedAt = 2, deletedAt = 3,
         )
         assertEquals(r, CloudMapper.record(CloudMapper.record(r)))
     }
@@ -74,6 +76,19 @@ class CloudMapperTest {
         assertEquals(777L, CloudMapper.reminder(doc, notifiedFor = 777)!!.notifiedFor)
     }
 
+    // P12: toys sync like supplements
+    @Test fun toyRoundTrips() {
+        val t = Toy("t1", "逗貓棒", 1, 2, null)
+        assertEquals(t, CloudMapper.toy(CloudMapper.toy(t)))
+        assertNull(CloudMapper.toy(mapOf("id" to "t")))
+    }
+
+    /** A newer phone may send a record type this version doesn't know yet: skip it, never crash (P12). */
+    @Test fun unknownFoodKindIsDroppedButTheRecordKept() {
+        val doc = CloudMapper.record(Record("r", "p", RecordType.FEEDING, 1, 1, portions = 1.0, createdAt = 1, updatedAt = 1)) + ("foodKind" to "CAKE")
+        assertNull(CloudMapper.record(doc)!!.foodKind)
+    }
+
     @Test fun supplementRoundTrips() {
         val s = Supplement("s1", "魚油", 1, 2, 3)
         assertEquals(s, CloudMapper.supplement(CloudMapper.supplement(s)))
@@ -88,7 +103,7 @@ class CloudMapperTest {
     }
 
     @Test fun tableNamesMatchTheSecurityRules() {
-        assertEquals(listOf("pets", "records", "reminders", "supplements"), SyncTable.entries.map { it.path })
+        assertEquals(listOf("pets", "records", "reminders", "supplements", "toys"), SyncTable.entries.map { it.path })
     }
 
     @Test fun recordCarriesItsAuthorAndAttachmentList() {

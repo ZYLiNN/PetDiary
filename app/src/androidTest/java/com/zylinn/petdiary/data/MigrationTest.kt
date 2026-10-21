@@ -174,4 +174,32 @@ class MigrationTest {
             db.close()
         }
     }
+
+    // P12: v9 → v10 adds the toy list and two record columns; old feeding records keep everything and have no kind
+    @Test fun v9RecordsSurviveUpgradeToV10WithToys() {
+        helper.createDatabase(dbName, 9).apply {
+            execSQL(
+                """INSERT INTO records (id, petId, type, dateEpochDay, minuteOfDay, portions, drankWater, supplementIds, remindNext, createdAt, updatedAt)
+                   VALUES ('r1', 'p1', 'FEEDING', 20000, 480, 1.5, 1, 's1', 0, 1, 2)""",
+            )
+            close()
+        }
+        helper.runMigrationsAndValidate(dbName, 10, true)
+
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val db = Room.databaseBuilder(context, PetDiaryDatabase::class.java, dbName).build()
+        try {
+            runBlocking {
+                val r = db.recordDao().getById("r1")!!
+                assertEquals(1.5, r.portions!!, 0.0)
+                assertEquals(null, r.foodKind)
+                assertEquals(com.zylinn.petdiary.data.record.FoodKind.DRY, r.effectiveFoodKind)
+                assertEquals(null, r.toyIds)
+                db.toyDao().insert(com.zylinn.petdiary.data.record.Toy("t1", "逗貓棒", 1, 1))
+                assertEquals(listOf("逗貓棒"), db.toyDao().observeAll().first().map { it.name })
+            }
+        } finally {
+            db.close()
+        }
+    }
 }

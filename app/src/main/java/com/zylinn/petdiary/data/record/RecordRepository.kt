@@ -5,6 +5,7 @@ import com.zylinn.petdiary.data.reminder.Reminder
 import com.zylinn.petdiary.data.reminder.ReminderDao
 import com.zylinn.petdiary.data.reminder.ReminderTypes
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -25,6 +26,8 @@ data class RecordInput(
     val portions: Double? = null,
     val drankWater: Boolean? = null,
     val supplementIds: List<String> = emptyList(),
+    val foodKind: FoodKind? = null,
+    val toyIds: List<String> = emptyList(),
     val title: String? = null,
     val detail: String? = null,
     val hospital: String? = null,
@@ -36,6 +39,16 @@ data class RecordInput(
     val peed: Boolean? = null,
     val pooped: Boolean? = null,
 )
+
+/** Add / rename / delete of a user-managed pick list; supplements and toys share the management screen. */
+interface NameListOps {
+    val active: Flow<List<NamedItem>>
+    suspend fun add(name: String): NamedItem
+    /** false when another item already has this name (or the name is blank). */
+    suspend fun rename(id: String, name: String): Boolean
+    suspend fun delete(id: String)
+    suspend fun restore(id: String)
+}
 
 /** A file already copied into the attachment store, waiting to be linked to a record. */
 data class NewAttachment(val fileName: String, val mimeType: String, val displayName: String, val sizeBytes: Long)
@@ -51,6 +64,8 @@ class RecordRepository(
     private val author: () -> String? = { null },
     /** P4-09: records with a "下次日期" + remind flag keep a linked reminder in sync. */
     private val reminders: ReminderDao? = null,
+    /** The toy list for play records (D77); optional so tests that don't need it can skip it. */
+    private val toys: ToyDao? = null,
 ) {
     fun observeDay(petId: String, day: Long): Flow<List<Record>> = records.observeDay(petId, day)
     fun observeRange(from: Long, to: Long) = records.observeRange(from, to)
@@ -66,14 +81,21 @@ class RecordRepository(
     /** id → name for every supplement ever created, deleted ones included, for showing old records. */
     val supplementNames = supplements.observeAll().map { list -> list.associate { it.id to it.name } }
     val supplementsAll = supplements.observeAll()
+    val toysList: Flow<List<Toy>> = toys?.observeActive() ?: flowOf(emptyList())
+    /** id → name for every toy ever created, deleted ones included. */
+    val toyNames: Flow<Map<String, String>> = (toys?.observeAll() ?: flowOf(emptyList())).map { list -> list.associate { it.id to it.name } }
+    /** Supplement and toy names together (ids are UUIDs, never shared), for record summaries. */
+    val itemNames: Flow<Map<String, String>> = combine(supplementNames, toyNames) { s, t -> s + t }
 
     /** P3 search. Blank queries return nothing so the screen can show a hint instead. */
     fun search(query: SearchQuery): Flow<List<Record>> {
         if (query.isBlank) return flowOf(emptyList())
         return flow {
             val text = query.text.trim()
-            val suppIds = if (text.isEmpty()) emptyList() else supplements.idsMatching(RecordSearch.likePattern(text))
-            emitAll(records.observeSearch(RecordSearch.build(query, suppIds)))
+            val like = RecordSearch.likePattern(text)
+            val suppIds = if (text.isEmpty()) emptyList() else supplements.idsMatching(like)
+            val toyIds = if (text.isEmpty() || toys == null) emptyList() else toys.idsMatching(like)
+            emitAll(records.observeSearch(RecordSearch.build(query, suppIds, toyIds)))
         }
     }
 
@@ -192,6 +214,39 @@ class RecordRepository(
 
     suspend fun restoreSupplement(id: String) = supplements.restore(id, clock.millis())
 
+    val supplementOps: NameListOps = object : NameListOps {
+        override val active: Flow<List<NamedItem>> = supplementsList
+        override suspend fun add(name: String) = addSupplement(name)
+        override suspend fun rename(id: String, name: String) = renameSupplement(id, name)
+        override suspend fun delete(id: String) = deleteSupplement(id)
+        override suspend fun restore(id: String) = restoreSupplement(id)
+    }
+
+    /** Returns the existing toy with this name, or creates it (D77: add from the play form). */
+    suspend fun addToy(name: String): Toy {
+        val dao = checkNotNull(toys) { "no toy list" }
+        val trimmed = name.trim().take(50)
+        require(trimmed.isNotEmpty()) { "name required" }
+        dao.findByName(trimmed)?.let { return it }
+        return clock.millis().let { Toy(newId(), trimmed, it, it) }.also { dao.insert(it) }
+    }
+
+    val toyOps: NameListOps = object : NameListOps {
+        override val active: Flow<List<NamedItem>> = toysList
+        override suspend fun add(name: String) = addToy(name)
+        override suspend fun rename(id: String, name: String): Boolean {
+            val dao = toys ?: return false
+            val trimmed = name.trim().take(50)
+            if (trimmed.isEmpty()) return false
+            val clash = dao.findByName(trimmed)
+            if (clash != null && clash.id != id) return false
+            dao.rename(id, trimmed, clock.millis())
+            return true
+        }
+        override suspend fun delete(id: String) { toys?.softDelete(id, clock.millis()) }
+        override suspend fun restore(id: String) { toys?.restore(id, clock.millis()) }
+    }
+
     /** Rows for the CSV export (P6-03). */
     suspend fun allForExport(): List<Record> = records.allForExport()
 
@@ -206,6 +261,8 @@ class RecordRepository(
         portions = portions,
         drankWater = drankWater,
         supplementIds = supplementIds.takeIf { it.isNotEmpty() }?.joinToString(","),
+        foodKind = foodKind.takeIf { type == RecordType.FEEDING },
+        toyIds = toyIds.takeIf { it.isNotEmpty() && type == RecordType.PLAY }?.joinToString(","),
         title = title?.trim()?.ifEmpty { null },
         detail = detail?.trim()?.ifEmpty { null },
         hospital = hospital?.trim()?.ifEmpty { null },

@@ -1,5 +1,6 @@
 package com.zylinn.petdiary.domain
 
+import com.zylinn.petdiary.data.record.FoodKind
 import com.zylinn.petdiary.data.record.Record
 import com.zylinn.petdiary.data.record.RecordType
 import com.zylinn.petdiary.data.record.RecordableTypes
@@ -13,6 +14,7 @@ import java.time.temporal.TemporalAdjusters
 enum class StatMetric(val label: String, val types: List<RecordType>) {
     FEEDING("餵食", listOf(RecordType.FEEDING)),
     WALK("散步", listOf(RecordType.WALK)),
+    PLAY("玩耍", listOf(RecordType.PLAY)),
     WEIGHT("體重", listOf(RecordType.WEIGHT)),
     COST("費用", RecordableTypes),
     MEDICINE("藥物", listOf(RecordType.MEDICINE)),
@@ -22,11 +24,11 @@ enum class StatMetric(val label: String, val types: List<RecordType>) {
     GROOMING("美容", listOf(RecordType.GROOMING)),
     ABNORMAL("異常狀況", listOf(RecordType.ABNORMAL));
 
-    val isLine get() = this == FEEDING || this == WALK || this == WEIGHT
+    val isLine get() = this == FEEDING || this == WALK || this == PLAY || this == WEIGHT
     val unit: String
         get() = when (this) {
             FEEDING -> "份"
-            WALK -> "分鐘"
+            WALK, PLAY -> "分鐘"
             WEIGHT -> "kg"
             COST -> "NT$"
             else -> "次"
@@ -127,9 +129,14 @@ object StatsCalculator {
         pets: List<Pair<String, String>>, // id to name, in display order
         records: List<Record>,
         today: LocalDate,
+        /** Feeding only: count just this kind (D76); null = every kind, with a per-kind breakdown in the summary. */
+        foodKind: FoodKind? = null,
     ): StatsResult {
         val buckets = StatsRanges.buckets(span)
-        val inRange = records.filter { it.type in metric.types && it.dateEpochDay in span.from.toEpochDay()..span.to.toEpochDay() }
+        val inRange = records.filter {
+            it.type in metric.types && it.dateEpochDay in span.from.toEpochDay()..span.to.toEpochDay() &&
+                (metric != StatMetric.FEEDING || foodKind == null || it.effectiveFoodKind == foodKind)
+        }
         val byPet = inRange.groupBy { it.petId }
         val series = pets.map { (id, name) -> petSeries(metric, id, name, byPet[id].orEmpty(), buckets, span, today) }
         // Cost counts every record type, but only records that actually carry a cost make a chart worth showing.
@@ -147,7 +154,7 @@ object StatsCalculator {
     ): PetSeries {
         val perBucket = buckets.map { b -> recs.filter { bucketIndex(buckets, it.dateEpochDay).let { i -> i >= 0 && buckets[i] == b } } }
         return when (metric) {
-            StatMetric.FEEDING, StatMetric.WALK -> {
+            StatMetric.FEEDING, StatMetric.WALK, StatMetric.PLAY -> {
                 val amount: (Record) -> Double = if (metric == StatMetric.FEEDING) { r -> r.portions ?: 0.0 } else { r -> (r.durationMin ?: 0).toDouble() }
                 // Average per day so week / month / year buckets stay comparable with day buckets.
                 // Days that have not happened yet are gaps, not zeros.
@@ -163,7 +170,14 @@ object StatsCalculator {
                 val water = recs.count { it.drankWater == true }
                 val avg = if (activeDays == 0) 0.0 else total / activeDays
                 val summary = if (recs.isEmpty()) "這段期間沒有紀錄" else when (metric) {
-                    StatMetric.FEEDING -> "有記錄的日子平均每天 ${RecordFormat.number(avg)} 份（共 ${RecordFormat.number(total)} 份）・有喝水 $water 次"
+                    StatMetric.FEEDING -> {
+                        // With every kind shown, also say how much of each (乾食 3 份・零食 1 份).
+                        val kinds = recs.groupBy { it.effectiveFoodKind!! }
+                        val breakdown = if (kinds.size < 2) "" else "（" + FoodKind.entries.filter { it in kinds }
+                            .joinToString("・") { k -> with(RecordFormat) { k.label } + " " + RecordFormat.number(kinds.getValue(k).sumOf(amount)) + " 份" } + "）"
+                        "有記錄的日子平均每天 ${RecordFormat.number(avg)} 份（共 ${RecordFormat.number(total)} 份）$breakdown・有喝水 $water 次"
+                    }
+                    StatMetric.PLAY -> "共 ${recs.size} 次・有記錄的日子平均每天 ${RecordFormat.duration(avg.toInt())}（共 ${RecordFormat.duration(total.toInt())}）"
                     else -> "共 ${recs.size} 次・有記錄的日子平均每天 ${RecordFormat.duration(avg.toInt())}（共 ${RecordFormat.duration(total.toInt())}）" +
                         "・有喝水 $water 次・小便 ${recs.count { it.peed == true }} 次・大便 ${recs.count { it.pooped == true }} 次"
                 }

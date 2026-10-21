@@ -100,7 +100,7 @@ class SettingsViewModel(
                 return@launch
             }
             val petNames = pets.activePets.first().associate { it.id to it.name }
-            val suppNames = records.supplementNames.first()
+            val suppNames = records.itemNames.first()
             val file = withContext(Dispatchers.IO) {
                 exportDir.mkdirs()
                 File(exportDir, "petdiary-${LocalDate.now(clock)}.csv").also { it.writeText(CsvExport.build(all, petNames, suppNames), Charsets.UTF_8) }

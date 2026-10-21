@@ -2,26 +2,30 @@ package com.zylinn.petdiary.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zylinn.petdiary.data.record.NameListOps
+import com.zylinn.petdiary.data.record.NamedItem
 import com.zylinn.petdiary.data.record.RecordRepository
-import com.zylinn.petdiary.data.record.Supplement
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class SupplementsViewModel(private val records: RecordRepository) : ViewModel() {
+/** Manages one user pick list: supplements (feeding) or, with [RecordRepository.toyOps], toys (play, D77). */
+class SupplementsViewModel(private val ops: NameListOps) : ViewModel() {
 
-    val items: StateFlow<List<Supplement>> = records.supplementsList
+    constructor(records: RecordRepository) : this(records.supplementOps)
+
+    val items: StateFlow<List<NamedItem>> = ops.active
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _message = MutableStateFlow<String?>(null)
     /** One-line problem shown under the input ("已經有同名的了"). */
     val message: StateFlow<String?> = _message
 
-    private val _justDeleted = MutableStateFlow<Supplement?>(null)
+    private val _justDeleted = MutableStateFlow<NamedItem?>(null)
     /** For the 5-second "復原" snackbar (same pattern as deleting records). */
-    val justDeleted: StateFlow<Supplement?> = _justDeleted
+    val justDeleted: StateFlow<NamedItem?> = _justDeleted
 
     fun clearMessage() {
         _message.value = null
@@ -31,12 +35,12 @@ class SupplementsViewModel(private val records: RecordRepository) : ViewModel() 
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return
         viewModelScope.launch {
-            // addSupplement returns the existing one when the name is taken.
+            // add() returns the existing one when the name is taken.
             val before = items.value.any { it.name == trimmed }
             if (before) {
                 _message.value = "已經有「$trimmed」了"
             } else {
-                records.addSupplement(trimmed.take(50))
+                ops.add(trimmed.take(50))
                 _message.value = null
                 onAdded()
             }
@@ -45,7 +49,7 @@ class SupplementsViewModel(private val records: RecordRepository) : ViewModel() 
 
     fun rename(id: String, name: String, onDone: () -> Unit) {
         viewModelScope.launch {
-            if (records.renameSupplement(id, name)) {
+            if (ops.rename(id, name)) {
                 _message.value = null
                 onDone()
             } else {
@@ -54,15 +58,15 @@ class SupplementsViewModel(private val records: RecordRepository) : ViewModel() 
         }
     }
 
-    fun delete(item: Supplement) {
+    fun delete(item: NamedItem) {
         viewModelScope.launch {
-            records.deleteSupplement(item.id)
+            ops.delete(item.id)
             _justDeleted.value = item
         }
     }
 
-    fun undo(item: Supplement) {
-        viewModelScope.launch { records.restoreSupplement(item.id) }
+    fun undo(item: NamedItem) {
+        viewModelScope.launch { ops.restore(item.id) }
         _justDeleted.value = null
     }
 

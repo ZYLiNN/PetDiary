@@ -102,7 +102,7 @@ class AccountService(private val context: Context, private val cloud: CloudSync)
             val group = db.collection("groups").document(fam.groupId)
             if (fam.iAmOwner) {
                 // my group: its data, files and the group itself (other members, if any, fall back to their own private group)
-                for (t in listOf("pets", "records", "reminders", "supplements", "invites", "members")) deleteCollection(group.collection(t))
+                for (t in listOf("pets", "records", "reminders", "supplements", "toys", "invites", "members")) deleteCollection(group.collection(t))
                 val files = FirebaseStorage.getInstance().reference.child("groups").child(fam.groupId).child("files").listAll().await()
                 files.items.forEach { it.delete().await() }
                 group.delete().await()

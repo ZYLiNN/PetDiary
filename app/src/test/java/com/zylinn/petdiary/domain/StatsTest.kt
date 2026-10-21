@@ -1,5 +1,6 @@
 package com.zylinn.petdiary.domain
 
+import com.zylinn.petdiary.data.record.FoodKind
 import com.zylinn.petdiary.data.record.Record
 import com.zylinn.petdiary.data.record.RecordType
 import org.junit.Assert.assertEquals
@@ -206,5 +207,36 @@ class StatsTest {
         assertEquals(1.0, v[1]!!, 0.0)
         assertNull(v[2]) // Tuesday 10/20 hasn't happened
         assertNull(v[6])
+    }
+
+    // P12-03 (D76): feeding can be narrowed to one kind; "all" adds a per-kind breakdown; old records count as dry
+    @Test fun feedingByKind() {
+        val recs = listOf(
+            rec("cat", RecordType.FEEDING, "2026-10-19") { copy(portions = 2.0) }, // before P12: dry
+            rec("cat", RecordType.FEEDING, "2026-10-19") { copy(portions = 1.0, foodKind = FoodKind.WET) },
+            rec("cat", RecordType.FEEDING, "2026-10-19") { copy(portions = 0.5, foodKind = FoodKind.SNACK) },
+        )
+        val span = StatsRanges.span(RangeKind.WEEK, 0, today)
+        val all = StatsCalculator.compute(StatMetric.FEEDING, span, pets, recs, today)
+        assertEquals(3.5, all.series[0].total, 0.0)
+        assertTrue(all.series[0].summary, all.series[0].summary.contains("（乾食 2 份・濕食 1 份・零食 0.5 份）"))
+        val snack = StatsCalculator.compute(StatMetric.FEEDING, span, pets, recs, today, FoodKind.SNACK)
+        assertEquals(0.5, snack.series[0].total, 0.0)
+        assertFalse(snack.series[0].summary.contains("乾食"))
+        assertEquals(2.0, StatsCalculator.compute(StatMetric.FEEDING, span, pets, recs, today, FoodKind.DRY).series[0].total, 0.0)
+        assertFalse(StatsCalculator.compute(StatMetric.FEEDING, span, pets, recs, today, FoodKind.MIXED).hasData)
+    }
+
+    // P12-03 (D77): play minutes like walks
+    @Test fun playMinutes() {
+        val r = computeAtWeekEnd(StatMetric.PLAY,
+            rec("cat", RecordType.PLAY, "2026-10-19") { copy(durationMin = 10) },
+            rec("cat", RecordType.PLAY, "2026-10-19") { copy(durationMin = 20) },
+            rec("dog", RecordType.WALK, "2026-10-19") { copy(durationMin = 60) })
+        assertEquals(30.0, r.series[0].total, 0.0)
+        assertEquals(0.0, r.series[1].total, 0.0)
+        assertEquals("分鐘", StatMetric.PLAY.unit)
+        assertTrue(StatMetric.PLAY.isLine)
+        assertTrue(r.series[0].summary, r.series[0].summary.startsWith("共 2 次"))
     }
 }

@@ -50,20 +50,37 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.zylinn.petdiary.data.record.Supplement
+import com.zylinn.petdiary.data.record.NamedItem
 import com.zylinn.petdiary.ui.pets.UNDO_WINDOW_MS
 import kotlinx.coroutines.withTimeoutOrNull
 
-/** P6-02: add, rename and delete the supplements offered in the feeding form. */
+/** Wording of one pick-list screen. */
+data class NameListTexts(val title: String, val explain: String, val addLabel: String, val empty: String)
+
+val SupplementTexts = NameListTexts(
+    title = "保健食品清單",
+    explain = "這些會出現在「餵食」紀錄的保健食品選項裡。刪除後，舊紀錄仍然會顯示當時的名稱。",
+    addLabel = "新增保健食品",
+    empty = "還沒有保健食品。在上面輸入名稱新增，或在餵食紀錄裡直接新增也可以。",
+)
+
+val ToyTexts = NameListTexts(
+    title = "玩具清單",
+    explain = "這些會出現在「玩耍」紀錄的玩具選項裡。刪除後，舊紀錄仍然會顯示當時的名稱。",
+    addLabel = "新增玩具",
+    empty = "還沒有玩具。在上面輸入名稱新增（例如：逗貓棒），或在玩耍紀錄裡直接新增也可以。",
+)
+
+/** P6-02 / D77: add, rename and delete the supplements (feeding) or toys (play) offered in the record forms. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SupplementsScreen(vm: SupplementsViewModel, onBack: () -> Unit) {
+fun SupplementsScreen(vm: SupplementsViewModel, onBack: () -> Unit, texts: NameListTexts = SupplementTexts) {
     val items by vm.items.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
     val justDeleted by vm.justDeleted.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     var newName by rememberSaveable { mutableStateOf("") }
-    var renaming by remember { mutableStateOf<Supplement?>(null) }
+    var renaming by remember { mutableStateOf<NamedItem?>(null) }
     var renameText by rememberSaveable { mutableStateOf("") }
     BackHandler(onBack = onBack)
 
@@ -101,7 +118,7 @@ fun SupplementsScreen(vm: SupplementsViewModel, onBack: () -> Unit) {
         topBar = {
             TopAppBar(
                 navigationIcon = { IconButton(onClick = onBack, modifier = Modifier.testTag("back_button")) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回") } },
-                title = { Text("保健食品清單") },
+                title = { Text(texts.title) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
         },
@@ -113,7 +130,7 @@ fun SupplementsScreen(vm: SupplementsViewModel, onBack: () -> Unit) {
                 item {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
-                            "這些會出現在「餵食」紀錄的保健食品選項裡。刪除後，舊紀錄仍然會顯示當時的名稱。",
+                            texts.explain,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -121,7 +138,7 @@ fun SupplementsScreen(vm: SupplementsViewModel, onBack: () -> Unit) {
                             OutlinedTextField(
                                 value = newName,
                                 onValueChange = { if (it.length <= 50) { newName = it; vm.clearMessage() } },
-                                label = { Text("新增保健食品") },
+                                label = { Text(texts.addLabel) },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                                 keyboardActions = KeyboardActions(onDone = { vm.add(newName) { newName = "" } }),
@@ -139,7 +156,7 @@ fun SupplementsScreen(vm: SupplementsViewModel, onBack: () -> Unit) {
                 if (items.isEmpty()) {
                     item {
                         Text(
-                            "還沒有保健食品。在上面輸入名稱新增，或在餵食紀錄裡直接新增也可以。",
+                            texts.empty,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).testTag("supp_empty"),

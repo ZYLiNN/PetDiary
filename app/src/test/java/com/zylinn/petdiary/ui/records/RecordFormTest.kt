@@ -1,5 +1,6 @@
 package com.zylinn.petdiary.ui.records
 
+import com.zylinn.petdiary.data.record.FoodKind
 import com.zylinn.petdiary.data.record.DewormKind
 import com.zylinn.petdiary.data.record.Record
 import com.zylinn.petdiary.data.record.RecordType
@@ -40,12 +41,12 @@ class RecordFormTest {
     // P2-06
     @Test fun feedingNeedsSomething() {
         val f = form(RecordType.FEEDING)
-        assertEquals("請填主食份數，或勾選喝水 / 保健食品", f.problem(today))
+        assertEquals("請填份數，或勾選喝水 / 保健食品", f.problem(today))
         assertNull(f.copy(portions = "1.5").problem(today))
         assertNull(f.copy(drankWater = true).problem(today))
         assertNull(f.copy(supplementIds = setOf("s1")).problem(today))
-        assertEquals("主食份數請填 0～99 之間的數字", f.copy(portions = "abc").problem(today))
-        assertEquals("主食份數請填 0～99 之間的數字", f.copy(portions = "0").problem(today))
+        assertEquals("份數請填 0～99 之間的數字", f.copy(portions = "abc").problem(today))
+        assertEquals("份數請填 0～99 之間的數字", f.copy(portions = "0").problem(today))
     }
 
     @Test fun feedingToInput() {
@@ -119,5 +120,26 @@ class RecordFormTest {
         assertEquals(setOf("洗澡", "剪指甲"), f.groomingItems)
         assertEquals("800", f.cost)
         assertEquals("洗澡、剪指甲", f.toInput(today).title)
+    }
+
+    // P12-01 (D76): feeding has one of four kinds, dry by default; old records without a kind load as dry
+    @Test fun feedingKindIsSavedAndOldRecordsAreDry() {
+        assertEquals(FoodKind.DRY, form(RecordType.FEEDING).foodKind)
+        val snack = form(RecordType.FEEDING).copy(foodKind = FoodKind.SNACK, portions = "1")
+        assertEquals(FoodKind.SNACK, snack.toInput(today).foodKind)
+        val old = com.zylinn.petdiary.data.record.Record("r", "p", RecordType.FEEDING, today.toEpochDay(), 480, portions = 1.0, createdAt = 0, updatedAt = 0)
+        assertEquals(FoodKind.DRY, RecordForm.from(old).foodKind)
+    }
+
+    // P12-02 (D77): play needs minutes; toys are optional and multi-select
+    @Test fun playNeedsMinutesAndKeepsToys() {
+        val f = form(RecordType.PLAY)
+        assertEquals("請填玩耍時間（1～600 分鐘）", f.problem(today))
+        assertEquals("請填玩耍時間（1～600 分鐘）", f.copy(durationMin = "0").problem(today))
+        val ok = f.copy(durationMin = "15", toyIds = setOf("t1", "t2"))
+        val input = ok.toInput(today)
+        assertEquals(15, input.durationMin)
+        assertEquals(setOf("t1", "t2"), input.toyIds.toSet())
+        assertEquals(listOf(10, 15, 30), PlayPresets)
     }
 }

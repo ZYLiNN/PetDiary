@@ -61,6 +61,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zylinn.petdiary.data.record.DewormKind
+import com.zylinn.petdiary.data.record.FoodKind
+import com.zylinn.petdiary.data.record.NamedItem
 import com.zylinn.petdiary.data.record.RecordType
 import com.zylinn.petdiary.data.record.Supplement
 import com.zylinn.petdiary.data.record.allowsAttachments
@@ -76,6 +78,7 @@ import java.time.ZoneOffset
 fun RecordEditorScreen(vm: RecordEditorViewModel, onDone: () -> Unit) {
     val state by vm.state.collectAsStateWithLifecycle()
     val supplements by vm.supplements.collectAsStateWithLifecycle()
+    val toys by vm.toys.collectAsStateWithLifecycle()
     var confirmDiscard by rememberSaveable { mutableStateOf(false) }
     val cancel = { if (state.dirty) confirmDiscard = true else onDone() }
     val discardAndLeave = { vm.discard(); onDone() }
@@ -143,6 +146,7 @@ fun RecordEditorScreen(vm: RecordEditorViewModel, onDone: () -> Unit) {
                 when {
                     form.type == RecordType.FEEDING -> FeedingFields(form, supplements, vm::edit, vm::addSupplement)
                     form.type == RecordType.WALK -> WalkFields(form, vm::edit)
+                    form.type == RecordType.PLAY -> PlayFields(form, toys, vm::edit, vm::addToy)
                     form.type == RecordType.WEIGHT -> WeightField(form, vm::edit)
                     form.type == RecordType.GROOMING -> GroomingFields(form, vm::edit)
                     form.type == RecordType.ABNORMAL -> TextInput(form.title, "狀況 *（例如：嘔吐、拉肚子）", "field_title") { v -> vm.edit { it.copy(title = v) } }
@@ -243,59 +247,124 @@ fun DateDialog(
 @Composable
 private fun FeedingFields(
     form: RecordForm,
-    supplements: List<Supplement>,
+    supplements: List<NamedItem>,
     onEdit: ((RecordForm) -> RecordForm) -> Unit,
     onAddSupplement: (String) -> Unit,
 ) {
-    var adding by rememberSaveable { mutableStateOf(false) }
-    var newName by rememberSaveable { mutableStateOf("") }
+    // D76: one of four kinds, all counted in 份 (old records count as 乾食).
+    Text("種類", style = MaterialTheme.typography.titleSmall)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FoodKind.entries.forEach { k ->
+            FilterChip(
+                selected = form.foodKind == k,
+                onClick = { onEdit { it.copy(foodKind = k) } },
+                label = { Text(with(RecordFormat) { k.label }) },
+                modifier = Modifier.testTag("food_${k.name}"),
+            )
+        }
+    }
     OutlinedTextField(
         value = form.portions,
         onValueChange = { v -> onEdit { it.copy(portions = v.filter { c -> c.isDigit() || c == '.' }.take(5)) } },
-        label = { Text("主食份數") },
+        label = { Text("份數") },
         suffix = { Text("份") },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
         modifier = Modifier.fillMaxWidth().testTag("field_portions"),
     )
     CheckRow("有喝水", form.drankWater, "field_water") { c -> onEdit { it.copy(drankWater = c) } }
-    Text("保健食品", style = MaterialTheme.typography.titleSmall)
+    PickList(
+        title = "保健食品", tag = "supp", items = supplements, selected = form.supplementIds,
+        onToggle = { id -> onEdit { f -> f.copy(supplementIds = if (id in f.supplementIds) f.supplementIds - id else f.supplementIds + id) } },
+        addTitle = "新增保健食品", placeholder = "例如：魚油", onAdd = onAddSupplement,
+    )
+}
+
+/** Play (D77): minutes with one-tap presets, and any number of toys from the user's own list. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PlayFields(
+    form: RecordForm,
+    toys: List<NamedItem>,
+    onEdit: ((RecordForm) -> RecordForm) -> Unit,
+    onAddToy: (String) -> Unit,
+) {
+    OutlinedTextField(
+        value = form.durationMin,
+        onValueChange = { v -> onEdit { it.copy(durationMin = v.filter(Char::isDigit).take(3)) } },
+        label = { Text("玩耍時間 *") },
+        suffix = { Text("分鐘") },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        modifier = Modifier.fillMaxWidth().testTag("field_duration"),
+    )
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        supplements.forEach { s ->
+        PlayPresets.forEach { m ->
             FilterChip(
-                selected = s.id in form.supplementIds,
-                onClick = {
-                    onEdit { f -> f.copy(supplementIds = if (s.id in f.supplementIds) f.supplementIds - s.id else f.supplementIds + s.id) }
-                },
+                selected = form.durationMin == m.toString(),
+                onClick = { onEdit { it.copy(durationMin = m.toString()) } },
+                label = { Text("$m 分鐘") },
+                modifier = Modifier.testTag("duration_$m"),
+            )
+        }
+    }
+    PickList(
+        title = "玩具", tag = "toy", items = toys, selected = form.toyIds,
+        onToggle = { id -> onEdit { f -> f.copy(toyIds = if (id in f.toyIds) f.toyIds - id else f.toyIds + id) } },
+        addTitle = "新增玩具", placeholder = "例如：逗貓棒", onAdd = onAddToy,
+    )
+}
+
+/** Multi-select chips from a user-managed list, with "新增" to create (and select) a new name on the spot. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PickList(
+    title: String,
+    tag: String,
+    items: List<NamedItem>,
+    selected: Set<String>,
+    onToggle: (String) -> Unit,
+    addTitle: String,
+    placeholder: String,
+    onAdd: (String) -> Unit,
+) {
+    var adding by rememberSaveable { mutableStateOf(false) }
+    var newName by rememberSaveable { mutableStateOf("") }
+    Text(title, style = MaterialTheme.typography.titleSmall)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        items.forEach { s ->
+            FilterChip(
+                selected = s.id in selected,
+                onClick = { onToggle(s.id) },
                 label = { Text(s.name) },
-                modifier = Modifier.testTag("supp_${s.name}"),
+                modifier = Modifier.testTag("${tag}_${s.name}"),
             )
         }
         AssistChip(
             onClick = { adding = true },
             label = { Text("新增") },
             leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp)) },
-            modifier = Modifier.testTag("supp_add"),
+            modifier = Modifier.testTag("${tag}_add"),
         )
     }
     if (adding) {
         AlertDialog(
             onDismissRequest = { adding = false },
-            title = { Text("新增保健食品") },
+            title = { Text(addTitle) },
             text = {
                 OutlinedTextField(
                     value = newName,
                     onValueChange = { newName = it.take(TEXT_MAX) },
                     singleLine = true,
-                    placeholder = { Text("例如：魚油") },
-                    modifier = Modifier.testTag("supp_new_name"),
+                    placeholder = { Text(placeholder) },
+                    modifier = Modifier.testTag("${tag}_new_name"),
                 )
             },
             confirmButton = {
                 TextButton(
-                    onClick = { onAddSupplement(newName); newName = ""; adding = false },
+                    onClick = { onAdd(newName); newName = ""; adding = false },
                     enabled = newName.isNotBlank(),
-                    modifier = Modifier.testTag("supp_new_confirm"),
+                    modifier = Modifier.testTag("${tag}_new_confirm"),
                 ) { Text("新增") }
             },
             dismissButton = { TextButton(onClick = { adding = false }) { Text("取消") } },

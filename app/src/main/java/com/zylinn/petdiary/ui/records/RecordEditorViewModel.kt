@@ -9,6 +9,8 @@ import com.zylinn.petdiary.data.photo.FileStore
 import com.zylinn.petdiary.data.record.Attachment
 import com.zylinn.petdiary.data.record.NewAttachment
 import com.zylinn.petdiary.data.record.RecordRepository
+import com.zylinn.petdiary.data.record.MAX_ATTACHMENTS
+import com.zylinn.petdiary.data.record.NamedItem
 import com.zylinn.petdiary.data.record.RecordType
 import com.zylinn.petdiary.data.record.Supplement
 import com.zylinn.petdiary.data.record.allowsAttachments
@@ -79,6 +81,9 @@ class RecordEditorViewModel(
     val supplements: StateFlow<List<Supplement>> =
         records.supplementsList.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    val toys: StateFlow<List<NamedItem>> =
+        records.toysList.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     init {
         viewModelScope.launch {
             val names = petIds.mapNotNull { pets.get(it)?.name }.joinToString("、")
@@ -108,6 +113,15 @@ class RecordEditorViewModel(
         }
     }
 
+    /** D77: create a toy right from the play form and select it. */
+    fun addToy(name: String) {
+        if (name.isBlank()) return
+        viewModelScope.launch {
+            val t = records.addToy(name.take(TEXT_MAX))
+            edit { it.copy(toyIds = it.toyIds + t.id) }
+        }
+    }
+
     /** Saved attachments not removed, followed by ones picked in this session. */
     fun attachmentItems(state: RecordEditorState): List<AttachmentItem> =
         state.existing.filter { it.id !in state.removedIds }.map {
@@ -122,6 +136,11 @@ class RecordEditorViewModel(
         viewModelScope.launch {
             var error: String? = null
             uris.forEach { uri ->
+                // D78: at most MAX_ATTACHMENTS per record; the rest of a multi-pick is left out.
+                if (attachmentItems(_state.value).size >= MAX_ATTACHMENTS) {
+                    error = "每筆紀錄最多 $MAX_ATTACHMENTS 個附件"
+                    return@forEach
+                }
                 when (val r = importer.import(uri)) {
                     is AttachmentImporter.Result.Ok -> _state.update { it.copy(added = it.added + r.attachment) }
                     AttachmentImporter.Result.TooLarge -> error = "檔案超過 10MB，無法加入"

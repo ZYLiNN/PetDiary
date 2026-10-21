@@ -115,7 +115,7 @@ class AddRecordPanelTest {
         records.addForPets(listOf(cat), RecordInput(RecordType.FEEDING, today.minusDays(1).toEpochDay(), 8 * 60, portions = 1.5, drankWater = true, note = "乾乾"))
         show()
         openPanel()
-        rule.onNodeWithText("餵食・同上次（主食 1.5 份・有喝水）").assertIsDisplayed()
+        rule.onNodeWithText("餵食・同上次（乾食 1.5 份・有喝水）").assertIsDisplayed()
         rule.onNodeWithTag("pick_pet_$dog").performClick()
         rule.onNodeWithTag("quick_feeding_save").performClick()
         rule.waitUntil(5_000) { runCatching { rule.onNodeWithText("已記錄餵食").assertExists() }.isSuccess }

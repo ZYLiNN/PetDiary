@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -238,6 +239,24 @@ class SyncEngineTest {
         engine(dbA).pushPending()
         engine(dbB).apply(SyncTable.SUPPLEMENTS, cloud.docs.getValue(SyncTable.SUPPLEMENTS).values.toList())
         assertEquals("魚油", dbB.supplementDao().getById("s1")!!.name)
+    }
+
+    // P12: toys and the new record fields sync too
+    @Test fun toysAndPlayRecordsSync() = runBlocking {
+        dbA.syncDao().upsertToy(com.zylinn.petdiary.data.record.Toy("t1", "逗貓棒", 1, now))
+        dbA.syncDao().upsertRecord(record().copy(type = com.zylinn.petdiary.data.record.RecordType.PLAY, durationMin = 15, toyIds = "t1"))
+        engine(dbA).pushPending()
+        engine(dbB).apply(SyncTable.TOYS, cloud.docs.getValue(SyncTable.TOYS).values.toList())
+        engine(dbB).apply(SyncTable.RECORDS, cloud.docs.getValue(SyncTable.RECORDS).values.toList())
+        assertEquals(listOf("逗貓棒"), dbB.toyDao().observeAll().first().map { it.name })
+        assertEquals("t1", dbB.recordDao().getById("r1")!!.toyIds)
+    }
+
+    /** What an older app does with a record type it doesn't know: skip it (the new phone keeps it). */
+    @Test fun unknownRecordTypeFromANewerPhoneIsSkipped() = runBlocking {
+        val doc = CloudMapper.record(record()) + mapOf("type" to "SWIM", SERVER_AT to 5L)
+        engine(dbB).apply(SyncTable.RECORDS, listOf(doc))
+        assertNull(dbB.recordDao().getById("r1"))
     }
 
     @Test fun expiredTrashIsPurgedFromTheCloudAtStart() = runBlocking {

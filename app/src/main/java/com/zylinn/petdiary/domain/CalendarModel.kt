@@ -45,7 +45,7 @@ object CalendarModel {
             CalendarItem(
                 id = r.id, petId = r.petId, day = LocalDate.ofEpochDay(r.dateEpochDay), minuteOfDay = r.minuteOfDay, isReminder = false,
                 type = r.type, label = r.type.label, detail = RecordFormat.summary(r, supplementNames, today),
-                daily = r.type == RecordType.FEEDING || r.type == RecordType.WALK,
+                daily = r.type == RecordType.FEEDING || r.type == RecordType.WALK || r.type == RecordType.PLAY,
             )
         }
         val fromReminders = reminders.filter { it.deletedAt == null && it.completedAt == null }.map { r ->

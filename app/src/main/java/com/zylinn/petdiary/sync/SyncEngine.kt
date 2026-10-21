@@ -76,6 +76,7 @@ class SyncEngine(
         push(SyncTable.RECORDS, dirtyRecords.map { Triple(it.id, it.updatedAt, CloudMapper.record(it, attachments[it.id].orEmpty())) })
         push(SyncTable.REMINDERS, dao.dirtyReminders().map { Triple(it.id, it.updatedAt, CloudMapper.reminder(it)) })
         push(SyncTable.SUPPLEMENTS, dao.dirtySupplements().map { Triple(it.id, it.updatedAt, CloudMapper.supplement(it)) })
+        push(SyncTable.TOYS, dao.dirtyToys().map { Triple(it.id, it.updatedAt, CloudMapper.toy(it)) })
     }
 
     private suspend fun push(table: SyncTable, rows: List<Triple<String, Long, CloudDoc>>) {
@@ -106,6 +107,7 @@ class SyncEngine(
                 SyncTable.RECORDS -> dao.recordUpdatedAt(id)
                 SyncTable.REMINDERS -> dao.reminderUpdatedAt(id)
                 SyncTable.SUPPLEMENTS -> dao.supplementUpdatedAt(id)
+                SyncTable.TOYS -> dao.toyUpdatedAt(id)
             }
             if (localStamp == null) {
                 // A long-trashed copy we no longer have must not come back to life.
@@ -132,6 +134,7 @@ class SyncEngine(
                 }
                 SyncTable.REMINDERS -> CloudMapper.reminder(d, dao.reminderNotifiedFor(id))?.also { dao.upsertReminder(it) }
                 SyncTable.SUPPLEMENTS -> CloudMapper.supplement(d)?.also { dao.upsertSupplement(it) }
+                SyncTable.TOYS -> CloudMapper.toy(d)?.also { dao.upsertToy(it) }
             }
             if (stored != null) {
                 dao.upsertMeta(SyncMeta(table.path, id, remoteStamp, serverAt))

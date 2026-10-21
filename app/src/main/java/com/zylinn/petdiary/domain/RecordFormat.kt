@@ -1,6 +1,7 @@
 package com.zylinn.petdiary.domain
 
 import com.zylinn.petdiary.data.record.DewormKind
+import com.zylinn.petdiary.data.record.FoodKind
 import com.zylinn.petdiary.data.record.Record
 import com.zylinn.petdiary.data.record.RecordType
 import java.text.DecimalFormat
@@ -15,6 +16,7 @@ object RecordFormat {
         get() = when (this) {
             RecordType.FEEDING -> "餵食"
             RecordType.WALK -> "散步"
+            RecordType.PLAY -> "玩耍"
             RecordType.MEDICINE -> "藥物"
             RecordType.VACCINE -> "疫苗"
             RecordType.DEWORMING -> "驅蟲"
@@ -23,6 +25,14 @@ object RecordFormat {
             RecordType.GROOMING -> "美容"
             RecordType.ABNORMAL -> "異常狀況"
             RecordType.CUSTOM -> "自訂"
+        }
+
+    val FoodKind.label: String
+        get() = when (this) {
+            FoodKind.DRY -> "乾食"
+            FoodKind.WET -> "濕食"
+            FoodKind.MIXED -> "乾濕都有"
+            FoodKind.SNACK -> "零食"
         }
 
     val DewormKind.label: String
@@ -83,14 +93,15 @@ object RecordFormat {
     /** Last-record chip: "驅蟲 45 天前" */
     fun lastChip(type: RecordType, lastDay: LocalDate, today: LocalDate) = "${type.label} ${daysAgo(lastDay, today)}"
 
-    /** One-line card summary; the note is shown separately on the card. */
-    fun summary(record: Record, supplementNames: Map<String, String>, today: LocalDate): String {
+    /** One-line card summary; the note is shown separately on the card. [names]: supplement and toy ids → names. */
+    fun summary(record: Record, names: Map<String, String>, today: LocalDate): String {
         val parts = mutableListOf<String>()
         when (record.type) {
             RecordType.FEEDING -> {
-                record.portions?.let { parts += "主食 ${number(it)} 份" }
+                val kind = record.effectiveFoodKind!!.label
+                parts += record.portions?.let { "$kind ${number(it)} 份" } ?: kind
                 if (record.drankWater == true) parts += "有喝水"
-                val supps = record.supplementIdList.mapNotNull(supplementNames::get)
+                val supps = record.supplementIdList.mapNotNull(names::get)
                 if (supps.isNotEmpty()) parts += "保健：${supps.joinToString("、")}"
             }
             RecordType.WALK -> {
@@ -98,6 +109,11 @@ object RecordFormat {
                 if (record.drankWater == true) parts += "有喝水"
                 if (record.peed == true) parts += "小便"
                 if (record.pooped == true) parts += "大便"
+            }
+            RecordType.PLAY -> {
+                record.durationMin?.let { parts += duration(it) }
+                val toys = record.toyIdList.mapNotNull(names::get)
+                if (toys.isNotEmpty()) parts += toys.joinToString("、")
             }
             RecordType.WEIGHT -> record.weightKg?.let { parts += "${number(it)} kg" }
             RecordType.DEWORMING -> {

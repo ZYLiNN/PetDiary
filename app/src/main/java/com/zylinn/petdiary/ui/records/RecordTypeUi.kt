@@ -8,6 +8,7 @@ import androidx.compose.material.icons.outlined.MonitorWeight
 import androidx.compose.material.icons.outlined.PestControl
 import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.outlined.StarBorder
+import androidx.compose.material.icons.outlined.Toys
 import androidx.compose.material.icons.outlined.Vaccines
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.runtime.Composable
@@ -22,6 +23,7 @@ val RecordType.icon: ImageVector
     get() = when (this) {
         RecordType.FEEDING -> Icons.Outlined.Restaurant
         RecordType.WALK -> DogWalkIcon
+        RecordType.PLAY -> Icons.Outlined.Toys
         RecordType.MEDICINE -> Icons.Outlined.Medication
         RecordType.VACCINE -> Icons.Outlined.Vaccines
         RecordType.DEWORMING -> Icons.Outlined.PestControl
@@ -40,6 +42,7 @@ val RecordType.color: Color
         return when (this) {
             RecordType.FEEDING -> p.feeding
             RecordType.WALK -> p.walk
+            RecordType.PLAY -> p.play
             RecordType.MEDICINE -> p.medicine
             RecordType.VACCINE -> p.vaccine
             RecordType.DEWORMING -> p.deworming

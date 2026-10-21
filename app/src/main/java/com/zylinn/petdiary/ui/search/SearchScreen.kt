@@ -182,7 +182,7 @@ private fun Filters(filters: SearchFilters, pets: List<PetChoice>, vm: SearchVie
                 }
             }
         }
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.testTag("type_filter_row")) {
             items(RecordableTypes) { type ->
                 FilterChip(
                     selected = type in filters.types,

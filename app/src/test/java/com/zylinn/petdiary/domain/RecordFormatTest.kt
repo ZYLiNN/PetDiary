@@ -1,5 +1,6 @@
 package com.zylinn.petdiary.domain
 
+import com.zylinn.petdiary.data.record.FoodKind
 import com.zylinn.petdiary.data.record.DewormKind
 import com.zylinn.petdiary.data.record.Record
 import com.zylinn.petdiary.data.record.RecordType
@@ -71,7 +72,7 @@ class RecordFormatTest {
 
     @Test fun feedingSummary() {
         val r = record(RecordType.FEEDING).copy(portions = 1.5, drankWater = true, supplementIds = "s1,s2,gone")
-        assertEquals("主食 1.5 份・有喝水・保健：魚油、益生菌", RecordFormat.summary(r, mapOf("s1" to "魚油", "s2" to "益生菌"), today))
+        assertEquals("乾食 1.5 份・有喝水・保健：魚油、益生菌", RecordFormat.summary(r, mapOf("s1" to "魚油", "s2" to "益生菌"), today))
     }
 
     @Test fun medicineSummary() {
@@ -101,4 +102,18 @@ class RecordFormatTest {
 
     @Test fun emptyRecordHasEmptySummary() =
         assertEquals("", RecordFormat.summary(record(RecordType.ABNORMAL), emptyMap(), today))
+
+    // D76
+    @Test fun feedingSummaryNamesTheKind() {
+        assertEquals("零食 2 份", RecordFormat.summary(record(RecordType.FEEDING).copy(portions = 2.0, foodKind = FoodKind.SNACK), emptyMap(), today))
+        assertEquals("濕食・有喝水", RecordFormat.summary(record(RecordType.FEEDING).copy(foodKind = FoodKind.WET, drankWater = true), emptyMap(), today))
+        assertEquals("乾濕都有", with(RecordFormat) { FoodKind.MIXED.label })
+    }
+
+    // D77
+    @Test fun playSummaryHasMinutesAndToys() {
+        val r = record(RecordType.PLAY).copy(durationMin = 15, toyIds = "t1,gone,t2")
+        assertEquals("15 分鐘・逗貓棒、雷射筆", RecordFormat.summary(r, mapOf("t1" to "逗貓棒", "t2" to "雷射筆"), today))
+        assertEquals("玩耍", with(RecordFormat) { RecordType.PLAY.label })
+    }
 }

@@ -52,7 +52,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zylinn.petdiary.ui.common.SettingsAction
 import com.zylinn.petdiary.domain.RangeKind
+import com.zylinn.petdiary.domain.RecordFormat
 import com.zylinn.petdiary.domain.StatMetric
+import com.zylinn.petdiary.data.record.FoodKind
 import com.zylinn.petdiary.ui.records.DateDialog
 import com.zylinn.petdiary.ui.records.color
 import com.zylinn.petdiary.ui.records.icon
@@ -159,6 +161,19 @@ fun StatsScreen(vm: StatsViewModel, onOpenSettings: () -> Unit = {}) {
                             },
                             modifier = Modifier.testTag("metric_${m.name}"),
                         )
+                    }
+                }
+                // D76: feeding can be narrowed to one kind of food
+                if (filters.metric == StatMetric.FEEDING) {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.testTag("food_row")) {
+                        items(listOf<FoodKind?>(null) + FoodKind.entries) { k ->
+                            FilterChip(
+                                selected = filters.foodKind == k,
+                                onClick = { vm.setFoodKind(k) },
+                                label = { Text(k?.let { with(RecordFormat) { it.label } } ?: "全部") },
+                                modifier = Modifier.testTag("stats_food_${k?.name ?: "ALL"}"),
+                            )
+                        }
                     }
                 }
 

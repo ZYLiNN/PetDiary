@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -62,7 +63,7 @@ class RecordEditorScreenTest {
     @Before fun setUp() = runBlocking {
         db = Room.inMemoryDatabaseBuilder(context, PetDiaryDatabase::class.java).build()
         files = FileStore(File(context.cacheDir, "editor-rec").apply { deleteRecursively(); mkdirs() })
-        records = RecordRepository(db.recordDao(), db.attachmentDao(), db.supplementDao(), files, clock)
+        records = RecordRepository(db.recordDao(), db.attachmentDao(), db.supplementDao(), files, clock, toys = db.toyDao())
         pets = PetRepository(db.petDao(), clock)
         cat = pets.add(PetInput(name = "雷米", species = Species.CAT, birthEpochDay = 1)).id
         dog = pets.add(PetInput(name = "雷利", species = Species.DOG, birthEpochDay = 1)).id
@@ -127,6 +128,46 @@ class RecordEditorScreenTest {
         assertEquals(true, r.drankWater)
         val suppId = runBlocking { records.supplementsList.first() }.single { it.name == "魚油" }.id
         assertEquals(listOf(suppId), r.supplementIdList)
+    }
+
+    // P12-01 (D76): dry by default, pick another kind; snack alone is fine
+    @Test fun feedingKindDefaultsToDryAndSnackSaves() {
+        open(RecordType.FEEDING)
+        rule.onNodeWithTag("food_DRY").assertIsSelected()
+        rule.onNodeWithTag("food_SNACK").performClick()
+        rule.onNodeWithTag("food_SNACK").assertIsSelected()
+        rule.onNodeWithTag("food_DRY").assertIsNotSelected()
+        rule.onNodeWithTag("field_portions").performTextInput("1")
+        saveAndWait()
+        assertEquals(com.zylinn.petdiary.data.record.FoodKind.SNACK, day(cat).single().foodKind)
+    }
+
+    // P12-02 (D77): play = minutes preset + toys picked (or added on the spot), several at once
+    @Test fun playWithPresetAndToys() = runBlocking {
+        records.addToy("雷射筆")
+        open(RecordType.PLAY)
+        rule.onNodeWithTag("editor_title").assertTextContains("新增玩耍")
+        rule.onNodeWithTag("save_button").assertIsNotEnabled()
+        rule.onNodeWithTag("duration_15").performClick()
+        rule.waitUntil(5_000) { runCatching { rule.onNodeWithTag("toy_雷射筆").assertExists() }.isSuccess }
+        rule.onNodeWithTag("toy_雷射筆").performScrollTo().performClick()
+        rule.onNodeWithTag("toy_add").performScrollTo().performClick()
+        rule.onNodeWithTag("toy_new_name").performTextInput("逗貓棒")
+        rule.onNodeWithTag("toy_new_confirm").performClick()
+        rule.waitUntil(5_000) { runCatching { rule.onNodeWithTag("toy_逗貓棒").assertIsSelected() }.isSuccess }
+        saveAndWait()
+        val r = day(cat).single()
+        assertEquals(RecordType.PLAY, r.type)
+        assertEquals(15, r.durationMin)
+        val names = records.toyNames.first()
+        assertEquals(setOf("雷射筆", "逗貓棒"), r.toyIdList.map { names.getValue(it) }.toSet())
+    }
+
+    // D78: every record type can carry photos now
+    @Test fun everyRecordTypeOffersPhotos() {
+        open(RecordType.WALK)
+        rule.onNodeWithTag("attachments_section").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithTag("attach_count").assertTextContains("0/10", substring = true)
     }
 
     @Test fun supplementAddedOnceShowsNextTime() = runBlocking {
@@ -231,10 +272,10 @@ class RecordEditorScreenTest {
         return android.net.Uri.fromFile(f)
     }
 
-    // P2-15: attachments only on medical / abnormal records
-    @Test fun attachmentsOnlyForMedicalAndAbnormal() {
+    // P2-15 → D78: attachments on every record type, feeding included
+    @Test fun feedingHasAttachmentsToo() {
         open(RecordType.FEEDING)
-        rule.onNodeWithTag("attachments_section").assertDoesNotExist()
+        rule.onNodeWithTag("attachments_section").performScrollTo().assertIsDisplayed()
     }
 
     @Test fun abnormalHasAttachments() {

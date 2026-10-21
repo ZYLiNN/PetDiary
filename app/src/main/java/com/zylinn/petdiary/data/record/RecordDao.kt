@@ -134,3 +134,33 @@ interface SupplementDao {
     @Query("UPDATE supplements SET deletedAt = NULL, updatedAt = :now WHERE id = :id")
     suspend fun restore(id: String, now: Long)
 }
+
+/** Same as [SupplementDao], for the toy list of play records (D77). */
+@Dao
+interface ToyDao {
+
+    @Query("SELECT * FROM toys WHERE deletedAt IS NULL ORDER BY createdAt")
+    fun observeActive(): Flow<List<Toy>>
+
+    @Query("SELECT * FROM toys WHERE deletedAt IS NULL AND name = :name LIMIT 1")
+    suspend fun findByName(name: String): Toy?
+
+    @Insert
+    suspend fun insert(toy: Toy)
+
+    @Query("SELECT id FROM toys WHERE name LIKE :like ESCAPE '\\'")
+    suspend fun idsMatching(like: String): List<String>
+
+    /** Includes deleted ones, so old records keep showing the names they were saved with. */
+    @Query("SELECT * FROM toys ORDER BY createdAt")
+    fun observeAll(): Flow<List<Toy>>
+
+    @Query("UPDATE toys SET name = :name, updatedAt = :now WHERE id = :id")
+    suspend fun rename(id: String, name: String, now: Long)
+
+    @Query("UPDATE toys SET deletedAt = :now, updatedAt = :now WHERE id = :id")
+    suspend fun softDelete(id: String, now: Long)
+
+    @Query("UPDATE toys SET deletedAt = NULL, updatedAt = :now WHERE id = :id")
+    suspend fun restore(id: String, now: Long)
+}

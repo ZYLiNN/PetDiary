@@ -82,6 +82,7 @@ describe('data inside a group', () => {
   const cases = [
     ['pets', pet], ['records', record], ['reminders', reminder],
     ['supplements', (id = 's1') => ({ id, name: '魚油', createdAt: NOW, updatedAt: NOW, serverUpdatedAt: serverTimestamp() })],
+    ['toys', (id = 't1') => ({ id, name: '逗貓棒', createdAt: NOW, updatedAt: NOW, serverUpdatedAt: serverTimestamp() })],
   ];
   for (const [coll, make] of cases) {
     it(`${coll}: members read, write and delete`, async () => {
@@ -302,12 +303,19 @@ describe('family: members', () => {
   it('a member can point their user record at the family group', async () => {
     await assertSucceeds(setDoc(doc(db('bob'), 'users/bob'), { groupId: 'g1', updatedAt: NOW }));
   });
-  it('attachment lists travel with the record, up to 20 entries', async () => {
+  it('attachment lists travel with the record, up to 10 entries (D78)', async () => {
     const one = { id: 'a1', fileName: 'x.jpg', mimeType: 'image/jpeg', displayName: 'x.jpg', sizeBytes: 10, createdAt: NOW };
     await assertSucceeds(setDoc(doc(db('bob'), 'groups/g1/records/r1'), record('r1', { attachments: [one] })));
     await assertSucceeds(setDoc(doc(db('bob'), 'groups/g1/records/r2'), record('r2', { attachments: [] })));
-    await assertFails(setDoc(doc(db('bob'), 'groups/g1/records/r3'), record('r3', { attachments: Array(21).fill(one) })));
+    await assertSucceeds(setDoc(doc(db('bob'), 'groups/g1/records/r5'), record('r5', { attachments: Array(10).fill(one) })));
+    await assertFails(setDoc(doc(db('bob'), 'groups/g1/records/r3'), record('r3', { attachments: Array(11).fill(one) })));
     await assertFails(setDoc(doc(db('bob'), 'groups/g1/records/r4'), record('r4', { attachments: 'nope' })));
+  });
+  it('feeding kind and play toys can be stored (P12)', async () => {
+    await assertSucceeds(setDoc(doc(db('bob'), 'groups/g1/records/f1'), record('f1', { type: 'FEEDING', foodKind: 'SNACK', portions: 1 })));
+    await assertSucceeds(setDoc(doc(db('bob'), 'groups/g1/records/p1'), record('p1', { type: 'PLAY', toyIds: 't1,t2', durationMin: 15 })));
+    await assertFails(setDoc(doc(db('bob'), 'groups/g1/records/p2'), record('p2', { toyIds: 42 })));
+    await assertFails(setDoc(doc(db('bob'), 'groups/g1/records/p3'), record('p3', { foodKind: 'x'.repeat(21) })));
   });
   it('record authors can be stored', async () => {
     await assertSucceeds(setDoc(doc(db('bob'), 'groups/g1/records/r1'), record('r1', { authorUid: 'bob' })));

@@ -57,7 +57,7 @@ class CalendarViewModel(
         val days = CalendarModel.gridDays(m)
         val from = days.first().toEpochDay()
         val to = days.last().toEpochDay()
-        combine(records.observeRange(from, to), reminders.observeOpenInRange(from, to), records.supplementNames) { recs, rems, names ->
+        combine(records.observeRange(from, to), reminders.observeOpenInRange(from, to), records.itemNames) { recs, rems, names ->
             CalendarModel.items(recs, rems.map { it.reminder }, names, today())
         }
     }

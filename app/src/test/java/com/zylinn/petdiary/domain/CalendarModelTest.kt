@@ -101,4 +101,10 @@ class CalendarModelTest {
         assertEquals("豆", CalendarModel.shortNames(mapOf("a" to "豆")).getValue("a"))
         assertEquals("?", CalendarModel.shortNames(mapOf("a" to " ")).getValue("a"))
     }
+
+    // P12: play is an everyday record too → a dot in the cell
+    @Test fun playIsDaily() {
+        val items = CalendarModel.items(listOf(record("p", "cat", RecordType.PLAY, "2026-10-20")), emptyList(), emptyMap(), today)
+        assertTrue(items.single().daily)
+    }
 }

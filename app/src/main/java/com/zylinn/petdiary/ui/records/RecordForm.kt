@@ -1,6 +1,7 @@
 package com.zylinn.petdiary.ui.records
 
 import com.zylinn.petdiary.data.record.DewormKind
+import com.zylinn.petdiary.data.record.FoodKind
 import com.zylinn.petdiary.data.record.Record
 import com.zylinn.petdiary.data.record.RecordInput
 import com.zylinn.petdiary.data.record.RecordType
@@ -19,6 +20,9 @@ const val WALK_MAX_MIN = 600
 
 /** One-tap walk lengths offered next to the minutes box. */
 val WalkPresets = listOf(15, 30, 45, 60)
+
+/** One-tap play lengths (D77). */
+val PlayPresets = listOf(10, 15, 30)
 
 /** Labels for the shared medical layout (S11): only the wording differs by type. */
 data class MedicalLabels(val title: String, val detail: String?, val hospital: String, val next: String)
@@ -41,6 +45,9 @@ data class RecordForm(
     val portions: String = "",
     val drankWater: Boolean = false,
     val supplementIds: Set<String> = emptySet(),
+    val foodKind: FoodKind = FoodKind.DRY,
+    // Play (minutes reuse [durationMin])
+    val toyIds: Set<String> = emptySet(),
     // Medical / abnormal
     val title: String = "",
     val detail: String = "",
@@ -67,14 +74,18 @@ data class RecordForm(
             RecordType.FEEDING -> {
                 val p = portions.toDoubleOrNull()
                 when {
-                    portions.isNotEmpty() && (p == null || p <= 0 || p > PORTIONS_MAX) -> "主食份數請填 0～99 之間的數字"
-                    portions.isEmpty() && !drankWater && supplementIds.isEmpty() && note.isBlank() -> "請填主食份數，或勾選喝水 / 保健食品"
+                    portions.isNotEmpty() && (p == null || p <= 0 || p > PORTIONS_MAX) -> "份數請填 0～99 之間的數字"
+                    portions.isEmpty() && !drankWater && supplementIds.isEmpty() && note.isBlank() -> "請填份數，或勾選喝水 / 保健食品"
                     else -> null
                 }
             }
             RecordType.WALK -> {
                 val m = durationMin.toIntOrNull()
                 if (m == null || m <= 0 || m > WALK_MAX_MIN) "請填散步時間（1～$WALK_MAX_MIN 分鐘）" else null
+            }
+            RecordType.PLAY -> {
+                val m = durationMin.toIntOrNull()
+                if (m == null || m <= 0 || m > WALK_MAX_MIN) "請填玩耍時間（1～$WALK_MAX_MIN 分鐘）" else null
             }
             RecordType.WEIGHT -> {
                 val w = weightKg.toDoubleOrNull()
@@ -98,7 +109,10 @@ data class RecordForm(
         return when (type) {
             RecordType.FEEDING -> RecordInput(
                 type, date.toEpochDay(), minuteOfDay, note = note,
-                portions = portions.toDoubleOrNull(), drankWater = drankWater, supplementIds = supplementIds.toList(),
+                portions = portions.toDoubleOrNull(), drankWater = drankWater, supplementIds = supplementIds.toList(), foodKind = foodKind,
+            )
+            RecordType.PLAY -> RecordInput(
+                type, date.toEpochDay(), minuteOfDay, note = note, durationMin = durationMin.toInt(), toyIds = toyIds.toList(),
             )
             RecordType.WALK -> RecordInput(
                 type, date.toEpochDay(), minuteOfDay, note = note, drankWater = drankWater, durationMin = durationMin.toInt(), peed = peed, pooped = pooped,
@@ -129,6 +143,8 @@ data class RecordForm(
             portions = r.portions?.let(RecordFormat::number).orEmpty(),
             drankWater = r.drankWater == true,
             supplementIds = r.supplementIdList.toSet(),
+            foodKind = r.effectiveFoodKind ?: FoodKind.DRY,
+            toyIds = r.toyIdList.toSet(),
             title = if (r.type == RecordType.GROOMING) "" else r.title.orEmpty(),
             detail = r.detail.orEmpty(),
             hospital = r.hospital.orEmpty(),

@@ -106,6 +106,19 @@ class StatsScreenTest {
         rule.onNodeWithTag("stats_summary_$dog").assertTextContains("共 3 份", substring = true)
     }
 
+    // P12-03 (D76): feeding narrowed to one kind of food
+    @Test fun feedingCanShowOneKindOnly() {
+        add(cat, RecordType.FEEDING, today) { copy(portions = 2.0, foodKind = com.zylinn.petdiary.data.record.FoodKind.DRY) }
+        add(cat, RecordType.FEEDING, today) { copy(portions = 0.5, foodKind = com.zylinn.petdiary.data.record.FoodKind.SNACK) }
+        show()
+        waitFor("stats_summary_$cat")
+        rule.onNodeWithTag("stats_food_ALL").assertIsSelected()
+        rule.onNodeWithTag("stats_summary_$cat").assertTextContains("（乾食 2 份・零食 0.5 份）", substring = true)
+        rule.onNodeWithTag("food_row").performScrollToNode(hasTestTag("stats_food_SNACK"))
+        rule.onNodeWithTag("stats_food_SNACK").performClick()
+        rule.waitUntil(5_000) { runCatching { rule.onNodeWithTag("stats_summary_$cat").assertTextContains("共 0.5 份", substring = true) }.isSuccess }
+    }
+
     // P5-02
     @Test fun petsAreMultiSelectAndNeverEmpty() {
         add(cat, RecordType.FEEDING, today) { copy(portions = 1.0) }

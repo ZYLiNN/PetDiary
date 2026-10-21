@@ -49,6 +49,7 @@ class AppContainer(context: Context) {
             database.recordDao(), database.attachmentDao(), database.supplementDao(), attachmentStore, clock,
             reminders = database.reminderDao(),
             author = { cloudSync.currentUid() },
+            toys = database.toyDao(),
         )
     }
     val trashRepository: TrashRepository by lazy {

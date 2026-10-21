@@ -102,7 +102,7 @@ class PetDetailScreenTest {
 
         day(today.minusDays(2)).performClick()
         rule.onNodeWithTag("detail_title").assertTextEquals("10 月 15 日（四）")
-        rule.onNodeWithText("主食 1.5 份").assertIsDisplayed()
+        rule.onNodeWithText("乾食 1.5 份").assertIsDisplayed()
     }
 
     // D16: the calendar can move into the future (reminders will live there) but records can't be added on those days.

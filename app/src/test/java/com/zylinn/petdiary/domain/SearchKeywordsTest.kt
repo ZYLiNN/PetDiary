@@ -38,4 +38,12 @@ class SearchKeywordsTest {
         assertTrue(SearchKeywords.typesFor("愛心動物").isEmpty())
         assertTrue(SearchKeywords.typesFor("   ").isEmpty())
     }
+
+    // P12
+    @Test fun newWords() {
+        assertEquals(setOf(RecordType.FEEDING), SearchKeywords.typesFor("零食"))
+        assertEquals(setOf(RecordType.FEEDING), SearchKeywords.typesFor("濕食"))
+        assertEquals(setOf(RecordType.PLAY), SearchKeywords.typesFor("玩具"))
+        assertEquals(setOf(RecordType.PLAY), SearchKeywords.typesFor("逗貓"))
+    }
 }

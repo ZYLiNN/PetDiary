@@ -26,7 +26,7 @@ object RecordSearch {
     fun likePattern(text: String): String =
         "%" + text.trim().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
 
-    fun build(q: SearchQuery, matchingSupplementIds: List<String>): SimpleSQLiteQuery {
+    fun build(q: SearchQuery, matchingSupplementIds: List<String>, matchingToyIds: List<String> = emptyList()): SimpleSQLiteQuery {
         val where = mutableListOf("r.deletedAt IS NULL", "p.deletedAt IS NULL")
         val args = mutableListOf<Any>()
 
@@ -56,6 +56,10 @@ object RecordSearch {
             }
             matchingSupplementIds.forEach { id ->
                 any += "(',' || r.supplementIds || ',') LIKE ?"
+                args += "%,$id,%"
+            }
+            matchingToyIds.forEach { id ->
+                any += "(',' || r.toyIds || ',') LIKE ?"
                 args += "%,$id,%"
             }
             where += "(" + any.joinToString(" OR ") + ")"

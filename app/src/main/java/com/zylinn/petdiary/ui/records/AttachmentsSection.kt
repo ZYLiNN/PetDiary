@@ -53,9 +53,10 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
 import coil3.compose.AsyncImage
+import com.zylinn.petdiary.data.record.MAX_ATTACHMENTS
 import java.io.File
 
-/** Photos (camera / gallery) and PDFs for medical and abnormal records (P2-15 / P2-16). */
+/** Photos (camera / gallery) and PDFs on any record (P2-15 / P2-16; every type since D78), at most [MAX_ATTACHMENTS]. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AttachmentsSection(
@@ -68,7 +69,7 @@ fun AttachmentsSection(
     val context = LocalContext.current
     var pendingCamera by rememberSaveable { mutableStateOf<String?>(null) }
     var preview by rememberSaveable { mutableStateOf<String?>(null) }
-    val pickPhotos = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(MAX_PICK)) { onPicked(it) }
+    val pickPhotos = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(MAX_ATTACHMENTS)) { onPicked(it) }
     val pickPdf = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { onPicked(it) }
     val takePhoto = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
         pendingCamera?.let { if (ok) onPicked(listOf(Uri.parse(it))) }
@@ -76,8 +77,8 @@ fun AttachmentsSection(
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.testTag("attachments_section")) {
-        Text("附件（照片 / PDF，每個最多 10MB）", style = MaterialTheme.typography.titleSmall)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("照片 / 附件（${items.size}/$MAX_ATTACHMENTS，每個最多 10MB）", style = MaterialTheme.typography.titleSmall, modifier = Modifier.testTag("attach_count"))
+        if (items.size < MAX_ATTACHMENTS) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             AssistChip(
                 onClick = {
                     val dir = File(context.cacheDir, "camera").apply { mkdirs() }
@@ -211,4 +212,3 @@ fun formatSize(bytes: Long): String = when {
     else -> "$bytes B"
 }
 
-private const val MAX_PICK = 10

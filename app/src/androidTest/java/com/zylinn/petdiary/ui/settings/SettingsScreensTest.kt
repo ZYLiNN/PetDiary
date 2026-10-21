@@ -62,7 +62,7 @@ class SettingsScreensTest {
         db = Room.inMemoryDatabaseBuilder(context, PetDiaryDatabase::class.java).build()
         val files = FileStore(File(context.cacheDir, "settings-ui").apply { deleteRecursively(); mkdirs() })
         exportDir = File(context.cacheDir, "settings-exports").apply { deleteRecursively() }
-        records = RecordRepository(db.recordDao(), db.attachmentDao(), db.supplementDao(), files, clock)
+        records = RecordRepository(db.recordDao(), db.attachmentDao(), db.supplementDao(), files, clock, toys = db.toyDao())
         pets = PetRepository(db.petDao(), clock)
         settings = AppSettings(context)
     }
@@ -188,6 +188,17 @@ class SettingsScreensTest {
         assertTrue(runBlocking { records.supplementsList.first() }.isEmpty())
         rule.onNodeWithText("復原").performClick()
         rule.waitUntil(5_000) { runBlocking { records.supplementsList.first() }.size == 1 }
+    }
+
+    // D77: the toy list uses the same screen with its own wording
+    @Test fun toyListAddsToys() {
+        val vm = SupplementsViewModel(records.toyOps)
+        rule.setContent { PetDiaryTheme { SupplementsScreen(vm, onBack = {}, texts = ToyTexts) } }
+        rule.onNodeWithText("玩具清單").assertIsDisplayed()
+        rule.onNodeWithTag("supp_add_field").performTextInput("逗貓棒")
+        rule.onNodeWithTag("supp_add_button").performClick()
+        rule.waitUntil(5_000) { runBlocking { records.toysList.first() }.map { it.name } == listOf("逗貓棒") }
+        assertTrue(runBlocking { records.supplementsList.first() }.isEmpty())
     }
 
     @Test fun duplicateNameIsRefused() {

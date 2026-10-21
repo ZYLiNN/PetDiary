@@ -22,6 +22,7 @@ import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Medication
+import androidx.compose.material.icons.outlined.Toys
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -152,6 +153,7 @@ fun SettingsScreen(
     versionName: String,
     onOpenTrash: () -> Unit,
     onOpenSupplements: () -> Unit,
+    onOpenToys: () -> Unit = {},
     onOpenAbout: () -> Unit,
     onOpenFamily: () -> Unit = {},
     onBack: () -> Unit = {},
@@ -288,6 +290,7 @@ fun SettingsScreen(
                 item {
                     SectionHeader("自訂項目")
                     SettingRow("保健食品清單", "新增、修改、刪除餵食紀錄裡的保健食品選項", Icons.Outlined.Medication, "settings_supplements", onClick = onOpenSupplements)
+                    SettingRow("玩具清單", "新增、修改、刪除玩耍紀錄裡的玩具選項", Icons.Outlined.Toys, "settings_toys", onClick = onOpenToys)
                 }
                 item {
                     SectionHeader("資料")
