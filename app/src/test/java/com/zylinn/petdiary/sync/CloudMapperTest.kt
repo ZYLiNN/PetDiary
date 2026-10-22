@@ -48,7 +48,7 @@ class CloudMapperTest {
             id = "r1", petId = "p1", type = RecordType.WALK, dateEpochDay = 20000, minuteOfDay = 480, note = "n", cost = 500,
             portions = 1.5, drankWater = true, supplementIds = "a,b", title = "t", detail = "d", hospital = "h",
             nextEpochDay = 20030, remindNext = true, dewormKind = DewormKind.EXTERNAL, weightKg = 4.25, durationMin = 30,
-            peed = true, pooped = false, foodKind = FoodKind.MIXED, toyIds = "t1,t2", createdAt = 1, updatedAt = 2, deletedAt = 3,
+            peed = true, pooped = false, foodKind = FoodKind.MIXED, toyIds = "t1,t2", category = "food", createdAt = 1, updatedAt = 2, deletedAt = 3,
         )
         assertEquals(r, CloudMapper.record(CloudMapper.record(r)))
     }
@@ -74,6 +74,13 @@ class CloudMapperTest {
         assertFalse("notifiedFor" in doc)
         assertEquals(r.copy(notifiedFor = null), CloudMapper.reminder(doc, notifiedFor = null))
         assertEquals(777L, CloudMapper.reminder(doc, notifiedFor = 777)!!.notifiedFor)
+    }
+
+    // P14-03: the user's purchase categories sync like toys
+    @Test fun categoryRoundTrips() {
+        val c = com.zylinn.petdiary.data.record.PurchaseCategory("c1", "貓砂", 1, 2, null)
+        assertEquals(c, CloudMapper.category(CloudMapper.category(c)))
+        assertNull(CloudMapper.category(mapOf("id" to "c")))
     }
 
     // P12: toys sync like supplements
@@ -103,7 +110,7 @@ class CloudMapperTest {
     }
 
     @Test fun tableNamesMatchTheSecurityRules() {
-        assertEquals(listOf("pets", "records", "reminders", "supplements", "toys"), SyncTable.entries.map { it.path })
+        assertEquals(listOf("pets", "records", "reminders", "supplements", "toys", "categories"), SyncTable.entries.map { it.path })
     }
 
     @Test fun recordCarriesItsAuthorAndAttachmentList() {

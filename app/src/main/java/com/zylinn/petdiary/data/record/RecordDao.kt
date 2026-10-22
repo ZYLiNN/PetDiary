@@ -9,6 +9,10 @@ import androidx.sqlite.db.SupportSQLiteQuery
 import com.zylinn.petdiary.data.pet.Pet
 import kotlinx.coroutines.flow.Flow
 
+/** Joins a record's pet; shared purchases ([FAMILY_PET_ID]) have none, hence the LEFT JOIN and [LIVING_PET]. */
+const val FAMILY_JOIN = "LEFT JOIN pets p ON p.id = r.petId"
+const val LIVING_PET = "(r.petId = '$FAMILY_PET_ID' OR (p.id IS NOT NULL AND p.deletedAt IS NULL))"
+
 @Dao
 interface RecordDao {
 
@@ -27,8 +31,8 @@ interface RecordDao {
     @Query("SELECT * FROM records WHERE petId = :petId AND type = :type AND deletedAt IS NULL ORDER BY dateEpochDay DESC, minuteOfDay DESC, createdAt DESC LIMIT 1")
     suspend fun latest(petId: String, type: RecordType): Record?
 
-    /** Every living record of every living pet in the range, for the calendar tab. */
-    @Query("SELECT r.* FROM records r JOIN pets p ON p.id = r.petId WHERE r.deletedAt IS NULL AND p.deletedAt IS NULL AND r.dateEpochDay BETWEEN :from AND :to ORDER BY r.dateEpochDay, r.minuteOfDay")
+    /** Every living record of every living pet (and the family's shared purchases) in the range, for the calendar tab. */
+    @Query("SELECT r.* FROM records r $FAMILY_JOIN WHERE r.deletedAt IS NULL AND $LIVING_PET AND r.dateEpochDay BETWEEN :from AND :to ORDER BY r.dateEpochDay, r.minuteOfDay")
     fun observeRange(from: Long, to: Long): Flow<List<Record>>
 
     @Query("SELECT * FROM records WHERE id = :id")
@@ -58,17 +62,17 @@ interface RecordDao {
     @Query("DELETE FROM records WHERE id = :id")
     suspend fun deletePermanently(id: String)
 
-    /** Stats page (P5): records of living pets, filtered by pets / types / date range. */
+    /** Stats page (P5): records of living pets, filtered by pets / types / date range; [FAMILY_PET_ID] in [petIds] adds shared purchases. */
     @Query(
-        "SELECT r.* FROM records r JOIN pets p ON p.id = r.petId " +
-            "WHERE r.deletedAt IS NULL AND p.deletedAt IS NULL AND r.petId IN (:petIds) AND r.type IN (:types) " +
+        "SELECT r.* FROM records r $FAMILY_JOIN " +
+            "WHERE r.deletedAt IS NULL AND $LIVING_PET AND r.petId IN (:petIds) AND r.type IN (:types) " +
             "AND r.dateEpochDay BETWEEN :from AND :to ORDER BY r.dateEpochDay, r.minuteOfDay",
     )
     fun observeForStats(petIds: List<String>, types: List<RecordType>, from: Long, to: Long): Flow<List<Record>>
 
-    /** Everything the CSV export writes: records of living pets that are not in the trash. */
+    /** Everything the CSV export writes: records of living pets (and shared purchases) that are not in the trash. */
     @Query(
-        "SELECT r.* FROM records r JOIN pets p ON p.id = r.petId WHERE r.deletedAt IS NULL AND p.deletedAt IS NULL " +
+        "SELECT r.* FROM records r $FAMILY_JOIN WHERE r.deletedAt IS NULL AND $LIVING_PET " +
             "ORDER BY r.dateEpochDay, r.minuteOfDay, r.createdAt",
     )
     suspend fun allForExport(): List<Record>
@@ -105,8 +109,8 @@ interface AttachmentDao {
     /** The album (P13): every attachment of a record that is not in the trash, newest record first. */
     @Query(
         "SELECT a.id, a.recordId, a.fileName, a.mimeType, a.displayName, a.sizeBytes, r.petId, r.type, r.dateEpochDay, r.minuteOfDay " +
-            "FROM attachments a JOIN records r ON r.id = a.recordId JOIN pets p ON p.id = r.petId " +
-            "WHERE r.deletedAt IS NULL AND p.deletedAt IS NULL " +
+            "FROM attachments a JOIN records r ON r.id = a.recordId $FAMILY_JOIN " +
+            "WHERE r.deletedAt IS NULL AND $LIVING_PET " +
             "ORDER BY r.dateEpochDay DESC, r.minuteOfDay DESC, a.createdAt",
     )
     fun observeAlbum(): Flow<List<AlbumEntry>>
@@ -187,5 +191,35 @@ interface ToyDao {
     suspend fun softDelete(id: String, now: Long)
 
     @Query("UPDATE toys SET deletedAt = NULL, updatedAt = :now WHERE id = :id")
+    suspend fun restore(id: String, now: Long)
+}
+
+/** Same as [ToyDao], for the user's own purchase categories (P14-03). */
+@Dao
+interface CategoryDao {
+
+    @Query("SELECT * FROM purchase_categories WHERE deletedAt IS NULL ORDER BY createdAt")
+    fun observeActive(): Flow<List<PurchaseCategory>>
+
+    @Query("SELECT * FROM purchase_categories WHERE deletedAt IS NULL AND name = :name LIMIT 1")
+    suspend fun findByName(name: String): PurchaseCategory?
+
+    @Insert
+    suspend fun insert(category: PurchaseCategory)
+
+    @Query("SELECT id FROM purchase_categories WHERE name LIKE :like ESCAPE '\\'")
+    suspend fun idsMatching(like: String): List<String>
+
+    /** Includes deleted ones, so old records keep showing the names they were saved with. */
+    @Query("SELECT * FROM purchase_categories ORDER BY createdAt")
+    fun observeAll(): Flow<List<PurchaseCategory>>
+
+    @Query("UPDATE purchase_categories SET name = :name, updatedAt = :now WHERE id = :id")
+    suspend fun rename(id: String, name: String, now: Long)
+
+    @Query("UPDATE purchase_categories SET deletedAt = :now, updatedAt = :now WHERE id = :id")
+    suspend fun softDelete(id: String, now: Long)
+
+    @Query("UPDATE purchase_categories SET deletedAt = NULL, updatedAt = :now WHERE id = :id")
     suspend fun restore(id: String, now: Long)
 }

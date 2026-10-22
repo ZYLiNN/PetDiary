@@ -18,6 +18,7 @@ object SearchKeywords {
         RecordType.WEIGHT to listOf("體重", "公斤", "秤重", "kg"),
         RecordType.VET to listOf("就診", "看診", "看醫生", "回診", "健檢", "醫生"),
         RecordType.GROOMING to listOf("美容", "洗澡", "剪指甲", "修毛", "剃毛", "清耳朵", "刷牙"),
+        RecordType.PURCHASE to listOf("購物", "購買", "買", "花費", "收據", "發票"),
         RecordType.ABNORMAL to listOf("異常", "嘔吐", "拉肚子", "腹瀉", "咳嗽", "生病", "不舒服", "吐"),
     )
 

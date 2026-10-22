@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.zylinn.petdiary.data.pet.Pet
 import com.zylinn.petdiary.data.pet.PetColor
 import com.zylinn.petdiary.data.pet.PetRepository
+import com.zylinn.petdiary.data.record.FAMILY_PET_ID
 import com.zylinn.petdiary.data.record.RecordRepository
 import com.zylinn.petdiary.data.reminder.ReminderRepository
 import com.zylinn.petdiary.domain.CalendarItem
@@ -66,7 +67,8 @@ class CalendarViewModel(
         val colors = PetColor.effective(petList)
         val shorts = CalendarModel.shortNames(petList.associate { it.id to it.name })
         val chips = petList.map { p -> CalendarPet(p.id, p.name, shorts.getValue(p.id), colors.getValue(p.id), p.id !in hide) }
-        val visible = chips.filter { it.visible }.map { it.id }.toSet()
+        // Shared purchases belong to no single pet, so they show only while every pet is shown (D84).
+        val visible = chips.filter { it.visible }.map { it.id }.toSet() + if (hide.isEmpty()) setOf(FAMILY_PET_ID) else emptySet()
         CalendarUi(m, today(), sel, CalendarModel.gridDays(m), chips, all.filter { it.petId in visible }.groupBy { it.day })
     }.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5_000),

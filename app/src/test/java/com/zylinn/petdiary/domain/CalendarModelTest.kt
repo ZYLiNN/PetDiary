@@ -107,4 +107,12 @@ class CalendarModelTest {
         val items = CalendarModel.items(listOf(record("p", "cat", RecordType.PLAY, "2026-10-20")), emptyList(), emptyMap(), today)
         assertTrue(items.single().daily)
     }
+
+    // P14-01: a 自訂 record is shown under the reminder's name, not as 自訂
+    @Test fun customRecordIsNamedLikeItsReminder() {
+        val r = record("r1", "cat", RecordType.CUSTOM, "2026-10-20").copy(title = "剪指甲", cost = 200)
+        val item = CalendarModel.items(listOf(r), emptyList(), emptyMap(), d("2026-10-20")).single()
+        assertEquals("剪指甲", item.label)
+        assertEquals("NT$ 200", item.detail)
+    }
 }

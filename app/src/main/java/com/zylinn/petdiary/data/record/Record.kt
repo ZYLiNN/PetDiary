@@ -9,29 +9,43 @@ enum class RecordType { FEEDING, WALK,
     /** Play time with toys (P12). */
     PLAY,
     MEDICINE, VACCINE, DEWORMING, WEIGHT, VET, GROOMING, ABNORMAL,
-    /** Reminder-only (D36): a user-named reminder such as 剪指甲. Never stored as a record. */
+    /** Buying food, snacks, toys … (P14-03): a category, an item name and the amount. */
+    PURCHASE,
+    /** A user-named reminder such as 剪指甲 (D36). Ticking one off stores a record of this type (P14-01). */
     CUSTOM,
 }
 
-/** The types a record can have (everything except reminder-only [RecordType.CUSTOM]). */
-val RecordableTypes: List<RecordType> = RecordType.entries.filter { it != RecordType.CUSTOM }
+/** Every record type; [RecordType.CUSTOM] records only come from ticking off a 自訂 reminder (P14-01). */
+val RecordableTypes: List<RecordType> = RecordType.entries
 
 /**
  * The tiles of the "新增紀錄" panel: 疫苗 and 驅蟲 share one tile (shown as 疫苗／驅蟲, opened as [RecordType.VACCINE])
  * whose form then picks 疫苗 / 體內驅蟲 / 體外驅蟲 (P11-05). Both types still exist for stats, search and old records.
  */
-val PanelTypes: List<RecordType> = RecordableTypes.filter { it != RecordType.DEWORMING }
+val PanelTypes: List<RecordType> = RecordableTypes.filter { it != RecordType.DEWORMING && it != RecordType.CUSTOM }
 
 /** Types sharing the medical form: name, dosage / diagnosis, hospital, cost, next date. */
 val RecordType.isMedical get() = this in setOf(RecordType.MEDICINE, RecordType.VACCINE, RecordType.DEWORMING, RecordType.VET)
-
-/** Every record may carry photos / PDFs (D78; before P12 only medical and abnormal ones). */
-val RecordType.allowsAttachments get() = this != RecordType.CUSTOM
 
 /** At most this many photos / PDFs per record (D78); the cloud rules enforce the same number. */
 const val MAX_ATTACHMENTS = 10
 
 enum class DewormKind { INTERNAL, EXTERNAL }
+
+/**
+ * [Record.petId] of a purchase bought for several pets at once (P14-03, D84): it belongs to the whole family,
+ * so it counts in "all pets" totals but on no single pet's page.
+ */
+const val FAMILY_PET_ID = "family"
+
+/** Built-in purchase categories; their ids are stored in [Record.category]. The user can add more ([PurchaseCategory]). */
+enum class BuiltInCategory(val id: String, val label: String) {
+    FOOD("food", "飼料"), SNACK("snack", "零食"), TOY("toy", "玩具"), HEALTH("health", "保健食品"), SUPPLY("supply", "用品"), OTHER("other", "其他");
+
+    companion object {
+        val names: Map<String, String> = entries.associate { it.id to it.label }
+    }
+}
 
 /** What was fed (D76). Records saved before P12 have none and count as [DRY]. */
 enum class FoodKind { DRY, WET, MIXED, SNACK }
@@ -63,7 +77,9 @@ data class Record(
     @ColumnInfo(defaultValue = "NULL") val foodKind: FoodKind? = null,
     // Play: toy ids joined by ','; the minutes use [durationMin]
     @ColumnInfo(defaultValue = "NULL") val toyIds: String? = null,
-    // Medical / grooming / abnormal: medicine or vaccine name, grooming items, symptom
+    /** Purchase: a [BuiltInCategory] id or a [PurchaseCategory] id. The item name uses [title]. */
+    @ColumnInfo(defaultValue = "NULL") val category: String? = null,
+    // Medical / grooming / abnormal / purchase: medicine or vaccine name, grooming items, symptom, item bought
     val title: String? = null,
     /** Dosage (medicine) or diagnosis (vet). */
     val detail: String? = null,
@@ -88,6 +104,8 @@ data class Record(
     val toyIdList: List<String> get() = toyIds?.split(',')?.filter { it.isNotEmpty() }.orEmpty()
     /** Feeding records from before P12 have no kind: they were dry food (D76). */
     val effectiveFoodKind: FoodKind? get() = if (type == RecordType.FEEDING) foodKind ?: FoodKind.DRY else null
+    /** A purchase for the whole family rather than one pet. */
+    val isShared: Boolean get() = petId == FAMILY_PET_ID
 }
 
 /** A file attached to a record, stored in the app's attachments directory. */
@@ -122,6 +140,19 @@ data class Supplement(
 /** User-defined toy names for the play form (D77), managed like supplements. */
 @Entity(tableName = "toys")
 data class Toy(
+    @PrimaryKey override val id: String,
+    override val name: String,
+    val createdAt: Long,
+    val updatedAt: Long,
+    val deletedAt: Long? = null,
+) : NamedItem
+
+/** A [BuiltInCategory] seen as a pick-list item. */
+data class BuiltInItem(override val id: String, override val name: String) : NamedItem
+
+/** User-added purchase categories beyond [BuiltInCategory], managed like toys. */
+@Entity(tableName = "purchase_categories")
+data class PurchaseCategory(
     @PrimaryKey override val id: String,
     override val name: String,
     val createdAt: Long,

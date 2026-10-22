@@ -7,6 +7,7 @@ import androidx.compose.material.icons.outlined.Medication
 import androidx.compose.material.icons.outlined.MonitorWeight
 import androidx.compose.material.icons.outlined.PestControl
 import androidx.compose.material.icons.outlined.Restaurant
+import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.outlined.Toys
 import androidx.compose.material.icons.outlined.Vaccines
@@ -31,6 +32,7 @@ val RecordType.icon: ImageVector
         RecordType.VET -> Icons.Outlined.LocalHospital
         RecordType.GROOMING -> Icons.Outlined.ContentCut
         RecordType.ABNORMAL -> Icons.Outlined.WarningAmber
+        RecordType.PURCHASE -> Icons.Outlined.ShoppingCart
         RecordType.CUSTOM -> Icons.Outlined.StarBorder
     }
 
@@ -50,6 +52,7 @@ val RecordType.color: Color
             RecordType.VET -> p.vet
             RecordType.GROOMING -> p.grooming
             RecordType.ABNORMAL -> p.abnormal
+            RecordType.PURCHASE -> p.purchase
             RecordType.CUSTOM -> p.custom
         }
     }

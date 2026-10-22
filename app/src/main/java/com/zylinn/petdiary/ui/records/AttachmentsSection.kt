@@ -49,8 +49,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
 import coil3.compose.AsyncImage
 import com.zylinn.petdiary.data.record.MAX_ATTACHMENTS
@@ -116,24 +114,23 @@ fun AttachmentsSection(
         }
     }
 
-    items.firstOrNull { it.key == preview }?.let { item ->
-        Dialog(onDismissRequest = { preview = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-            Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.inverseSurface)) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.fillMaxWidth().clickable { preview = null }.testTag("attach_preview"),
-                ) {
-                    AsyncImage(model = item.file, contentDescription = item.displayName, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxWidth())
-                }
-                Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.End) {
-                    val ink = MaterialTheme.colorScheme.inverseOnSurface
-                    if (AttachmentExport.canSave) {
-                        TextButton(onClick = { saveToPhone(context, item) }, modifier = Modifier.testTag("preview_save")) { Text("下載", color = ink) }
-                    }
-                    TextButton(onClick = { shareItem(context, item) }, modifier = Modifier.testTag("preview_share")) { Text("分享", color = ink) }
-                    TextButton(onClick = { preview = null }) { Text("關閉", color = ink) }
-                }
+    // Photos only: PDFs open in another app, so they never join the swipe (P14-02).
+    val photos = items.filter { it.isImage }
+    if (preview != null && photos.any { it.key == preview }) {
+        PhotoPager(
+            items = photos,
+            startIndex = photos.indexOfFirst { it.key == preview },
+            key = { it.key },
+            onDismiss = { preview = null },
+            onShow = { preview = it.key },
+            tag = "attach_preview",
+            page = { item -> AsyncImage(model = item.file, contentDescription = item.displayName, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxWidth()) },
+            caption = { it.displayName },
+        ) { item, ink ->
+            if (AttachmentExport.canSave) {
+                TextButton(onClick = { saveToPhone(context, item) }, modifier = Modifier.testTag("preview_save")) { Text("下載", color = ink) }
             }
+            TextButton(onClick = { shareItem(context, item) }, modifier = Modifier.testTag("preview_share")) { Text("分享", color = ink) }
         }
     }
 }

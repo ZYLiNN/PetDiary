@@ -1,5 +1,6 @@
 package com.zylinn.petdiary.ui.settings
 
+import androidx.compose.material.icons.outlined.ShoppingCart
 import android.content.Intent
 import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -154,6 +155,7 @@ fun SettingsScreen(
     onOpenTrash: () -> Unit,
     onOpenSupplements: () -> Unit,
     onOpenToys: () -> Unit = {},
+    onOpenCategories: () -> Unit = {},
     onOpenAbout: () -> Unit,
     onOpenFamily: () -> Unit = {},
     onBack: () -> Unit = {},
@@ -291,6 +293,7 @@ fun SettingsScreen(
                     SectionHeader("自訂項目")
                     SettingRow("保健食品清單", "新增、修改、刪除餵食紀錄裡的保健食品選項", Icons.Outlined.Medication, "settings_supplements", onClick = onOpenSupplements)
                     SettingRow("玩具清單", "新增、修改、刪除玩耍紀錄裡的玩具選項", Icons.Outlined.Toys, "settings_toys", onClick = onOpenToys)
+                    SettingRow("購物分類", "在內建分類之外，新增自己的購物分類", Icons.Outlined.ShoppingCart, "settings_categories", onClick = onOpenCategories)
                 }
                 item {
                     SectionHeader("資料")

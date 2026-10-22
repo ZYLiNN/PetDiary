@@ -42,13 +42,13 @@ service cloud.firestore {
 
     function validRecord(d, id) {
       return d.keys().hasOnly(['id', 'petId', 'type', 'dateEpochDay', 'minuteOfDay', 'note', 'cost', 'portions', 'drankWater',
-                 'supplementIds', 'foodKind', 'toyIds', 'title', 'detail', 'hospital', 'nextEpochDay', 'remindNext', 'dewormKind', 'weightKg',
+                 'supplementIds', 'foodKind', 'toyIds', 'category', 'title', 'detail', 'hospital', 'nextEpochDay', 'remindNext', 'dewormKind', 'weightKg',
                  'durationMin', 'peed', 'pooped', 'authorUid', 'attachments', 'createdAt', 'updatedAt', 'deletedAt', 'serverUpdatedAt'])
         && d.keys().hasAll(['id', 'petId', 'type', 'dateEpochDay', 'minuteOfDay', 'createdAt', 'updatedAt', 'serverUpdatedAt'])
         && base(d, id) && str(d, 'petId', 64) && str(d, 'type', 20) && int(d, 'dateEpochDay')
         && int(d, 'minuteOfDay') && d.minuteOfDay >= 0 && d.minuteOfDay < 1440
         && optStr(d, 'note', 2000) && optInt(d, 'cost') && optNum(d, 'portions') && optBool(d, 'drankWater')
-        && optStr(d, 'supplementIds', 1000) && optStr(d, 'foodKind', 20) && optStr(d, 'toyIds', 1000) && optStr(d, 'title', 200) && optStr(d, 'detail', 500) && optStr(d, 'hospital', 200)
+        && optStr(d, 'supplementIds', 1000) && optStr(d, 'foodKind', 20) && optStr(d, 'toyIds', 1000) && optStr(d, 'category', 64) && optStr(d, 'title', 200) && optStr(d, 'detail', 500) && optStr(d, 'hospital', 200)
         && optInt(d, 'nextEpochDay') && optBool(d, 'remindNext') && optStr(d, 'dewormKind', 20) && optNum(d, 'weightKg')
         && optInt(d, 'durationMin') && optBool(d, 'peed') && optBool(d, 'pooped') && optStr(d, 'authorUid', 64)
         && (!('attachments' in d) || (d.attachments is list && d.attachments.size() <= 10));
@@ -69,7 +69,8 @@ service cloud.firestore {
         && base(d, id) && str(d, 'name', 100);
     }
 
-    function validToy(d, id) {
+    // Toys (P12) and the user's purchase categories (P14) are plain name lists.
+    function validNameItem(d, id) {
       return d.keys().hasOnly(['id', 'name', 'createdAt', 'updatedAt', 'deletedAt', 'serverUpdatedAt'])
         && d.keys().hasAll(['id', 'name', 'createdAt', 'updatedAt', 'serverUpdatedAt'])
         && base(d, id) && str(d, 'name', 100);
@@ -157,7 +158,11 @@ service cloud.firestore {
       }
       match /toys/{id} {
         allow read, delete: if isMember(gid);
-        allow create, update: if isMember(gid) && validToy(request.resource.data, id);
+        allow create, update: if isMember(gid) && validNameItem(request.resource.data, id);
+      }
+      match /categories/{id} {
+        allow read, delete: if isMember(gid);
+        allow create, update: if isMember(gid) && validNameItem(request.resource.data, id);
       }
     }
 

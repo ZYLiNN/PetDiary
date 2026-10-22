@@ -252,6 +252,21 @@ class SyncEngineTest {
         assertEquals("t1", dbB.recordDao().getById("r1")!!.toyIds)
     }
 
+    // P14-03: a shared purchase (no pet) and its custom category reach the other phone
+    @Test fun purchasesAndCategoriesSync() = runBlocking {
+        dbA.syncDao().upsertCategory(com.zylinn.petdiary.data.record.PurchaseCategory("c1", "貓砂", 1, now))
+        dbA.syncDao().upsertRecord(
+            record().copy(petId = com.zylinn.petdiary.data.record.FAMILY_PET_ID, type = com.zylinn.petdiary.data.record.RecordType.PURCHASE, category = "c1", cost = 900),
+        )
+        engine(dbA).pushPending()
+        engine(dbB).apply(SyncTable.CATEGORIES, cloud.docs.getValue(SyncTable.CATEGORIES).values.toList())
+        engine(dbB).apply(SyncTable.RECORDS, cloud.docs.getValue(SyncTable.RECORDS).values.toList())
+        assertEquals(listOf("貓砂"), dbB.categoryDao().observeAll().first().map { it.name })
+        val r = dbB.recordDao().getById("r1")!!
+        assertEquals("c1", r.category)
+        assertTrue(r.isShared)
+    }
+
     /** What an older app does with a record type it doesn't know: skip it (the new phone keeps it). */
     @Test fun unknownRecordTypeFromANewerPhoneIsSkipped() = runBlocking {
         val doc = CloudMapper.record(record()) + mapOf("type" to "SWIM", SERVER_AT to 5L)

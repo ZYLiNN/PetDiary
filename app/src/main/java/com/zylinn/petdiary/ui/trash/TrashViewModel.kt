@@ -56,7 +56,7 @@ class TrashViewModel(
     ) { active, trashedPets, trashedRecords ->
         val now = clock.millis()
         val today = LocalDate.now(clock)
-        val names = (active + trashedPets).associate { it.id to it.name }
+        val names = RecordFormat.petNamesWithFamily((active + trashedPets).associate { it.id to it.name })
         val trashedIds = trashedPets.map { it.id }.toSet()
         TrashContent(
             pets = trashedPets.map {

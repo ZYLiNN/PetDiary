@@ -1,5 +1,6 @@
 package com.zylinn.petdiary.domain
 
+import com.zylinn.petdiary.data.record.FAMILY_PET_ID
 import com.zylinn.petdiary.data.record.DewormKind
 import com.zylinn.petdiary.data.record.FoodKind
 import com.zylinn.petdiary.data.record.Record
@@ -24,6 +25,7 @@ object RecordFormat {
             RecordType.VET -> "就診"
             RecordType.GROOMING -> "美容"
             RecordType.ABNORMAL -> "異常狀況"
+            RecordType.PURCHASE -> "購物"
             RecordType.CUSTOM -> "自訂"
         }
 
@@ -93,7 +95,13 @@ object RecordFormat {
     /** Last-record chip: "驅蟲 45 天前" */
     fun lastChip(type: RecordType, lastDay: LocalDate, today: LocalDate) = "${type.label} ${daysAgo(lastDay, today)}"
 
-    /** One-line card summary; the note is shown separately on the card. [names]: supplement and toy ids → names. */
+    /** Shown instead of a pet name for a purchase bought for several pets (D84). */
+    const val FAMILY_NAME = "全家共用"
+
+    /** Pet id → name, plus the family's shared purchases. */
+    fun petNamesWithFamily(names: Map<String, String>): Map<String, String> = names + (FAMILY_PET_ID to FAMILY_NAME)
+
+    /** One-line card summary; the note is shown separately on the card. [names]: supplement, toy and category ids → names. */
     fun summary(record: Record, names: Map<String, String>, today: LocalDate): String {
         val parts = mutableListOf<String>()
         when (record.type) {
@@ -114,6 +122,10 @@ object RecordFormat {
                 record.durationMin?.let { parts += duration(it) }
                 val toys = record.toyIdList.mapNotNull(names::get)
                 if (toys.isNotEmpty()) parts += toys.joinToString("、")
+            }
+            RecordType.PURCHASE -> {
+                record.category?.let(names::get)?.let { parts += it }
+                record.title?.let { parts += it }
             }
             RecordType.WEIGHT -> record.weightKg?.let { parts += "${number(it)} kg" }
             RecordType.DEWORMING -> {

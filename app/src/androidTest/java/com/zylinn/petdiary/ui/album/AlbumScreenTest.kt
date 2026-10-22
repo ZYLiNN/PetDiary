@@ -4,11 +4,14 @@ import android.content.Context
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -127,6 +130,22 @@ class AlbumScreenTest {
         rule.onNodeWithTag("viewer_save").assertExists()
         rule.onNodeWithTag("viewer_open_record").performClick()
         assertEquals(remi to LocalDate.parse("2026-10-20"), opened)
+    }
+
+    // P14-02: swipe left / right through the photos of the current filter; "看紀錄" follows the photo on screen
+    @Test fun viewerSwipesThroughPhotos() {
+        val newer = attach(remi, RecordType.WALK, "2026-10-20", "newer")
+        attach(lily, RecordType.VET, "2026-10-18", "older")
+        attach(remi, RecordType.VET, "2026-10-19", "report", pdf = true)
+        show()
+        waitFor("album_photo_${entryId(newer)}")
+        rule.onNodeWithTag("album_photo_${entryId(newer)}").performClick()
+        rule.onNodeWithTag("viewer_counter").assertTextEquals("1 / 2")
+        rule.onNodeWithTag("viewer_pager").performTouchInput { swipeLeft() }
+        rule.waitUntil(5_000) { runCatching { rule.onNodeWithTag("viewer_counter").assertTextEquals("2 / 2") }.isSuccess }
+        rule.onNodeWithText("雷利・就診", substring = true).assertIsDisplayed()
+        rule.onNodeWithTag("viewer_open_record").performClick()
+        assertEquals(lily to LocalDate.parse("2026-10-18"), opened)
     }
 
     @Test fun recordsInTheTrashAreLeftOut() {

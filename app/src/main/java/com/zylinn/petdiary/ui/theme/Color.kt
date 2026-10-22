@@ -93,9 +93,10 @@ class RecordTypePalette(
     val vet: Color,
     val grooming: Color,
     val abnormal: Color,
+    val purchase: Color,
     val custom: Color,
 ) {
-    val all get() = listOf(feeding, walk, play, medicine, vaccine, deworming, weight, vet, grooming, abnormal, custom)
+    val all get() = listOf(feeding, walk, play, medicine, vaccine, deworming, weight, vet, grooming, abnormal, purchase, custom)
 }
 
 val LightRecordTypes = RecordTypePalette(
@@ -109,6 +110,7 @@ val LightRecordTypes = RecordTypePalette(
     vet = Color(0xFFDC2626),
     grooming = Color(0xFFDB2777),
     abnormal = Color(0xFFEA580C),
+    purchase = Color(0xFF4F46E5),
     custom = Color(0xFFA16207),
 )
 
@@ -123,5 +125,6 @@ val DarkRecordTypes = RecordTypePalette(
     vet = Color(0xFFF87171),
     grooming = Color(0xFFF472B6),
     abnormal = Color(0xFFEA580C),
+    purchase = Color(0xFFA5B4FC),
     custom = Color(0xFFFACC15),
 )

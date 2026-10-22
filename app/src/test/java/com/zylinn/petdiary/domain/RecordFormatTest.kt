@@ -116,4 +116,12 @@ class RecordFormatTest {
         assertEquals("15 分鐘・逗貓棒、雷射筆", RecordFormat.summary(r, mapOf("t1" to "逗貓棒", "t2" to "雷射筆"), today))
         assertEquals("玩耍", with(RecordFormat) { RecordType.PLAY.label })
     }
+
+    // P14-03: purchase = category・item・amount; shared purchases are named 全家共用 (D84)
+    @Test fun purchaseSummaryAndFamilyName() {
+        val r = record(RecordType.PURCHASE).copy(category = "food", title = "皇家幼貓", cost = 900)
+        assertEquals("飼料・皇家幼貓・NT$ 900", RecordFormat.summary(r, com.zylinn.petdiary.data.record.BuiltInCategory.names, today))
+        assertEquals("購物", with(RecordFormat) { RecordType.PURCHASE.label })
+        assertEquals(mapOf("p1" to "雷米", "family" to "全家共用"), RecordFormat.petNamesWithFamily(mapOf("p1" to "雷米")))
+    }
 }

@@ -3,7 +3,10 @@ package com.zylinn.petdiary.ui.stats
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zylinn.petdiary.data.pet.PetRepository
+import com.zylinn.petdiary.data.record.FAMILY_PET_ID
 import com.zylinn.petdiary.data.record.FoodKind
+import com.zylinn.petdiary.data.record.RecordType
+import com.zylinn.petdiary.domain.RecordFormat
 import com.zylinn.petdiary.data.record.RecordRepository
 import com.zylinn.petdiary.domain.RangeKind
 import com.zylinn.petdiary.domain.StatMetric
@@ -60,14 +63,22 @@ class StatsViewModel(
     /** null until the first result (or when there are no pets at all). */
     val ui: StateFlow<StatsUi?> = combine(_filters, pets.activePets) { f, all -> f to all }
         .flatMapLatest { (f, all) ->
-            val shown = all.withIndex().filter { f.petIds.isEmpty() || it.value.id in f.petIds }
+            val chosen = all.withIndex().filter { f.petIds.isEmpty() || it.value.id in f.petIds }
                 .ifEmpty { all.withIndex().toList() }
                 .map { StatsPet(it.value.id, it.value.name, it.index) }
+            // Shared purchases belong to no single pet: they count only when every pet is shown (D84).
+            val withFamily = f.petIds.isEmpty() && all.isNotEmpty() && RecordType.PURCHASE in f.metric.types
+            val shown = if (withFamily) chosen + StatsPet(FAMILY_PET_ID, RecordFormat.FAMILY_NAME, FAMILY_COLOR_INDEX) else chosen
             val today = today()
             val span = StatsRanges.span(f.kind, f.offset, today, f.customFrom, f.customTo)
-            records.observeForStats(shown.map { it.id }, f.metric.types, span.from.toEpochDay(), span.to.toEpochDay()).map { recs ->
+            combine(
+                records.observeForStats(shown.map { it.id }, f.metric.types, span.from.toEpochDay(), span.to.toEpochDay()),
+                records.categoryNames,
+            ) { recs, categoryNames ->
                 StatsUi(
-                    StatsCalculator.compute(f.metric, span, shown.map { it.id to it.name }, recs, today, f.foodKind),
+                    StatsCalculator.compute(f.metric, span, shown.map { it.id to it.name }, recs, today, f.foodKind, categoryNames)
+                        // A family with no shared purchases in this period doesn't need a 全家共用 line.
+                        .let { r -> r.copy(series = r.series.filter { it.petId != FAMILY_PET_ID || it.total > 0 }) },
                     shown,
                     StatsRanges.title(f.kind, span, today),
                 )

@@ -1,5 +1,8 @@
 package com.zylinn.petdiary.ui
 
+import com.zylinn.petdiary.data.record.FAMILY_PET_ID
+import com.zylinn.petdiary.ui.navigation.Categories
+import com.zylinn.petdiary.ui.settings.CategoryTexts
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -151,6 +154,7 @@ fun PetDiaryApp() {
                     vm = vm,
                     onBack = back,
                     onOpenHit = { petId, day -> navigate(PetDetail(petId, day.toEpochDay())) },
+                    onOpenSharedRecord = { id, day -> navigate(sharedPurchase(id, day)) },
                     today = LocalDate.now(container.clock),
                 )
             }
@@ -171,6 +175,10 @@ fun PetDiaryApp() {
                 val vm = containerViewModel { SupplementsViewModel(it.recordRepository.toyOps) }
                 SupplementsScreen(vm = vm, onBack = back, texts = ToyTexts)
             }
+            entry<Categories> {
+                val vm = containerViewModel { SupplementsViewModel(it.recordRepository.categoryOps) }
+                SupplementsScreen(vm = vm, onBack = back, texts = CategoryTexts)
+            }
             entry<Settings> {
                 val context = androidx.compose.ui.platform.LocalContext.current
                 val vm = containerViewModel {
@@ -182,6 +190,7 @@ fun PetDiaryApp() {
                     onOpenTrash = { navigate(Trash) },
                     onOpenSupplements = { navigate(Supplements) },
                     onOpenToys = { navigate(Toys) },
+                    onOpenCategories = { navigate(Categories) },
                     onOpenAbout = { navigate(About) },
                     onOpenFamily = { navigate(Family) },
                     onBack = back,
@@ -266,6 +275,7 @@ private fun MainScreen(navigate: (NavKey) -> Unit) {
                         onOpenSettings = { navigate(Settings) },
                         onAddRecord = { type, petIds, day -> navigate(RecordEditor(petIds, type.name, day.toEpochDay())) },
                         onOpenReminders = { navigate(ReminderList) },
+                        onOpenSharedRecord = { id, day -> navigate(sharedPurchase(id, day)) },
                     )
                 }
                 TopLevelDestination.Album -> {
@@ -274,6 +284,7 @@ private fun MainScreen(navigate: (NavKey) -> Unit) {
                         vm = vm,
                         onOpenRecordDay = { petId, day -> navigate(PetDetail(petId, day.toEpochDay())) },
                         onOpenSettings = { navigate(Settings) },
+                        onOpenSharedRecord = { id, day -> navigate(sharedPurchase(id, day)) },
                     )
                 }
                 TopLevelDestination.Stats -> {
@@ -284,6 +295,10 @@ private fun MainScreen(navigate: (NavKey) -> Unit) {
         }
     }
 }
+
+/** A shared purchase has no pet page to open, so it opens straight in the editor (D84). */
+private fun sharedPurchase(recordId: String, day: LocalDate) =
+    RecordEditor(listOf(FAMILY_PET_ID), RecordType.PURCHASE.name, day.toEpochDay(), recordId)
 
 @Composable
 private fun appVersionName(): String {

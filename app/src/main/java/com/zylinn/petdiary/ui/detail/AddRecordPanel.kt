@@ -151,6 +151,8 @@ private fun PanelContent(
             modifier = Modifier.fillMaxWidth(),
         ) {
             PanelTypes.forEach { type -> TypeTile(type, onClick = { onPickType(type) }, modifier = Modifier.weight(1f)) }
+            // Keep the tiles of a short last row the same width as the others.
+            repeat((3 - PanelTypes.size % 3) % 3) { Spacer(Modifier.weight(1f)) }
         }
         if (quickFeeding != null || quickWalk != null) {
             HorizontalDivider(color = MaterialTheme.colorScheme.outline)

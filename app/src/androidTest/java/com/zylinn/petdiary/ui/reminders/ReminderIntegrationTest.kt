@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -132,9 +133,9 @@ class ReminderIntegrationTest {
         showDetail()
         waitFor("reminder_check_$id")
         rule.onNodeWithTag("reminder_check_$id").performClick()
-        rule.waitUntil(5_000) { runCatching { rule.onNodeWithText("已完成並記錄").assertExists() }.isSuccess }
+        rule.waitUntil(5_000) { runCatching { rule.onNodeWithText("已完成，已記錄「蚤不到」").assertExists() }.isSuccess }
         assertTrue(open().isEmpty())
-        rule.waitUntil(5_000) { runCatching { rule.onNodeWithTag("record_list").assertIsDisplayed(); rule.onNodeWithText("蚤不到", substring = true).assertExists() }.isSuccess }
+        rule.waitUntil(5_000) { runCatching { rule.onNodeWithTag("record_list").assertIsDisplayed() }.isSuccess && rule.onAllNodesWithText("蚤不到", substring = true).fetchSemanticsNodes().size >= 2 } // card + snackbar
     }
 
     // ---- home: S4 今天待辦 (P4-10, P4-11, P4-12) ----
@@ -142,6 +143,7 @@ class ReminderIntegrationTest {
     @Test fun todoBlockHiddenWithoutDueReminders() {
         add(today.plusDays(1))
         showHome()
+        waitFor("pet_grid")
         rule.onNodeWithTag("pet_grid").assertIsDisplayed()
         rule.onNodeWithTag("today_todos").assertDoesNotExist()
     }
@@ -162,7 +164,7 @@ class ReminderIntegrationTest {
         showHome()
         waitFor("todo_$id")
         rule.onNodeWithTag("reminder_check_$id").performClick()
-        rule.waitUntil(5_000) { runCatching { rule.onNodeWithText("已完成並記錄").assertExists() }.isSuccess }
+        rule.waitUntil(5_000) { runCatching { rule.onNodeWithText("已完成，已記錄「心臟藥」").assertExists() }.isSuccess }
         rule.onNodeWithTag("today_todos").assertDoesNotExist()
         assertEquals("心臟藥", runBlocking { records.observeDay(cat, today.toEpochDay()).first() }.single().title)
 

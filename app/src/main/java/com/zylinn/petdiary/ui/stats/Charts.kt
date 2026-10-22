@@ -31,12 +31,16 @@ import kotlin.math.ceil
 private val lightPalette = listOf(0xFF8B5E3C, 0xFF0F766E, 0xFF2563EB, 0xFFD97706, 0xFFDB2777, 0xFF7C3AED, 0xFF4D7C0F, 0xFFDC2626).map(::Color)
 private val darkPalette = listOf(0xFFD4A373, 0xFF2DD4BF, 0xFF60A5FA, 0xFFFBBF24, 0xFFF472B6, 0xFFA78BFA, 0xFFA3E635, 0xFFF87171).map(::Color)
 
-fun petColor(index: Int, dark: Boolean): Color = (if (dark) darkPalette else lightPalette)[index % lightPalette.size]
+/** [StatsPet.colorIndex] of the family's shared purchases (D84): a neutral grey, never a pet's color. */
+const val FAMILY_COLOR_INDEX = -1
+
+fun petColor(index: Int, dark: Boolean): Color =
+    if (index < 0) Color(if (dark) 0xFFA8A29E else 0xFF78716C) else (if (dark) darkPalette else lightPalette)[index % lightPalette.size]
 
 /** Marker shapes differ per pet so the lines stay distinguishable without color. */
 enum class Marker { CIRCLE, SQUARE, DIAMOND, TRIANGLE }
 
-fun petMarker(index: Int) = Marker.entries[(index / lightPalette.size + index) % Marker.entries.size]
+fun petMarker(index: Int) = if (index < 0) Marker.SQUARE else Marker.entries[(index / lightPalette.size + index) % Marker.entries.size]
 
 private fun formatAxis(v: Double, metric: StatMetric): String = when {
     metric == StatMetric.COST && v >= 1000 -> RecordFormat.number(v / 1000) + "k"

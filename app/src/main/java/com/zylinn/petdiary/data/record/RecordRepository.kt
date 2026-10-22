@@ -28,6 +28,8 @@ data class RecordInput(
     val supplementIds: List<String> = emptyList(),
     val foodKind: FoodKind? = null,
     val toyIds: List<String> = emptyList(),
+    /** Purchase category id (P14-03). */
+    val category: String? = null,
     val title: String? = null,
     val detail: String? = null,
     val hospital: String? = null,
@@ -66,6 +68,8 @@ class RecordRepository(
     private val reminders: ReminderDao? = null,
     /** The toy list for play records (D77); optional so tests that don't need it can skip it. */
     private val toys: ToyDao? = null,
+    /** The user's own purchase categories (P14-03); optional like [toys]. */
+    private val categories: CategoryDao? = null,
 ) {
     fun observeDay(petId: String, day: Long): Flow<List<Record>> = records.observeDay(petId, day)
     fun observeRange(from: Long, to: Long) = records.observeRange(from, to)
@@ -85,8 +89,12 @@ class RecordRepository(
     val toysList: Flow<List<Toy>> = toys?.observeActive() ?: flowOf(emptyList())
     /** id → name for every toy ever created, deleted ones included. */
     val toyNames: Flow<Map<String, String>> = (toys?.observeAll() ?: flowOf(emptyList())).map { list -> list.associate { it.id to it.name } }
-    /** Supplement and toy names together (ids are UUIDs, never shared), for record summaries. */
-    val itemNames: Flow<Map<String, String>> = combine(supplementNames, toyNames) { s, t -> s + t }
+    val categoriesList: Flow<List<PurchaseCategory>> = categories?.observeActive() ?: flowOf(emptyList())
+    /** Purchase category id → name: the built-in ones plus every one the user ever added. */
+    val categoryNames: Flow<Map<String, String>> = (categories?.observeAll() ?: flowOf(emptyList()))
+        .map { list -> BuiltInCategory.names + list.associate { it.id to it.name } }
+    /** Supplement, toy and category names together (ids never collide), for record summaries. */
+    val itemNames: Flow<Map<String, String>> = combine(supplementNames, toyNames, categoryNames) { s, t, c -> s + t + c }
 
     /** P3 search. Blank queries return nothing so the screen can show a hint instead. */
     fun search(query: SearchQuery): Flow<List<Record>> {
@@ -96,7 +104,9 @@ class RecordRepository(
             val like = RecordSearch.likePattern(text)
             val suppIds = if (text.isEmpty()) emptyList() else supplements.idsMatching(like)
             val toyIds = if (text.isEmpty() || toys == null) emptyList() else toys.idsMatching(like)
-            emitAll(records.observeSearch(RecordSearch.build(query, suppIds, toyIds)))
+            val categoryIds = if (text.isEmpty()) emptyList() else
+                BuiltInCategory.entries.filter { it.label.contains(text) }.map { it.id } + (categories?.idsMatching(like) ?: emptyList())
+            emitAll(records.observeSearch(RecordSearch.build(query, suppIds, toyIds, categoryIds)))
         }
     }
 
@@ -248,6 +258,36 @@ class RecordRepository(
         override suspend fun restore(id: String) { toys?.restore(id, clock.millis()) }
     }
 
+    /**
+     * Returns the category with this name — a built-in one, an existing one of the user's — or creates it
+     * (P14-03: add from the purchase form).
+     */
+    suspend fun addCategory(name: String): NamedItem {
+        val dao = checkNotNull(categories) { "no category list" }
+        val trimmed = name.trim().take(50)
+        require(trimmed.isNotEmpty()) { "name required" }
+        BuiltInCategory.entries.firstOrNull { it.label == trimmed }?.let { return BuiltInItem(it.id, it.label) }
+        dao.findByName(trimmed)?.let { return it }
+        return clock.millis().let { PurchaseCategory(newId(), trimmed, it, it) }.also { dao.insert(it) }
+    }
+
+    val categoryOps: NameListOps = object : NameListOps {
+        override val active: Flow<List<NamedItem>> = categoriesList
+        override suspend fun add(name: String) = addCategory(name)
+        override suspend fun rename(id: String, name: String): Boolean {
+            val dao = categories ?: return false
+            val trimmed = name.trim().take(50)
+            // A built-in name would show up twice in the form.
+            if (trimmed.isEmpty() || BuiltInCategory.entries.any { it.label == trimmed }) return false
+            val clash = dao.findByName(trimmed)
+            if (clash != null && clash.id != id) return false
+            dao.rename(id, trimmed, clock.millis())
+            return true
+        }
+        override suspend fun delete(id: String) { categories?.softDelete(id, clock.millis()) }
+        override suspend fun restore(id: String) { categories?.restore(id, clock.millis()) }
+    }
+
     /** Rows for the CSV export (P6-03). */
     suspend fun allForExport(): List<Record> = records.allForExport()
 
@@ -264,6 +304,7 @@ class RecordRepository(
         supplementIds = supplementIds.takeIf { it.isNotEmpty() }?.joinToString(","),
         foodKind = foodKind.takeIf { type == RecordType.FEEDING },
         toyIds = toyIds.takeIf { it.isNotEmpty() && type == RecordType.PLAY }?.joinToString(","),
+        category = category.takeIf { type == RecordType.PURCHASE },
         title = title?.trim()?.ifEmpty { null },
         detail = detail?.trim()?.ifEmpty { null },
         hospital = hospital?.trim()?.ifEmpty { null },

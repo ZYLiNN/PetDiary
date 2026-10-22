@@ -65,7 +65,6 @@ import com.zylinn.petdiary.data.record.FoodKind
 import com.zylinn.petdiary.data.record.NamedItem
 import com.zylinn.petdiary.data.record.RecordType
 import com.zylinn.petdiary.data.record.Supplement
-import com.zylinn.petdiary.data.record.allowsAttachments
 import com.zylinn.petdiary.data.record.isMedical
 import com.zylinn.petdiary.domain.RecordFormat
 import com.zylinn.petdiary.domain.RecordFormat.label
@@ -79,6 +78,7 @@ fun RecordEditorScreen(vm: RecordEditorViewModel, onDone: () -> Unit) {
     val state by vm.state.collectAsStateWithLifecycle()
     val supplements by vm.supplements.collectAsStateWithLifecycle()
     val toys by vm.toys.collectAsStateWithLifecycle()
+    val categories by vm.categories.collectAsStateWithLifecycle()
     var confirmDiscard by rememberSaveable { mutableStateOf(false) }
     val cancel = { if (state.dirty) confirmDiscard = true else onDone() }
     val discardAndLeave = { vm.discard(); onDone() }
@@ -151,16 +151,19 @@ fun RecordEditorScreen(vm: RecordEditorViewModel, onDone: () -> Unit) {
                     form.type == RecordType.GROOMING -> GroomingFields(form, vm::edit)
                     form.type == RecordType.ABNORMAL -> TextInput(form.title, "狀況 *（例如：嘔吐、拉肚子）", "field_title") { v -> vm.edit { it.copy(title = v) } }
                     form.type.isMedical -> MedicalFields(form, vm::edit)
+                    form.type == RecordType.PURCHASE -> PurchaseFields(form, categories, vm::edit, vm::addCategory)
+                    form.type == RecordType.CUSTOM -> {
+                        TextInput(form.title, "名稱 *（例如：剪指甲）", "field_title") { v -> vm.edit { it.copy(title = v) } }
+                        CostField(form, vm::edit)
+                    }
                 }
-                if (form.type.allowsAttachments) {
-                    AttachmentsSection(
-                        items = vm.attachmentItems(state),
-                        importing = state.importing,
-                        error = state.attachmentError,
-                        onPicked = vm::importAttachments,
-                        onRemove = vm::removeAttachment,
-                    )
-                }
+                AttachmentsSection(
+                    items = vm.attachmentItems(state),
+                    importing = state.importing,
+                    error = state.attachmentError,
+                    onPicked = vm::importAttachments,
+                    onRemove = vm::removeAttachment,
+                )
                 OutlinedTextField(
                     value = form.note,
                     onValueChange = { v -> vm.edit { it.copy(note = v.take(NOTE_MAX)) } },
@@ -313,6 +316,23 @@ private fun PlayFields(
         onToggle = { id -> onEdit { f -> f.copy(toyIds = if (id in f.toyIds) f.toyIds - id else f.toyIds + id) } },
         addTitle = "新增玩具", placeholder = "例如：逗貓棒", onAdd = onAddToy,
     )
+}
+
+/** Purchase (P14-03): one category (built-in or the user's own), an optional item name, and the amount. */
+@Composable
+private fun PurchaseFields(
+    form: RecordForm,
+    categories: List<NamedItem>,
+    onEdit: ((RecordForm) -> RecordForm) -> Unit,
+    onAddCategory: (String) -> Unit,
+) {
+    PickList(
+        title = "分類", tag = "cat", items = categories, selected = setOf(form.category),
+        onToggle = { id -> onEdit { it.copy(category = id) } },
+        addTitle = "新增分類", placeholder = "例如：貓砂", onAdd = onAddCategory,
+    )
+    TextInput(form.title, "品名（選填，例如：皇家幼貓 2kg）", "field_title") { v -> onEdit { it.copy(title = v) } }
+    CostField(form, onEdit, label = "金額 *")
 }
 
 /** Multi-select chips from a user-managed list, with "新增" to create (and select) a new name on the spot. */
@@ -480,11 +500,11 @@ private fun MedicalFields(form: RecordForm, onEdit: ((RecordForm) -> RecordForm)
 }
 
 @Composable
-private fun CostField(form: RecordForm, onEdit: ((RecordForm) -> RecordForm) -> Unit) {
+private fun CostField(form: RecordForm, onEdit: ((RecordForm) -> RecordForm) -> Unit, label: String = "費用") {
     OutlinedTextField(
         value = form.cost,
         onValueChange = { v -> onEdit { it.copy(cost = v.filter { c -> c.isDigit() || c == ',' }.take(12)) } },
-        label = { Text("費用") },
+        label = { Text(label) },
         prefix = { Text("NT$ ") },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),

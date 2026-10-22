@@ -44,7 +44,9 @@ object CalendarModel {
         val fromRecords = records.filter { it.deletedAt == null }.map { r ->
             CalendarItem(
                 id = r.id, petId = r.petId, day = LocalDate.ofEpochDay(r.dateEpochDay), minuteOfDay = r.minuteOfDay, isReminder = false,
-                type = r.type, label = r.type.label, detail = RecordFormat.summary(r, supplementNames, today),
+                // A 自訂 record (from a ticked-off reminder) is named like the reminder, e.g. 剪指甲 (P14-01).
+                type = r.type, label = if (r.type == RecordType.CUSTOM) r.title ?: r.type.label else r.type.label,
+                detail = RecordFormat.summary(if (r.type == RecordType.CUSTOM) r.copy(title = null) else r, supplementNames, today),
                 daily = r.type == RecordType.FEEDING || r.type == RecordType.WALK || r.type == RecordType.PLAY,
             )
         }

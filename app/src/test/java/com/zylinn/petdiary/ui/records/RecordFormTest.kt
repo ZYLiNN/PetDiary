@@ -142,4 +142,24 @@ class RecordFormTest {
         assertEquals(setOf("t1", "t2"), input.toyIds.toSet())
         assertEquals(listOf(10, 15, 30), PlayPresets)
     }
+
+    // P14-01: a 自訂 record (from ticking off a 自訂 reminder) needs its name and may carry a cost
+    @Test fun customRecordNeedsNameAndKeepsCost() {
+        val f = form(RecordType.CUSTOM)
+        assertEquals("請填名稱", f.problem(today))
+        val input = f.copy(title = "剪指甲", cost = "200").toInput(today)
+        assertEquals("剪指甲", input.title)
+        assertEquals(200L, input.cost)
+    }
+
+    // P14-03: a purchase needs an amount; the category defaults to 飼料 and the item name is optional
+    @Test fun purchaseNeedsAmount() {
+        val f = form(RecordType.PURCHASE)
+        assertEquals("food", f.category)
+        assertEquals("請填金額", f.problem(today))
+        val input = f.copy(cost = "1,200", category = "c1", title = "貓砂").toInput(today)
+        assertEquals(1200L, input.cost)
+        assertEquals("c1", input.category)
+        assertEquals("貓砂", input.title)
+    }
 }

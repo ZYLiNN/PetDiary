@@ -34,4 +34,8 @@ object PetPalette {
     )
 
     fun swatch(color: PetColor, darkTheme: Boolean): PetSwatch = (if (darkTheme) dark else light).getValue(color)
+
+    /** The family's shared purchases (D84): a warm stone grey, apart from the pets' own colors. */
+    fun familySwatch(darkTheme: Boolean): PetSwatch =
+        if (darkTheme) s(0xFF44403C, 0xFFF5F5F4, 0xFFA8A29E) else s(0xFFE7E5E4, 0xFF292524, 0xFF78716C)
 }

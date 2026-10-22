@@ -83,6 +83,7 @@ describe('data inside a group', () => {
     ['pets', pet], ['records', record], ['reminders', reminder],
     ['supplements', (id = 's1') => ({ id, name: '魚油', createdAt: NOW, updatedAt: NOW, serverUpdatedAt: serverTimestamp() })],
     ['toys', (id = 't1') => ({ id, name: '逗貓棒', createdAt: NOW, updatedAt: NOW, serverUpdatedAt: serverTimestamp() })],
+    ['categories', (id = 'c1') => ({ id, name: '貓砂', createdAt: NOW, updatedAt: NOW, serverUpdatedAt: serverTimestamp() })],
   ];
   for (const [coll, make] of cases) {
     it(`${coll}: members read, write and delete`, async () => {
@@ -316,6 +317,11 @@ describe('family: members', () => {
     await assertSucceeds(setDoc(doc(db('bob'), 'groups/g1/records/p1'), record('p1', { type: 'PLAY', toyIds: 't1,t2', durationMin: 15 })));
     await assertFails(setDoc(doc(db('bob'), 'groups/g1/records/p2'), record('p2', { toyIds: 42 })));
     await assertFails(setDoc(doc(db('bob'), 'groups/g1/records/p3'), record('p3', { foodKind: 'x'.repeat(21) })));
+  });
+  it('purchases carry a category and may belong to the whole family (P14)', async () => {
+    await assertSucceeds(setDoc(doc(db('bob'), 'groups/g1/records/b1'), record('b1', { type: 'PURCHASE', petId: 'family', category: 'food', title: '皇家', cost: 900 })));
+    await assertFails(setDoc(doc(db('bob'), 'groups/g1/records/b2'), record('b2', { category: 42 })));
+    await assertFails(setDoc(doc(db('bob'), 'groups/g1/records/b3'), record('b3', { category: 'x'.repeat(65) })));
   });
   it('record authors can be stored', async () => {
     await assertSucceeds(setDoc(doc(db('bob'), 'groups/g1/records/r1'), record('r1', { authorUid: 'bob' })));

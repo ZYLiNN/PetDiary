@@ -71,6 +71,13 @@ val ToyTexts = NameListTexts(
     empty = "還沒有玩具。在上面輸入名稱新增（例如：逗貓棒），或在玩耍紀錄裡直接新增也可以。",
 )
 
+val CategoryTexts = NameListTexts(
+    title = "購物分類",
+    explain = "飼料、零食、玩具、保健食品、用品、其他是內建分類；這裡可以再加上自己的分類。刪除後，舊紀錄仍然會顯示當時的名稱。",
+    addLabel = "新增分類",
+    empty = "還沒有自訂分類。在上面輸入名稱新增（例如：貓砂），或在購物紀錄裡直接新增也可以。",
+)
+
 /** P6-02 / D77: add, rename and delete the supplements (feeding) or toys (play) offered in the record forms. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

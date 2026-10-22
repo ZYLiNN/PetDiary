@@ -16,7 +16,7 @@ object CsvExport {
 
     val header = listOf(
         "日期", "時間", "寵物", "類型", "名稱／狀況／項目", "劑量／診斷", "醫院／地點", "費用", "下次日期",
-        "食物種類", "份數", "有喝水", "保健食品", "體重(kg)", "散步／玩耍(分鐘)", "玩具", "有小便", "有大便", "驅蟲種類", "備註",
+        "食物種類", "份數", "有喝水", "保健食品", "體重(kg)", "散步／玩耍(分鐘)", "玩具", "有小便", "有大便", "驅蟲種類", "購物分類", "備註",
     )
 
     fun cell(value: String): String {
@@ -28,7 +28,7 @@ object CsvExport {
 
     private fun yes(b: Boolean?) = if (b == true) "是" else ""
 
-    /** [names]: supplement and toy ids → names. */
+    /** [names]: supplement, toy and purchase category ids → names. */
     fun row(r: Record, petName: String, names: Map<String, String>): List<String> = listOf(
         LocalDate.ofEpochDay(r.dateEpochDay).toString(),
         RecordFormat.time(r.minuteOfDay),
@@ -49,6 +49,7 @@ object CsvExport {
         yes(r.peed),
         yes(r.pooped),
         when (r.dewormKind) { DewormKind.INTERNAL -> "內驅"; DewormKind.EXTERNAL -> "外驅"; null -> "" },
+        r.category?.let(names::get).orEmpty(),
         r.note.orEmpty(),
     )
 

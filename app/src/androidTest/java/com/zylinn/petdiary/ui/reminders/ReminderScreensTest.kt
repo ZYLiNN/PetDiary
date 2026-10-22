@@ -142,7 +142,7 @@ class ReminderScreensTest {
         showList()
         waitFor("reminder_$id")
         rule.onNodeWithTag("reminder_check_$id").performClick()
-        rule.waitUntil(5_000) { runCatching { rule.onNodeWithText("已完成並記錄").assertExists() }.isSuccess }
+        rule.waitUntil(5_000) { runCatching { rule.onNodeWithText("已完成，已記錄「蚤不到」").assertExists() }.isSuccess }
         assertTrue(open().isEmpty())
         assertEquals("蚤不到", runBlocking { records.observeDay(cat, today.toEpochDay()).first() }.single().title)
 

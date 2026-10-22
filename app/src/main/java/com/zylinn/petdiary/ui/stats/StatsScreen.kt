@@ -191,6 +191,9 @@ fun StatsScreen(vm: StatsViewModel, onOpenSettings: () -> Unit = {}) {
                         result.headline?.let {
                             Text(it, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.testTag("stats_headline"))
                         }
+                        result.breakdown?.let {
+                            Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("stats_breakdown"))
+                        }
                         val description = result.metric.label + (if (result.metric.isLine) "折線圖" else "長條圖") + "，" + state.title + "。" +
                             result.series.joinToString("；") { it.name + "：" + it.summary }
                         Box(

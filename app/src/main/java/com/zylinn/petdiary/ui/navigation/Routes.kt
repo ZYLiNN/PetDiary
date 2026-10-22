@@ -52,6 +52,10 @@ data object ReminderList : NavKey
 @Serializable
 data object Toys : NavKey
 
+/** Manage the user's own purchase categories (P14-03). */
+@Serializable
+data object Categories : NavKey
+
 /** Family group: members, invitations (QR), joining and leaving (P8). */
 @Serializable
 data object Family : NavKey

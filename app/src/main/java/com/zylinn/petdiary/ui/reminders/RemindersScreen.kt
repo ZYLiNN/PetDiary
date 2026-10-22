@@ -81,7 +81,7 @@ fun RemindersScreen(
     LaunchedEffect(justCompleted) {
         val c = justCompleted ?: return@LaunchedEffect
         val result = withTimeoutOrNull(UNDO_WINDOW_MS) {
-            snackbar.showSnackbar("已完成並記錄", actionLabel = "復原", duration = SnackbarDuration.Indefinite)
+            snackbar.showSnackbar(c.message, actionLabel = "復原", duration = SnackbarDuration.Indefinite)
         }
         if (result == SnackbarResult.ActionPerformed) vm.undo(c) else vm.completionAcknowledged()
     }

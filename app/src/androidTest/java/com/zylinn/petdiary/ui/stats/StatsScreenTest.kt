@@ -174,6 +174,27 @@ class StatsScreenTest {
         waitFor("stats_empty")
     }
 
+    // P14-03 (D84): shared purchases add a 全家共用 line to "all pets" costs only, with a breakdown by category
+    @Test fun sharedPurchasesCountWhenEveryPetIsShown() {
+        add(cat, RecordType.VET, today) { copy(cost = 3000) }
+        runBlocking {
+            records.addForPets(
+                listOf(com.zylinn.petdiary.data.record.FAMILY_PET_ID),
+                RecordInput(RecordType.PURCHASE, today.toEpochDay(), 600, cost = 1200, category = "food"),
+            )
+        }
+        show()
+        rule.onNodeWithTag("metric_row").performScrollToNode(hasTestTag("metric_COST"))
+        rule.onNodeWithTag("metric_COST").performClick()
+        waitFor("stats_headline")
+        rule.onNodeWithTag("stats_headline").assertTextEquals("總花費 NT$ 4,200")
+        rule.onNodeWithTag("stats_breakdown").assertTextEquals("就診 NT$ 3,000・飼料 NT$ 1,200")
+        rule.onNodeWithTag("stats_summary_family").assertTextContains("全家共用", substring = true)
+        rule.onNodeWithTag("stats_pet_$dog").performClick() // only 雷米 now
+        rule.waitUntil(5_000) { runCatching { rule.onNodeWithTag("stats_headline").assertTextEquals("總花費 NT$ 3,000") }.isSuccess }
+        rule.onNodeWithTag("stats_summary_family").assertDoesNotExist()
+    }
+
     @Test fun weightHintWhenPetsDifferInSize() {
         add(cat, RecordType.WEIGHT, today) { copy(weightKg = 4.0) }
         add(dog, RecordType.WEIGHT, today) { copy(weightKg = 20.0) }

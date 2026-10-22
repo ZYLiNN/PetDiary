@@ -26,7 +26,10 @@ data class Completion(
     val reminderId: String,
     val recordId: String?,
     val previous: Reminder,
-)
+) {
+    /** Snackbar text naming the record that was just written, e.g. 已完成，已記錄「剪指甲」. */
+    val message: String get() = "已完成，已記錄「${previous.title ?: previous.type.label}」"
+}
 
 /** A repeating reminder finished late, where "keep the old rhythm" and "count from today" differ (D37). */
 data class LateChoice(val id: String, val lateDays: Int, val rolled: LocalDate, val anchored: LocalDate)
@@ -118,8 +121,8 @@ class ReminderRepository(
         if (r.deletedAt != null || r.completedAt != null) return null
         val today = LocalDate.now(clock)
         val now = LocalTime.now(clock)
-        // A 自訂 reminder has no matching record type, so ticking it off only advances / closes it (D36).
-        val recordId = if (r.type == RecordType.CUSTOM) null else records.addForPets(
+        // A 自訂 reminder leaves a 自訂 record named like the reminder, so it can be looked up later (P14-01).
+        val recordId = records.addForPets(
             listOf(r.petId),
             RecordInput(
                 type = r.type,

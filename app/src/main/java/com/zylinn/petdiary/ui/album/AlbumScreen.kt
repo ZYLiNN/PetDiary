@@ -1,5 +1,6 @@
 package com.zylinn.petdiary.ui.album
 
+import com.zylinn.petdiary.data.record.FAMILY_PET_ID
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -54,14 +55,13 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.zylinn.petdiary.domain.RecordFormat
 import com.zylinn.petdiary.domain.RecordFormat.label
 import com.zylinn.petdiary.ui.common.SettingsAction
 import com.zylinn.petdiary.ui.records.AttachmentExport
+import com.zylinn.petdiary.ui.records.PhotoPager
 import com.zylinn.petdiary.ui.records.formatSize
 import com.zylinn.petdiary.ui.theme.PetPalette
 import java.time.LocalDate
@@ -76,11 +76,13 @@ fun AlbumScreen(
     vm: AlbumViewModel,
     onOpenRecordDay: (petId: String, day: LocalDate) -> Unit,
     onOpenSettings: () -> Unit,
+    /** A shared purchase has no pet page, so it opens in the record editor (D84). */
+    onOpenSharedRecord: (recordId: String, day: LocalDate) -> Unit = { _, _ -> },
 ) {
     val ui by vm.ui.collectAsStateWithLifecycle()
     var viewing by rememberSaveable { mutableStateOf<String?>(null) }
     val context = LocalContext.current
-    val names = ui.pets.associate { it.id to it.name }
+    val names = RecordFormat.petNamesWithFamily(ui.pets.associate { it.id to it.name })
     val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
     Scaffold(
@@ -174,12 +176,19 @@ fun AlbumScreen(
         }
     }
 
-    ui.months.flatMap { it.second }.firstOrNull { it.entry.id == viewing }?.let { item ->
+    // Swipes through the photos currently listed (same tab and pet filter), newest first (P14-02).
+    val shown = if (ui.tab == AlbumTab.PHOTOS) ui.months.flatMap { it.second } else emptyList()
+    if (viewing != null && shown.any { it.entry.id == viewing }) {
         PhotoViewer(
-            item = item,
-            petName = names[item.entry.petId].orEmpty(),
+            items = shown,
+            startId = viewing!!,
+            names = names,
+            onShow = { viewing = it.entry.id },
             onDismiss = { viewing = null },
-            onOpenRecord = { viewing = null; onOpenRecordDay(item.entry.petId, item.day) },
+            onOpenRecord = { item ->
+                viewing = null
+                if (item.entry.petId == FAMILY_PET_ID) onOpenSharedRecord(item.entry.recordId, item.day) else onOpenRecordDay(item.entry.petId, item.day)
+            },
         )
     }
 }
@@ -224,32 +233,39 @@ private fun FileRow(item: AlbumItem, petName: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun PhotoViewer(item: AlbumItem, petName: String, onDismiss: () -> Unit, onOpenRecord: () -> Unit) {
+private fun PhotoViewer(
+    items: List<AlbumItem>,
+    startId: String,
+    names: Map<String, String>,
+    onShow: (AlbumItem) -> Unit,
+    onDismiss: () -> Unit,
+    onOpenRecord: (AlbumItem) -> Unit,
+) {
     val context = LocalContext.current
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.inverseSurface).testTag("album_viewer")) {
-            Box(Modifier.fillMaxWidth().clickable(onClick = onDismiss), contentAlignment = Alignment.Center) {
-                if (item.ready) AsyncImage(model = item.file, contentDescription = item.entry.displayName, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxWidth())
-                else Text("照片還在從雲端下載", color = MaterialTheme.colorScheme.inverseOnSurface, modifier = Modifier.padding(48.dp))
-            }
-            val ink = MaterialTheme.colorScheme.inverseOnSurface
-            Text(
-                "$petName・${item.entry.type.label}・${item.day.year}/${item.day.monthValue}/${item.day.dayOfMonth} ${RecordFormat.time(item.entry.minuteOfDay)}",
-                color = ink, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = 16.dp, top = 8.dp),
-            )
-            Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = onOpenRecord, modifier = Modifier.testTag("viewer_open_record")) { Text("看紀錄", color = ink) }
-                if (item.ready && AttachmentExport.canSave) {
-                    TextButton(onClick = {
-                        val where = AttachmentExport.save(context, item.file, item.entry.mimeType, item.entry.displayName)
-                        Toast.makeText(context, where?.let { "已存到$it" } ?: "儲存失敗，請改用「分享」", Toast.LENGTH_SHORT).show()
-                    }, modifier = Modifier.testTag("viewer_save")) { Text("下載", color = ink) }
-                }
-                if (item.ready) {
-                    TextButton(onClick = { AttachmentExport.share(context, item.file, item.entry.mimeType) }, modifier = Modifier.testTag("viewer_share")) { Text("分享", color = ink) }
-                }
-                TextButton(onClick = onDismiss) { Text("關閉", color = ink) }
-            }
+    PhotoPager(
+        items = items,
+        startIndex = items.indexOfFirst { it.entry.id == startId },
+        key = { it.entry.id },
+        onDismiss = onDismiss,
+        onShow = onShow,
+        tag = "album_viewer",
+        page = { item ->
+            if (item.ready) AsyncImage(model = item.file, contentDescription = item.entry.displayName, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxWidth())
+            else Text("照片還在從雲端下載", color = MaterialTheme.colorScheme.inverseOnSurface, modifier = Modifier.padding(48.dp))
+        },
+        caption = { item ->
+            "${names[item.entry.petId].orEmpty()}・${item.entry.type.label}・${item.day.year}/${item.day.monthValue}/${item.day.dayOfMonth} ${RecordFormat.time(item.entry.minuteOfDay)}"
+        },
+    ) { item, ink ->
+        TextButton(onClick = { onOpenRecord(item) }, modifier = Modifier.testTag("viewer_open_record")) { Text("看紀錄", color = ink) }
+        if (item.ready && AttachmentExport.canSave) {
+            TextButton(onClick = {
+                val where = AttachmentExport.save(context, item.file, item.entry.mimeType, item.entry.displayName)
+                Toast.makeText(context, where?.let { "已存到$it" } ?: "儲存失敗，請改用「分享」", Toast.LENGTH_SHORT).show()
+            }, modifier = Modifier.testTag("viewer_save")) { Text("下載", color = ink) }
+        }
+        if (item.ready) {
+            TextButton(onClick = { AttachmentExport.share(context, item.file, item.entry.mimeType) }, modifier = Modifier.testTag("viewer_share")) { Text("分享", color = ink) }
         }
     }
 }

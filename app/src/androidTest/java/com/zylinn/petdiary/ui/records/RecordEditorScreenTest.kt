@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -14,6 +15,8 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -63,7 +66,7 @@ class RecordEditorScreenTest {
     @Before fun setUp() = runBlocking {
         db = Room.inMemoryDatabaseBuilder(context, PetDiaryDatabase::class.java).build()
         files = FileStore(File(context.cacheDir, "editor-rec").apply { deleteRecursively(); mkdirs() })
-        records = RecordRepository(db.recordDao(), db.attachmentDao(), db.supplementDao(), files, clock, toys = db.toyDao())
+        records = RecordRepository(db.recordDao(), db.attachmentDao(), db.supplementDao(), files, clock, toys = db.toyDao(), categories = db.categoryDao())
         pets = PetRepository(db.petDao(), clock)
         cat = pets.add(PetInput(name = "雷米", species = Species.CAT, birthEpochDay = 1)).id
         dog = pets.add(PetInput(name = "雷利", species = Species.DOG, birthEpochDay = 1)).id
@@ -319,5 +322,53 @@ class RecordEditorScreenTest {
         val name = vm.state.value.added.single().fileName
         vm.discard()
         assertTrue(!files.exists(name))
+    }
+
+    // P14-02: an existing record's photos open large and swipe; PDFs stay out of the swipe
+    @Test fun photosOfARecordSwipe() = runBlocking {
+        val names = listOf("a.jpg", "b.jpg", "c.jpg")
+        names.forEach { files.file(it).writeBytes(ByteArray(64)) }
+        val id = records.addForPets(
+            listOf(cat), RecordInput(RecordType.ABNORMAL, today.toEpochDay(), 480, title = "嘔吐"),
+            names.map { com.zylinn.petdiary.data.record.NewAttachment(it, "image/jpeg", it, 64) } +
+                com.zylinn.petdiary.data.record.NewAttachment("r.pdf", "application/pdf", "r.pdf", 64),
+        ).single()
+        open(RecordType.ABNORMAL, recordId = id)
+        rule.waitUntil(5_000) { runCatching { rule.onNodeWithTag("attachment_b.jpg").assertExists() }.isSuccess }
+        rule.onNodeWithTag("attachment_b.jpg").performScrollTo().performClick()
+        rule.onNodeWithTag("viewer_counter").assertTextEquals("2 / 3")
+        rule.onNodeWithTag("viewer_pager").performTouchInput { swipeLeft() }
+        rule.waitUntil(5_000) { runCatching { rule.onNodeWithTag("viewer_counter").assertTextEquals("3 / 3") }.isSuccess }
+    }
+
+    // P14-03 (D84): a purchase for several pets is stored once, for the whole family
+    @Test fun purchaseForSeveralPetsIsSharedOnce() {
+        open(RecordType.PURCHASE, petIds = listOf(cat, dog))
+        rule.onNodeWithText("全家共用").assertIsDisplayed()
+        rule.onNodeWithTag("save_button").assertIsNotEnabled() // amount is required
+        rule.onNodeWithTag("cat_零食").performClick()
+        rule.onNodeWithTag("field_title").performTextInput("肉泥")
+        rule.onNodeWithTag("field_cost").performTextInput("450")
+        saveAndWait()
+        assertTrue(day(cat).isEmpty())
+        assertTrue(day(dog).isEmpty())
+        val r = day(com.zylinn.petdiary.data.record.FAMILY_PET_ID).single()
+        assertEquals("snack", r.category)
+        assertEquals(450L, r.cost)
+        assertEquals("肉泥", r.title)
+    }
+
+    // P14-03: one pet → that pet's purchase; a new category made on the spot is selected
+    @Test fun purchaseForOnePetWithANewCategory() {
+        open(RecordType.PURCHASE)
+        rule.onNodeWithTag("cat_add").performClick()
+        rule.onNodeWithTag("cat_new_name").performTextInput("貓砂")
+        rule.onNodeWithTag("cat_new_confirm").performClick()
+        rule.waitUntil(5_000) { runCatching { rule.onNodeWithTag("cat_貓砂").assertIsSelected() }.isSuccess }
+        rule.onNodeWithTag("field_cost").performTextInput("300")
+        saveAndWait()
+        val r = day(cat).single()
+        assertEquals(RecordType.PURCHASE, r.type)
+        assertEquals("貓砂", runBlocking { records.categoryNames.first() }[r.category])
     }
 }

@@ -82,7 +82,7 @@ class SearchViewModel(
             val query = f.toQuery()
             if (query.isBlank) return@flatMapLatest flowOf(SearchResults.Idle)
             combine(records.search(query), pets.activePets, records.itemNames, authorNames) { found, petList, supps, authors ->
-                val names = petList.associate { it.id to it.name }
+                val names = RecordFormat.petNamesWithFamily(petList.associate { it.id to it.name })
                 val suppNames = supps
                 val today = today()
                 val groups = found.groupBy { it.dateEpochDay }.map { (epochDay, list) ->

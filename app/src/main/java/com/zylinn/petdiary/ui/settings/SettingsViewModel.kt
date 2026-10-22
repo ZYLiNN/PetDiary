@@ -1,5 +1,6 @@
 package com.zylinn.petdiary.ui.settings
 
+import com.zylinn.petdiary.domain.RecordFormat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zylinn.petdiary.data.export.CsvExport
@@ -99,7 +100,7 @@ class SettingsViewModel(
                 _export.value = ExportState.Empty
                 return@launch
             }
-            val petNames = pets.activePets.first().associate { it.id to it.name }
+            val petNames = RecordFormat.petNamesWithFamily(pets.activePets.first().associate { it.id to it.name })
             val suppNames = records.itemNames.first()
             val file = withContext(Dispatchers.IO) {
                 exportDir.mkdirs()

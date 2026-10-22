@@ -11,11 +11,12 @@ import com.zylinn.petdiary.data.record.RecordType
 import com.zylinn.petdiary.data.record.FoodKind
 import com.zylinn.petdiary.data.record.Supplement
 import com.zylinn.petdiary.data.record.Toy
+import com.zylinn.petdiary.data.record.PurchaseCategory
 import com.zylinn.petdiary.data.reminder.Reminder
 import com.zylinn.petdiary.data.reminder.ReminderRepeat
 
 /** The synced collections, named exactly like the Firestore sub-collections the security rules know about. */
-enum class SyncTable(val path: String) { PETS("pets"), RECORDS("records"), REMINDERS("reminders"), SUPPLEMENTS("supplements"), TOYS("toys") }
+enum class SyncTable(val path: String) { PETS("pets"), RECORDS("records"), REMINDERS("reminders"), SUPPLEMENTS("supplements"), TOYS("toys"), CATEGORIES("categories") }
 
 typealias CloudDoc = Map<String, Any>
 
@@ -95,7 +96,7 @@ object CloudMapper {
     fun record(r: Record): CloudDoc = buildMap {
         put("id", r.id); put("petId", r.petId); put("type", r.type.name); put("dateEpochDay", r.dateEpochDay)
         put("minuteOfDay", r.minuteOfDay); put("note", r.note); put("cost", r.cost); put("portions", r.portions)
-        put("drankWater", r.drankWater); put("supplementIds", r.supplementIds); put("foodKind", r.foodKind?.name); put("toyIds", r.toyIds); put("title", r.title); put("detail", r.detail)
+        put("drankWater", r.drankWater); put("supplementIds", r.supplementIds); put("foodKind", r.foodKind?.name); put("toyIds", r.toyIds); put("category", r.category); put("title", r.title); put("detail", r.detail)
         put("hospital", r.hospital); put("nextEpochDay", r.nextEpochDay); put("remindNext", r.remindNext)
         put("dewormKind", r.dewormKind?.name); put("weightKg", r.weightKg); put("durationMin", r.durationMin)
         put("peed", r.peed); put("pooped", r.pooped); put("authorUid", r.authorUid)
@@ -109,7 +110,7 @@ object CloudMapper {
         dateEpochDay = d.long("dateEpochDay") ?: return null,
         minuteOfDay = d.int("minuteOfDay") ?: return null,
         note = d.str("note"), cost = d.long("cost"), portions = d.dbl("portions"), drankWater = d.bool("drankWater"),
-        supplementIds = d.str("supplementIds"), foodKind = d.enum<FoodKind>("foodKind"), toyIds = d.str("toyIds"), title = d.str("title"), detail = d.str("detail"), hospital = d.str("hospital"),
+        supplementIds = d.str("supplementIds"), foodKind = d.enum<FoodKind>("foodKind"), toyIds = d.str("toyIds"), category = d.str("category"), title = d.str("title"), detail = d.str("detail"), hospital = d.str("hospital"),
         nextEpochDay = d.long("nextEpochDay"), remindNext = d.bool("remindNext") ?: false,
         dewormKind = d.enum<DewormKind>("dewormKind"), weightKg = d.dbl("weightKg"),
         durationMin = d.int("durationMin"), peed = d.bool("peed"), pooped = d.bool("pooped"), authorUid = d.str("authorUid"),
@@ -160,6 +161,18 @@ object CloudMapper {
     }
 
     fun toy(d: CloudDoc): Toy? = Toy(
+        id = d.str("id") ?: return null,
+        name = d.str("name") ?: return null,
+        createdAt = d.long("createdAt") ?: return null,
+        updatedAt = d.long("updatedAt") ?: return null,
+        deletedAt = d.long("deletedAt"),
+    )
+
+    fun category(c: PurchaseCategory): CloudDoc = buildMap {
+        put("id", c.id); put("name", c.name); put("createdAt", c.createdAt); put("updatedAt", c.updatedAt); put("deletedAt", c.deletedAt)
+    }
+
+    fun category(d: CloudDoc): PurchaseCategory? = PurchaseCategory(
         id = d.str("id") ?: return null,
         name = d.str("name") ?: return null,
         createdAt = d.long("createdAt") ?: return null,

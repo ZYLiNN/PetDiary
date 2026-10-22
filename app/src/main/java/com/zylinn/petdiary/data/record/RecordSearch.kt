@@ -26,8 +26,14 @@ object RecordSearch {
     fun likePattern(text: String): String =
         "%" + text.trim().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
 
-    fun build(q: SearchQuery, matchingSupplementIds: List<String>, matchingToyIds: List<String> = emptyList()): SimpleSQLiteQuery {
-        val where = mutableListOf("r.deletedAt IS NULL", "p.deletedAt IS NULL")
+    /** [matchingCategoryIds]: purchase categories (built-in and the user's) whose name contains the text. */
+    fun build(
+        q: SearchQuery,
+        matchingSupplementIds: List<String>,
+        matchingToyIds: List<String> = emptyList(),
+        matchingCategoryIds: List<String> = emptyList(),
+    ): SimpleSQLiteQuery {
+        val where = mutableListOf("r.deletedAt IS NULL", LIVING_PET)
         val args = mutableListOf<Any>()
 
         if (q.petIds.isNotEmpty()) {
@@ -62,11 +68,15 @@ object RecordSearch {
                 any += "(',' || r.toyIds || ',') LIKE ?"
                 args += "%,$id,%"
             }
+            if (matchingCategoryIds.isNotEmpty()) {
+                any += "r.category IN (${matchingCategoryIds.joinToString(",") { "?" }})"
+                args.addAll(matchingCategoryIds)
+            }
             where += "(" + any.joinToString(" OR ") + ")"
         }
 
         val sql = """
-            SELECT r.* FROM records r JOIN pets p ON p.id = r.petId
+            SELECT r.* FROM records r $FAMILY_JOIN
             WHERE ${where.joinToString(" AND ")}
             ORDER BY r.dateEpochDay DESC, r.minuteOfDay DESC, r.createdAt DESC
             LIMIT $LIMIT

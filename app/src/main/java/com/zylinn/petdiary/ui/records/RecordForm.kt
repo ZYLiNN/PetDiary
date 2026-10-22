@@ -1,5 +1,6 @@
 package com.zylinn.petdiary.ui.records
 
+import com.zylinn.petdiary.data.record.BuiltInCategory
 import com.zylinn.petdiary.data.record.DewormKind
 import com.zylinn.petdiary.data.record.FoodKind
 import com.zylinn.petdiary.data.record.Record
@@ -48,6 +49,8 @@ data class RecordForm(
     val foodKind: FoodKind = FoodKind.DRY,
     // Play (minutes reuse [durationMin])
     val toyIds: Set<String> = emptySet(),
+    // Purchase (item name uses [title], amount uses [cost])
+    val category: String = BuiltInCategory.FOOD.id,
     // Medical / abnormal
     val title: String = "",
     val detail: String = "",
@@ -95,7 +98,10 @@ data class RecordForm(
                 if (groomingItems.isEmpty() && note.isBlank()) "請選擇美容項目" else null
             RecordType.ABNORMAL ->
                 if (title.isBlank()) "請描述狀況（例如：嘔吐）" else null
-            RecordType.CUSTOM -> null
+            RecordType.CUSTOM ->
+                if (title.isBlank()) "請填名稱" else null
+            RecordType.PURCHASE ->
+                if (RecordFormat.parseCost(cost) !is RecordFormat.CostInput.Value) "請填金額" else null
             else -> // medical
                 if (title.isBlank()) "請填寫${medicalLabels(type).title.removeSuffix(" *")}" else null
         }
@@ -124,7 +130,8 @@ data class RecordForm(
                 hospital = hospital,
             )
             RecordType.ABNORMAL -> RecordInput(type, date.toEpochDay(), minuteOfDay, note = note, title = title)
-            RecordType.CUSTOM -> error("custom is reminder-only")
+            RecordType.CUSTOM -> RecordInput(type, date.toEpochDay(), minuteOfDay, note = note, cost = costValue, title = title)
+            RecordType.PURCHASE -> RecordInput(type, date.toEpochDay(), minuteOfDay, note = note, cost = costValue, category = category, title = title)
             else -> RecordInput(
                 type, date.toEpochDay(), minuteOfDay, note = note, cost = costValue,
                 title = title, detail = detail.takeIf { medicalLabels(type).detail != null },
@@ -145,6 +152,7 @@ data class RecordForm(
             supplementIds = r.supplementIdList.toSet(),
             foodKind = r.effectiveFoodKind ?: FoodKind.DRY,
             toyIds = r.toyIdList.toSet(),
+            category = r.category ?: BuiltInCategory.OTHER.id,
             title = if (r.type == RecordType.GROOMING) "" else r.title.orEmpty(),
             detail = r.detail.orEmpty(),
             hospital = r.hospital.orEmpty(),

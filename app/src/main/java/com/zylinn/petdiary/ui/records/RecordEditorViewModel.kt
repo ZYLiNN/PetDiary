@@ -7,17 +7,21 @@ import com.zylinn.petdiary.data.pet.PetRepository
 import com.zylinn.petdiary.data.photo.AttachmentImporter
 import com.zylinn.petdiary.data.photo.FileStore
 import com.zylinn.petdiary.data.record.Attachment
+import com.zylinn.petdiary.data.record.BuiltInCategory
+import com.zylinn.petdiary.data.record.BuiltInItem
+import com.zylinn.petdiary.data.record.FAMILY_PET_ID
 import com.zylinn.petdiary.data.record.NewAttachment
 import com.zylinn.petdiary.data.record.RecordRepository
 import com.zylinn.petdiary.data.record.MAX_ATTACHMENTS
 import com.zylinn.petdiary.data.record.NamedItem
 import com.zylinn.petdiary.data.record.RecordType
 import com.zylinn.petdiary.data.record.Supplement
-import com.zylinn.petdiary.data.record.allowsAttachments
+import com.zylinn.petdiary.domain.RecordFormat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -84,10 +88,19 @@ class RecordEditorViewModel(
     val toys: StateFlow<List<NamedItem>> =
         records.toysList.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /** Purchase categories: the built-in ones first, then the user's own (P14-03). */
+    val categories: StateFlow<List<NamedItem>> = records.categoriesList
+        .map { own -> BuiltInCategory.entries.map { BuiltInItem(it.id, it.label) } + own }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BuiltInCategory.entries.map { BuiltInItem(it.id, it.label) })
+
+    /** A new purchase for several pets is stored once, for the whole family (D84). */
+    private val sharedPurchase get() = recordId == null && _state.value.form.type == RecordType.PURCHASE && petIds.size > 1
+
     init {
         viewModelScope.launch {
-            val names = petIds.mapNotNull { pets.get(it)?.name }.joinToString("、")
             val existing = recordId?.let { records.get(it) }
+            val names = if (existing?.isShared == true || (existing == null && type == RecordType.PURCHASE && petIds.size > 1)) RecordFormat.FAMILY_NAME
+            else petIds.mapNotNull { pets.get(it)?.name }.joinToString("、")
             val files = recordId?.let { records.attachmentsOf(it) }.orEmpty()
             _state.update { s ->
                 if (existing == null) s.copy(loading = false, petNames = names)
@@ -119,6 +132,15 @@ class RecordEditorViewModel(
         viewModelScope.launch {
             val t = records.addToy(name.take(TEXT_MAX))
             edit { it.copy(toyIds = it.toyIds + t.id) }
+        }
+    }
+
+    /** P14-03: create a purchase category right from the form and select it. */
+    fun addCategory(name: String) {
+        if (name.isBlank()) return
+        viewModelScope.launch {
+            val c = records.addCategory(name.take(TEXT_MAX))
+            edit { it.copy(category = c.id) }
         }
     }
 
@@ -175,11 +197,9 @@ class RecordEditorViewModel(
         _state.update { it.copy(saving = true) }
         viewModelScope.launch {
             val input = current.form.toInput(today())
-            val keepFiles = current.form.type.allowsAttachments
-            val added = if (keepFiles) current.added else emptyList()
-            if (!keepFiles) current.added.forEach { attachmentFiles.delete(it.fileName) }
+            val added = current.added
             if (recordId == null) {
-                records.addForPets(petIds, input, added)
+                records.addForPets(if (sharedPurchase) listOf(FAMILY_PET_ID) else petIds, input, added)
             } else {
                 records.update(recordId, input, added, current.removedIds.toList())
             }

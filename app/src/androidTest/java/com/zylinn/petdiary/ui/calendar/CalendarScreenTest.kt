@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -58,6 +59,7 @@ class CalendarScreenTest {
     private var opened: Pair<String, LocalDate>? = null
     private var addReminderOn: LocalDate? = null
     private var addedRecord: Triple<RecordType, List<String>, LocalDate>? = null
+    private var openedShared: Pair<String, LocalDate>? = null
 
     @Before fun setUp() = runBlocking {
         db = Room.inMemoryDatabaseBuilder(context, PetDiaryDatabase::class.java).build()
@@ -91,7 +93,8 @@ class CalendarScreenTest {
             PetDiaryTheme {
                 val screen = @androidx.compose.runtime.Composable {
                     CalendarScreen(vm, onOpenDay = { p, d -> opened = p to d }, onAddReminder = { addReminderOn = it }, onOpenSettings = {},
-                        onAddRecord = { t, ids, d -> addedRecord = Triple(t, ids, d) })
+                        onAddRecord = { t, ids, d -> addedRecord = Triple(t, ids, d) },
+                        onOpenSharedRecord = { id, d -> openedShared = id to d })
                 }
                 if (wide) FitToScreen(900.dp, 600.dp) { screen() } else FitToScreen(400.dp, 800.dp) { screen() }
             }
@@ -179,6 +182,26 @@ class CalendarScreenTest {
         rule.onNodeWithTag("cal_item_$a", useUnmergedTree = true).assertExists()
         rule.onNodeWithTag("cal_pet_all").performClick() // 全部顯示
         waitFor("cal_item_$b")
+    }
+
+    // P14-03 (D84): a shared purchase is listed under 全家共用 (not drawn in the cell), opens in the editor,
+    // and is left out while only some pets are shown
+    @Test fun sharedPurchaseIsListedUnderTheFamily() {
+        val id = runBlocking {
+            records.addForPets(
+                listOf(com.zylinn.petdiary.data.record.FAMILY_PET_ID),
+                RecordInput(RecordType.PURCHASE, day("2026-10-20").toEpochDay(), 600, cost = 900, category = "food", title = "皇家"),
+            ).single()
+        }
+        show()
+        waitFor("cal_row_$id")
+        rule.onNodeWithText("全家共用").assertExists()
+        rule.onNodeWithTag("cal_item_$id", useUnmergedTree = true).assertDoesNotExist()
+        rule.onNodeWithTag("cal_row_$id").performScrollTo().performClick()
+        assertEquals(id to day("2026-10-20"), openedShared)
+        rule.onNodeWithTag("cal_filter").performClick()
+        rule.onNodeWithTag("cal_pet_$lily").performClick()
+        gone("cal_row_$id")
     }
 
     @Test fun noPetChipRowAboveTheMonth() {

@@ -10,6 +10,7 @@ import com.zylinn.petdiary.data.record.Attachment
 import com.zylinn.petdiary.data.record.Record
 import com.zylinn.petdiary.data.record.Supplement
 import com.zylinn.petdiary.data.record.Toy
+import com.zylinn.petdiary.data.record.PurchaseCategory
 import com.zylinn.petdiary.data.reminder.Reminder
 import kotlinx.coroutines.flow.Flow
 
@@ -33,8 +34,11 @@ interface SyncDao {
     @Query("SELECT t.* FROM toys t LEFT JOIN sync_meta m ON m.tableName = 'toys' AND m.id = t.id WHERE m.id IS NULL OR m.localStamp != t.updatedAt")
     suspend fun dirtyToys(): List<Toy>
 
+    @Query("SELECT c.* FROM purchase_categories c LEFT JOIN sync_meta m ON m.tableName = 'categories' AND m.id = c.id WHERE m.id IS NULL OR m.localStamp != c.updatedAt")
+    suspend fun dirtyCategories(): List<PurchaseCategory>
+
     /** Re-emits whenever a table or the sync marks change; the engine then looks for dirty rows. */
-    @Query("SELECT (SELECT COUNT(*) FROM pets) + (SELECT COUNT(*) FROM records) + (SELECT COUNT(*) FROM reminders) + (SELECT COUNT(*) FROM supplements) + (SELECT COUNT(*) FROM toys) + (SELECT COALESCE(SUM(updatedAt), 0) FROM pets) + (SELECT COALESCE(SUM(updatedAt), 0) FROM records) + (SELECT COALESCE(SUM(updatedAt), 0) FROM reminders) + (SELECT COALESCE(SUM(updatedAt), 0) FROM supplements) + (SELECT COALESCE(SUM(updatedAt), 0) FROM toys) + (SELECT COUNT(*) FROM sync_meta)")
+    @Query("SELECT (SELECT COUNT(*) FROM pets) + (SELECT COUNT(*) FROM records) + (SELECT COUNT(*) FROM reminders) + (SELECT COUNT(*) FROM supplements) + (SELECT COUNT(*) FROM toys) + (SELECT COUNT(*) FROM purchase_categories) + (SELECT COALESCE(SUM(updatedAt), 0) FROM pets) + (SELECT COALESCE(SUM(updatedAt), 0) FROM records) + (SELECT COALESCE(SUM(updatedAt), 0) FROM reminders) + (SELECT COALESCE(SUM(updatedAt), 0) FROM supplements) + (SELECT COALESCE(SUM(updatedAt), 0) FROM toys) + (SELECT COALESCE(SUM(updatedAt), 0) FROM purchase_categories) + (SELECT COUNT(*) FROM sync_meta)")
     fun changeSignal(): Flow<Long>
 
     @Query("SELECT * FROM sync_meta WHERE tableName = :table AND id = :id")
@@ -58,6 +62,9 @@ interface SyncDao {
 
     @Query("SELECT updatedAt FROM toys WHERE id = :id")
     suspend fun toyUpdatedAt(id: String): Long?
+
+    @Query("SELECT updatedAt FROM purchase_categories WHERE id = :id")
+    suspend fun categoryUpdatedAt(id: String): Long?
 
     /** This device's own "already announced" mark, kept when a reminder is overwritten by a cloud copy. */
     @Query("SELECT notifiedFor FROM reminders WHERE id = :id")
@@ -87,4 +94,5 @@ interface SyncDao {
     @Upsert suspend fun upsertReminder(reminder: Reminder)
     @Upsert suspend fun upsertSupplement(supplement: Supplement)
     @Upsert suspend fun upsertToy(toy: Toy)
+    @Upsert suspend fun upsertCategory(category: PurchaseCategory)
 }

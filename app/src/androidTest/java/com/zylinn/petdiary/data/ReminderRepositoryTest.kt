@@ -137,16 +137,20 @@ class ReminderRepositoryTest {
         assertNull(reminders.lateChoice(reminders.add(input(today, ReminderRepeat.EVERY_N_DAYS, 7)).id)) // not late
     }
 
-    // D36: a custom reminder has no record type, so finishing it records nothing
-    @Test fun completingCustomReminderCreatesNoRecord() = runBlocking {
+    // P14-01: a custom reminder leaves a 自訂 record named like the reminder, and undo removes it again
+    @Test fun completingCustomReminderRecordsItByName() = runBlocking {
         val r = reminders.add(input(today, title = "剪指甲").let { it.copy(type = RecordType.CUSTOM) })
         assertEquals(listOf("剪指甲"), reminders.customTitles.first())
         val c = reminders.complete(r.id)!!
-        assertNull(c.recordId)
+        assertEquals("已完成，已記錄「剪指甲」", c.message)
         assertTrue(open().isEmpty())
-        assertTrue(recordsOn(today).isEmpty())
+        val rec = recordsOn(today).single()
+        assertEquals(RecordType.CUSTOM, rec.type)
+        assertEquals("剪指甲", rec.title)
+        assertEquals(c.recordId, rec.id)
         reminders.undo(c)
         assertEquals(r.id, open().single().reminder.id)
+        assertTrue(recordsOn(today).isEmpty())
     }
 
     // P4-12

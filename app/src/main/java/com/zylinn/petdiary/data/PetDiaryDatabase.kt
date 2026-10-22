@@ -11,17 +11,19 @@ import com.zylinn.petdiary.data.record.Attachment
 import com.zylinn.petdiary.data.record.AttachmentDao
 import com.zylinn.petdiary.data.record.Record
 import com.zylinn.petdiary.data.record.RecordDao
+import com.zylinn.petdiary.data.record.PurchaseCategory
 import com.zylinn.petdiary.data.record.Supplement
 import com.zylinn.petdiary.data.record.SupplementDao
 import com.zylinn.petdiary.data.record.Toy
 import com.zylinn.petdiary.data.record.ToyDao
+import com.zylinn.petdiary.data.record.CategoryDao
 import com.zylinn.petdiary.data.reminder.Reminder
 import com.zylinn.petdiary.data.reminder.ReminderDao
 
 @Database(
-    entities = [Pet::class, Record::class, Attachment::class, Supplement::class, Toy::class, Reminder::class, com.zylinn.petdiary.sync.SyncMeta::class],
-    version = 10,
-    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4), AutoMigration(from = 4, to = 5), AutoMigration(from = 5, to = 6), AutoMigration(from = 6, to = 7), AutoMigration(from = 7, to = 8), AutoMigration(from = 8, to = 9), AutoMigration(from = 9, to = 10)],
+    entities = [Pet::class, Record::class, Attachment::class, Supplement::class, Toy::class, PurchaseCategory::class, Reminder::class, com.zylinn.petdiary.sync.SyncMeta::class],
+    version = 11,
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4), AutoMigration(from = 4, to = 5), AutoMigration(from = 5, to = 6), AutoMigration(from = 6, to = 7), AutoMigration(from = 7, to = 8), AutoMigration(from = 8, to = 9), AutoMigration(from = 9, to = 10), AutoMigration(from = 10, to = 11)],
 )
 abstract class PetDiaryDatabase : RoomDatabase() {
     abstract fun petDao(): PetDao
@@ -29,6 +31,7 @@ abstract class PetDiaryDatabase : RoomDatabase() {
     abstract fun attachmentDao(): AttachmentDao
     abstract fun supplementDao(): SupplementDao
     abstract fun toyDao(): ToyDao
+    abstract fun categoryDao(): CategoryDao
     abstract fun syncDao(): com.zylinn.petdiary.sync.SyncDao
     abstract fun reminderDao(): ReminderDao
 

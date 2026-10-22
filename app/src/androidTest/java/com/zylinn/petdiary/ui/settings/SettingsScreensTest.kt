@@ -8,6 +8,8 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
@@ -100,6 +102,7 @@ class SettingsScreensTest {
         rule.onNodeWithTag("settings_supplements").assertIsDisplayed().performClick()
         rule.onNodeWithTag("settings_export").assertIsDisplayed()
         rule.onNodeWithTag("settings_trash").assertIsDisplayed().performClick()
+        rule.onNodeWithTag("list_Settings").performScrollToNode(hasTestTag("settings_about"))
         rule.onNodeWithTag("settings_about").assertIsDisplayed().assertTextContains("版本 9.9.9", substring = true)
         rule.onNodeWithTag("settings_about").performClick()
         assertEquals(1, trash); assertEquals(1, supp); assertEquals(1, about)

@@ -4,6 +4,7 @@ import com.zylinn.petdiary.data.record.FoodKind
 import com.zylinn.petdiary.data.record.Record
 import com.zylinn.petdiary.data.record.RecordType
 import com.zylinn.petdiary.data.record.RecordableTypes
+import com.zylinn.petdiary.domain.RecordFormat.label
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -117,6 +118,8 @@ data class StatsResult(
     val series: List<PetSeries>,
     /** One line above the chart (e.g. total cost); null when there is nothing to add. */
     val headline: String?,
+    /** Cost: where the money went, by record type / purchase category (P14-03), e.g. 就診 NT$ 3,000・飼料 NT$ 1,200. */
+    val breakdown: String? = null,
     val hasData: Boolean,
 )
 
@@ -131,6 +134,8 @@ object StatsCalculator {
         today: LocalDate,
         /** Feeding only: count just this kind (D76); null = every kind, with a per-kind breakdown in the summary. */
         foodKind: FoodKind? = null,
+        /** Purchase category id → name, for the cost breakdown. */
+        categoryNames: Map<String, String> = emptyMap(),
     ): StatsResult {
         val buckets = StatsRanges.buckets(span)
         val inRange = records.filter {
@@ -142,7 +147,18 @@ object StatsCalculator {
         // Cost counts every record type, but only records that actually carry a cost make a chart worth showing.
         val hasData = if (metric == StatMetric.COST) inRange.any { (it.cost ?: 0L) > 0L } else inRange.isNotEmpty()
         val headline = if (metric == StatMetric.COST && hasData) "總花費 ${RecordFormat.cost(series.sumOf { it.total }.toLong())}" else null
-        return StatsResult(metric, span, buckets, series, headline, hasData)
+        val shownPets = pets.map { it.first }.toSet()
+        val breakdown = if (metric == StatMetric.COST && hasData) costBreakdown(inRange.filter { it.petId in shownPets }, categoryNames) else null
+        return StatsResult(metric, span, buckets, series, headline, breakdown = breakdown, hasData = hasData)
+    }
+
+    /** Biggest first; purchases split by category, everything else by record type. */
+    private fun costBreakdown(records: List<Record>, categoryNames: Map<String, String>): String? {
+        val groups = records.filter { (it.cost ?: 0L) > 0L }.groupBy { r ->
+            if (r.type == RecordType.PURCHASE) categoryNames[r.category] ?: RecordType.PURCHASE.label else r.type.label
+        }.mapValues { (_, list) -> list.sumOf { it.cost!! } }
+        if (groups.size < 2) return null
+        return groups.entries.sortedByDescending { it.value }.joinToString("・") { "${it.key} ${RecordFormat.cost(it.value)}" }
     }
 
     private fun bucketIndex(buckets: List<Bucket>, day: Long): Int =

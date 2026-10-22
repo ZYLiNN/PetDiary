@@ -1,5 +1,6 @@
 package com.zylinn.petdiary.ui.search
 
+import com.zylinn.petdiary.data.record.FAMILY_PET_ID
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -67,6 +68,8 @@ fun SearchScreen(
     vm: SearchViewModel,
     onBack: () -> Unit,
     onOpenHit: (petId: String, day: LocalDate) -> Unit,
+    /** A shared purchase has no pet page, so it opens in the record editor (D84). */
+    onOpenSharedRecord: (recordId: String, day: LocalDate) -> Unit = { _, _ -> },
     today: LocalDate,
     autoFocus: Boolean = true,
 ) {
@@ -153,7 +156,11 @@ fun SearchScreen(
                                     )
                                 }
                                 items(group.hits, key = { it.card.id }) { hit ->
-                                    RecordCardView(hit.card, onClick = { onOpenHit(hit.petId, hit.day) }, petName = hit.petName)
+                                    RecordCardView(
+                                        hit.card,
+                                        onClick = { if (hit.petId == FAMILY_PET_ID) onOpenSharedRecord(hit.card.id, hit.day) else onOpenHit(hit.petId, hit.day) },
+                                        petName = hit.petName,
+                                    )
                                 }
                             }
                         }

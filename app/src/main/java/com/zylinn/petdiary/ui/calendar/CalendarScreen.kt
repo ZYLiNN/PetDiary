@@ -71,6 +71,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zylinn.petdiary.data.pet.PetColor
+import com.zylinn.petdiary.data.record.FAMILY_PET_ID
 import com.zylinn.petdiary.data.record.RecordType
 import com.zylinn.petdiary.ui.detail.AddRecordPanel
 import com.zylinn.petdiary.ui.detail.PetChoice
@@ -100,6 +101,8 @@ fun CalendarScreen(
     onAddRecord: (type: RecordType, petIds: List<String>, day: LocalDate) -> Unit = { _, _, _ -> },
     /** The full reminder list (P13: the 提醒 tab moved here). */
     onOpenReminders: (() -> Unit)? = null,
+    /** A shared purchase has no pet page, so it opens in the record editor (D84). */
+    onOpenSharedRecord: (recordId: String, day: LocalDate) -> Unit = { _, _ -> },
 ) {
     val ui by vm.ui.collectAsStateWithLifecycle()
     var addingRecord by rememberSaveable { mutableStateOf(false) }
@@ -135,7 +138,7 @@ fun CalendarScreen(
             val panel: @Composable (Modifier) -> Unit = { m ->
                 DayPanel(
                     ui.selected, ui.today, ui.selectedItems, ui.pets, colors, names, onOpenDay, onAddReminder,
-                    onAddRecord = { addingRecord = true }, modifier = m,
+                    onAddRecord = { addingRecord = true }, onOpenSharedRecord = onOpenSharedRecord, modifier = m,
                 )
             }
             if (addingRecord && ui.pets.isNotEmpty()) {
@@ -286,7 +289,8 @@ private fun DayCell(
 ) {
     val inMonth = day.month == ui.month.month
     val items = ui.items[day].orEmpty()
-    val marks = items.filter { !it.daily }
+    // Purchases are listed under the day, not drawn in the cell, so the month stays readable (P14-03).
+    val marks = items.filter { !it.daily && it.type != RecordType.PURCHASE }
     val maxShown = if (wide) 4 else 2
     val dots = items.filter { it.daily }.map { it.petId }.distinct()
     val selected = day == ui.selected
@@ -365,6 +369,7 @@ private fun DayPanel(
     onOpenDay: (String, LocalDate) -> Unit,
     onAddReminder: (LocalDate) -> Unit,
     onAddRecord: () -> Unit,
+    onOpenSharedRecord: (String, LocalDate) -> Unit,
     modifier: Modifier,
 ) {
     val weekday = day.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.TRADITIONAL_CHINESE)
@@ -388,6 +393,12 @@ private fun DayPanel(
             items.filter { it.petId == p.id }.forEach { item ->
                 PanelRow(item, sw) { onOpenDay(item.petId, day) }
             }
+        }
+        val shared = items.filter { it.petId == FAMILY_PET_ID }
+        if (shared.isNotEmpty()) {
+            val sw = PetPalette.familySwatch(MaterialTheme.colorScheme.background.luminance() < 0.5f)
+            Text(RecordFormat.FAMILY_NAME, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 4.dp))
+            shared.forEach { item -> PanelRow(item, sw) { onOpenSharedRecord(item.id, day) } }
         }
         Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             // Records can't be in the future, so a day still to come only offers a reminder.

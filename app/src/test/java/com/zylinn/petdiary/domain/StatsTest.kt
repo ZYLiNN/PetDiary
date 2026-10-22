@@ -158,6 +158,26 @@ class StatsTest {
         assertEquals("共 NT$ 650", r.series[1].summary)
     }
 
+    // P14-03 (D84): shared purchases form their own series; the breakdown splits purchases by category
+    @Test fun costIncludesSharedPurchasesAndBreaksDownByCategory() {
+        val withFamily = pets + ("family" to "全家共用")
+        val r = StatsCalculator.compute(
+            StatMetric.COST, week, withFamily,
+            listOf(
+                rec("cat", RecordType.VET, "2026-10-19") { copy(cost = 3000) },
+                rec("family", RecordType.PURCHASE, "2026-10-20") { copy(cost = 1200, category = "food") },
+                rec("dog", RecordType.PURCHASE, "2026-10-21") { copy(cost = 300, category = "c1") },
+            ),
+            today, categoryNames = mapOf("food" to "飼料", "c1" to "貓砂"),
+        )
+        assertEquals("總花費 NT$ 4,500", r.headline)
+        assertEquals("共 NT$ 1,200", r.series[2].summary)
+        assertEquals("就診 NT$ 3,000・飼料 NT$ 1,200・貓砂 NT$ 300", r.breakdown)
+        // Narrowed to one pet: no family series, and one group needs no breakdown.
+        val cat = StatsCalculator.compute(StatMetric.COST, week, listOf("cat" to "雷米"), listOf(rec("cat", RecordType.VET, "2026-10-19") { copy(cost = 3000) }), today)
+        assertEquals(null, cat.breakdown)
+    }
+
     @Test fun countMetricsCountPerBucket() {
         val r = compute(
             StatMetric.DEWORMING, StatsRanges.span(RangeKind.YEAR, 0, today),
