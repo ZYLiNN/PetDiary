@@ -10,6 +10,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
 import androidx.room.Room
@@ -146,6 +147,28 @@ class AlbumScreenTest {
         rule.onNodeWithText("雷利・就診", substring = true).assertIsDisplayed()
         rule.onNodeWithTag("viewer_open_record").performClick()
         assertEquals(lily to LocalDate.parse("2026-10-18"), opened)
+    }
+
+    // v0.14.1: tapping the photo no longer closes it; a double tap zooms in and holds the page until zoomed out again
+    @Test fun viewerZoomsInsteadOfClosing() {
+        val newer = attach(remi, RecordType.WALK, "2026-10-20", "newer")
+        attach(lily, RecordType.VET, "2026-10-18", "older")
+        show()
+        waitFor("album_photo_${entryId(newer)}")
+        rule.onNodeWithTag("album_photo_${entryId(newer)}").performClick()
+        rule.onNodeWithTag("viewer_pager").performClick()
+        rule.waitForIdle()
+        rule.onNodeWithTag("album_viewer").assertIsDisplayed()
+        rule.onNodeWithTag("viewer_save").assertIsDisplayed()
+
+        rule.onNodeWithTag("viewer_pager").performTouchInput { doubleClick() }
+        rule.onNodeWithTag("viewer_pager").performTouchInput { swipeLeft() }
+        rule.waitForIdle()
+        rule.onNodeWithTag("viewer_counter").assertTextEquals("1 / 2")
+
+        rule.onNodeWithTag("viewer_pager").performTouchInput { doubleClick() }
+        rule.onNodeWithTag("viewer_pager").performTouchInput { swipeLeft() }
+        rule.waitUntil(5_000) { runCatching { rule.onNodeWithTag("viewer_counter").assertTextEquals("2 / 2") }.isSuccess }
     }
 
     @Test fun recordsInTheTrashAreLeftOut() {

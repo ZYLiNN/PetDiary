@@ -250,7 +250,7 @@ private fun PhotoViewer(
         onShow = onShow,
         tag = "album_viewer",
         page = { item ->
-            if (item.ready) AsyncImage(model = item.file, contentDescription = item.entry.displayName, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxWidth())
+            if (item.ready) AsyncImage(model = item.file, contentDescription = item.entry.displayName, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
             else Text("照片還在從雲端下載", color = MaterialTheme.colorScheme.inverseOnSurface, modifier = Modifier.padding(48.dp))
         },
         caption = { item ->
