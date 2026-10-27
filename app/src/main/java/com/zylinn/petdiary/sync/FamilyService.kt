@@ -17,6 +17,31 @@ data class FamilyState(val groupId: String, val members: List<Member>) {
     val isShared get() = members.size > 1
 }
 
+/**
+ * Puts the group document (owner) and its member list together. Nothing is published until both have arrived:
+ * a half state (the owner alone) made the owner's phone forget its members and announce them again (D79).
+ */
+class FamilyAssembler(private val groupId: String, private val myUid: String) {
+    private var owner: Member? = null
+    private var others: List<Member>? = null
+
+    fun group(ownerUid: String, ownerName: String): FamilyState? {
+        owner = Member(ownerUid, ownerName, isOwner = true, isMe = ownerUid == myUid)
+        return state()
+    }
+
+    fun members(list: List<Member>): FamilyState? {
+        others = list.map { it.copy(isOwner = false, isMe = it.uid == myUid) }
+        return state()
+    }
+
+    private fun state(): FamilyState? {
+        val o = owner ?: return null
+        val rest = others ?: return null
+        return FamilyState(groupId, listOf(o) + rest)
+    }
+}
+
 data class Invite(val link: InviteLink, val expiresAt: Long)
 
 sealed interface FamilyResult {
@@ -36,28 +61,21 @@ class FamilyService(private val db: FirebaseFirestore, private val clock: Clock)
 
     /** Watches the group document and its members; [onDenied] fires when I'm no longer allowed to read the group. */
     fun observe(groupId: String, myUid: String, onState: (FamilyState) -> Unit, onDenied: () -> Unit): AutoCloseable {
-        var owner: Triple<String, String, Boolean>? = null // ownerUid, ownerName, loaded
-        var others: List<Member> = emptyList()
-        fun publish() {
-            val o = owner ?: return
-            val ownerMember = Member(o.first, o.second, isOwner = true, isMe = o.first == myUid)
-            onState(FamilyState(groupId, listOf(ownerMember) + others.map { it.copy(isMe = it.uid == myUid) }))
-        }
+        val family = FamilyAssembler(groupId, myUid)
         fun denied(e: Exception) {
             if ((e as? FirebaseFirestoreException)?.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) onDenied()
         }
         val r1 = group(groupId).addSnapshotListener { snap, e ->
             if (e != null) return@addSnapshotListener denied(e)
             val ownerUid = snap?.getString("ownerUid") ?: return@addSnapshotListener
-            owner = Triple(ownerUid, snap.getString("ownerName").orEmpty(), true)
-            publish()
+            family.group(ownerUid, snap.getString("ownerName").orEmpty())?.let(onState)
         }
         val r2 = group(groupId).collection("members").addSnapshotListener { snap, e ->
             if (e != null) return@addSnapshotListener denied(e)
-            others = snap?.documents.orEmpty().map { d ->
+            val others = snap?.documents.orEmpty().map { d ->
                 Member(d.id, d.getString("name").orEmpty(), isOwner = false, isMe = d.id == myUid)
             }.sortedBy { it.uid }
-            publish()
+            family.members(others)?.let(onState)
         }
         return AutoCloseable { r1.remove(); r2.remove() }
     }
