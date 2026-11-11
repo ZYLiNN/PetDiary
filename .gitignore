@@ -22,3 +22,7 @@ google-services.json
 # Built APKs for testing
 dist/
 firebase/.firebase/
+
+# Local tool caches (not part of the app)
+.codebase-memory/
+skill-observations/
